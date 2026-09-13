@@ -1,23 +1,53 @@
-﻿name: Build Windows & Linux (AMD64 & ARM64)
+name: Build Multi-Platform (Windows, macOS, Linux)
 
 on:
   workflow_dispatch:
     inputs:
-      target:
-        description: 'Build Target'
-        required: true
-        default: 'all'
-        type: choice
-        options:
-          - all
-          - windows-x64
-          - windows-arm64
-          - linux-x64
-          - linux-arm64
+      build_windows_x64:
+        description: 'Windows (x64) 便携版'
+        type: boolean
+        default: true
+      build_windows_arm64:
+        description: 'Windows (ARM64)'
+        type: boolean
+        default: false
+      build_macos_arm64:
+        description: 'macOS Apple Silicon (ARM64 / M系列)'
+        type: boolean
+        default: true
+      build_macos_x64:
+        description: 'macOS Intel (x64)'
+        type: boolean
+        default: false
+      build_linux_x64:
+        description: 'Linux (x64 .deb)'
+        type: boolean
+        default: false
+      build_linux_arm64:
+        description: 'Linux (ARM64 .deb)'
+        type: boolean
+        default: false
+      create_release:
+        description: '自动发布为 GitHub Release 保存产物'
+        type: boolean
+        default: true
+      release_tag:
+        description: '自定义 Release 标签 (留空自动按日期时间生成)'
+        type: string
+        default: ''
+      release_title:
+        description: '自定义 Release 标题 (留空自动生成)'
+        type: string
+        default: ''
+      prerelease:
+        description: '标记为 Pre-release 预发布'
+        type: boolean
+        default: false
 
 env:
   RUST_VERSION: "1.75"
   SCITER_RUST_VERSION: "1.75"
+  MAC_RUST_VERSION: "1.81"
   FLUTTER_VERSION: "3.24.5"
   FLUTTER_WINDOWS_ARM_VERSION: "3.44.8"
   LLVM_VERSION: "15.0.6"
@@ -26,6 +56,7 @@ env:
 
 jobs:
   generate-bridge:
+    if: ${{ inputs.build_windows_x64 || inputs.build_windows_arm64 || inputs.build_macos_arm64 || inputs.build_macos_x64 || inputs.build_linux_x64 || inputs.build_linux_arm64 }}
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout source code
@@ -102,14 +133,15 @@ jobs:
     steps:
       - name: Check target selection
         id: check_selection
+        shell: bash
         run: |
-          $sel = "${{ inputs.target }}"
-          $arch = "${{ matrix.job.arch }}"
-          if ($sel -eq 'all' -or ($sel -eq 'windows-x64' -and $arch -eq 'x86_64') -or ($sel -eq 'windows-arm64' -and $arch -eq 'aarch64')) {
-            echo "run_job=true" >> $env:GITHUB_OUTPUT
-          } else {
-            echo "run_job=false" >> $env:GITHUB_OUTPUT
-          }
+          if [[ "${{ matrix.job.arch }}" == "x86_64" && "${{ inputs.build_windows_x64 }}" == "true" ]]; then
+            echo "run_job=true" >> $GITHUB_OUTPUT
+          elif [[ "${{ matrix.job.arch }}" == "aarch64" && "${{ inputs.build_windows_arm64 }}" == "true" ]]; then
+            echo "run_job=true" >> $GITHUB_OUTPUT
+          else
+            echo "run_job=false" >> $GITHUB_OUTPUT
+          fi
 
       - name: Checkout source code
         if: steps.check_selection.outputs.run_job == 'true'
@@ -204,12 +236,160 @@ jobs:
           path: ./SignOutput/rustdesk-${{ matrix.job.arch }}.exe
           if-no-files-found: warn
 
-      - name: Upload Windows Release Folder
+      - name: Zip Windows Portable Folder
+        if: steps.check_selection.outputs.run_job == 'true'
+        shell: bash
+        run: |
+          cd ./rustdesk && zip -r ../rustdesk-windows-${{ matrix.job.arch }}-portable.zip ./*
+
+      - name: Upload Windows Release Zip
         if: steps.check_selection.outputs.run_job == 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: rustdesk-windows-${{ matrix.job.arch }}-portable-folder
-          path: ./rustdesk
+          name: rustdesk-windows-${{ matrix.job.arch }}-portable-zip
+          path: rustdesk-windows-${{ matrix.job.arch }}-portable.zip
+
+  build-macos:
+    needs: [generate-bridge]
+    name: build-macos-${{ matrix.job.arch }}
+    runs-on: ${{ matrix.job.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        job:
+          - {
+              target: aarch64-apple-darwin,
+              os: macos-14,
+              extra-build-args: "--screencapturekit",
+              arch: aarch64,
+              vcpkg-triplet: arm64-osx,
+            }
+          - {
+              target: x86_64-apple-darwin,
+              os: macos-13,
+              extra-build-args: "",
+              arch: x86_64,
+              vcpkg-triplet: x64-osx,
+            }
+    steps:
+      - name: Check target selection
+        id: check_selection
+        shell: bash
+        run: |
+          if [[ "${{ matrix.job.arch }}" == "aarch64" && "${{ inputs.build_macos_arm64 }}" == "true" ]]; then
+            echo "run_job=true" >> $GITHUB_OUTPUT
+          elif [[ "${{ matrix.job.arch }}" == "x86_64" && "${{ inputs.build_macos_x64 }}" == "true" ]]; then
+            echo "run_job=true" >> $GITHUB_OUTPUT
+          else
+            echo "run_job=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Checkout source code
+        if: steps.check_selection.outputs.run_job == 'true'
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Restore bridge files
+        if: steps.check_selection.outputs.run_job == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: bridge-artifact
+          path: ./
+
+      - name: Install build runtime
+        if: steps.check_selection.outputs.run_job == 'true'
+        run: |
+          brew install llvm create-dmg
+          if command -v pkg-config &>/dev/null; then
+              echo "pkg-config is already installed"
+          else
+              brew install pkg-config
+          fi
+
+      - name: Install NASM
+        if: steps.check_selection.outputs.run_job == 'true'
+        run: |
+          wget https://www.nasm.us/pub/nasm/releasebuilds/2.16.03/macosx/nasm-2.16.03-macosx.zip
+          unzip nasm-2.16.03-macosx.zip
+          sudo cp nasm-2.16.03/nasm /usr/local/bin/nasm
+          nasm --version
+
+      - name: Install Flutter
+        if: steps.check_selection.outputs.run_job == 'true'
+        uses: subosito/flutter-action@v2
+        with:
+          channel: "stable"
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+
+      - name: Patch flutter
+        if: steps.check_selection.outputs.run_job == 'true'
+        run: |
+          cd $(dirname $(dirname $(which flutter)))
+          if [[ "3.24.5" == "${{ env.FLUTTER_VERSION }}" ]]; then
+            git apply ${{ github.workspace }}/.github/patches/flutter_3.24.4_dropdown_menu_enableFilter.diff || true
+          fi
+
+      - name: Workaround for flutter issue
+        if: steps.check_selection.outputs.run_job == 'true'
+        shell: bash
+        run: |
+          cd "$(dirname "$(which flutter)")"
+          sed -i -e 's/_setFramesEnabledState(false);/\/\/_setFramesEnabledState(false);/g' ../packages/flutter/lib/src/scheduler/binding.dart || true
+
+      - name: Install Rust toolchain
+        if: steps.check_selection.outputs.run_job == 'true'
+        uses: dtolnay/rust-toolchain@v1
+        with:
+          toolchain: ${{ env.MAC_RUST_VERSION }}
+          targets: ${{ matrix.job.target }}
+          components: "rustfmt"
+
+      - name: Setup vcpkg
+        if: steps.check_selection.outputs.run_job == 'true'
+        uses: lukka/run-vcpkg@v11
+        with:
+          vcpkgDirectory: /Users/runner/vcpkg
+          vcpkgGitCommitId: ${{ env.VCPKG_COMMIT_ID }}
+          doNotCache: false
+
+      - name: Install vcpkg dependencies
+        if: steps.check_selection.outputs.run_job == 'true'
+        run: |
+          "$VCPKG_ROOT/vcpkg" install --triplet ${{ matrix.job.vcpkg-triplet }} --x-install-root="$VCPKG_ROOT/installed"
+
+      - name: Build rustdesk
+        if: steps.check_selection.outputs.run_job == 'true'
+        run: |
+          if [ "${{ matrix.job.target }}" = "aarch64-apple-darwin" ]; then
+            MIN_MACOS_VERSION="12.3"
+            sed -i -e "s/MACOSX_DEPLOYMENT_TARGET\=[0-9]*.[0-9]*/MACOSX_DEPLOYMENT_TARGET=${MIN_MACOS_VERSION}/" build.py || true
+            sed -i -e "s/platform :osx, '.*'/platform :osx, '${MIN_MACOS_VERSION}'/" flutter/macos/Podfile || true
+            sed -i -e "s/osx_minimum_system_version = \"[0-9]*.[0-9]*\"/osx_minimum_system_version = \"${MIN_MACOS_VERSION}\"/" Cargo.toml || true
+            sed -i -e "s/MACOSX_DEPLOYMENT_TARGET = [0-9]*.[0-9]*;/MACOSX_DEPLOYMENT_TARGET = ${MIN_MACOS_VERSION};/" flutter/macos/Runner.xcodeproj/project.pbxproj || true
+          fi
+          ./build.py --flutter --hwcodec --unix-file-copy-paste ${{ matrix.job.extra-build-args }}
+
+      - name: Create DMG
+        if: steps.check_selection.outputs.run_job == 'true'
+        run: |
+          CREATE_DMG="$(command -v create-dmg)" || true
+          if [ -n "$CREATE_DMG" ]; then
+            CREATE_DMG="$(readlink -f "$CREATE_DMG")" || true
+            sed -i -e 's/MAXIMUM_UNMOUNTING_ATTEMPTS=3/MAXIMUM_UNMOUNTING_ATTEMPTS=7/' "$CREATE_DMG" || true
+            create-dmg --icon "RustDesk.app" 200 190 --hide-extension "RustDesk.app" --window-size 800 400 --app-drop-link 600 185 rustdesk-${{ matrix.job.arch }}.dmg ./flutter/build/macos/Build/Products/Release/RustDesk.app || true
+          fi
+          if [ ! -f "rustdesk-${{ matrix.job.arch }}.dmg" ]; then
+            hdiutil create -volname "RustDesk" -srcfolder ./flutter/build/macos/Build/Products/Release/RustDesk.app -ov -format UDZO rustdesk-${{ matrix.job.arch }}.dmg
+          fi
+
+      - name: Upload macOS DMG
+        if: steps.check_selection.outputs.run_job == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: rustdesk-macos-${{ matrix.job.arch }}-dmg
+          path: rustdesk-${{ matrix.job.arch }}.dmg
+          if-no-files-found: warn
 
   build-linux:
     needs: [generate-bridge]
@@ -239,9 +419,9 @@ jobs:
       - name: Check target selection
         id: check_selection
         run: |
-          sel="${{ inputs.target }}"
-          arch="${{ matrix.job.arch }}"
-          if [[ "$sel" == "all" || ("$sel" == "linux-x64" && "$arch" == "x86_64") || ("$sel" == "linux-arm64" && "$arch" == "aarch64") ]]; then
+          if [[ "${{ matrix.job.arch }}" == "x86_64" && "${{ inputs.build_linux_x64 }}" == "true" ]]; then
+            echo "run_job=true" >> $GITHUB_OUTPUT
+          elif [[ "${{ matrix.job.arch }}" == "aarch64" && "${{ inputs.build_linux_arm64 }}" == "true" ]]; then
             echo "run_job=true" >> $GITHUB_OUTPUT
           else
             echo "run_job=false" >> $GITHUB_OUTPUT
@@ -337,3 +517,59 @@ jobs:
         with:
           name: rustdesk-linux-${{ matrix.job.arch }}-deb
           path: rustdesk-${{ matrix.job.arch }}.deb
+
+  publish-release:
+    name: Publish Release
+    needs: [build-windows, build-macos, build-linux]
+    if: always() && inputs.create_release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Generate Tag and Release Title
+        id: vars
+        shell: bash
+        run: |
+          if [ -n "${{ inputs.release_tag }}" ]; then
+            TAG="${{ inputs.release_tag }}"
+          else
+            TAG="build-$(date +'%Y%m%d-%H%M')"
+          fi
+          if [ -n "${{ inputs.release_title }}" ]; then
+            TITLE="${{ inputs.release_title }}"
+          else
+            TITLE="RustDesk 自定义构建 ($TAG)"
+          fi
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "title=$TITLE" >> $GITHUB_OUTPUT
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ./dist
+          merge-multiple: true
+
+      - name: Prepare release files
+        shell: bash
+        run: |
+          mkdir -p ./release_files
+          find ./dist -maxdepth 2 -type f \( -name "*.exe" -o -name "*.dmg" -o -name "*.deb" -o -name "*.zip" \) -exec cp -f {} ./release_files/ \;
+          ls -lh ./release_files/
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.vars.outputs.tag }}
+          name: ${{ steps.vars.outputs.title }}
+          draft: false
+          prerelease: ${{ inputs.prerelease }}
+          files: |
+            ./release_files/*
+          body: |
+            ## 🚀 RustDesk 多平台构建产物 (${{ steps.vars.outputs.tag }})
+            
+            - **Commit SHA**: `${{ github.sha }}`
+            - **构建时间**: $(date -u '+%Y-%m-%d %H:%M:%S UTC')
+            
+            ### 📦 包含产物：
+            请在下方 Assets 列表中按需下载对应平台的二进制文件（Windows `.exe` / `.zip`，macOS `.dmg`，Linux `.deb`）。
