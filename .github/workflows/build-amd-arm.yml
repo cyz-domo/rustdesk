@@ -170,9 +170,8 @@ jobs:
         if: steps.check_selection.outputs.run_job == 'true'
         env:
           VCPKG_DEFAULT_HOST_TRIPLET: ${{ matrix.job.vcpkg-triplet }}
-        shell: bash
         run: |
-          "$VCPKG_ROOT/vcpkg" install --triplet ${{ matrix.job.vcpkg-triplet }} --x-install-root="$VCPKG_ROOT/installed"
+          & "$env:VCPKG_ROOT\vcpkg" install --triplet ${{ matrix.job.vcpkg-triplet }} --x-install-root="$env:VCPKG_ROOT\installed"
 
       - name: Build rustdesk
         if: steps.check_selection.outputs.run_job == 'true'

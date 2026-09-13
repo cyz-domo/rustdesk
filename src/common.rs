@@ -8,7 +8,7 @@ use std::{
 
 use serde_json::{json, Map, Value};
 
-use base::{config::keys, message_proto::*};
+use base::{config::keys, message_proto::*, txt_resolver};
 #[cfg(not(target_os = "ios"))]
 use hbb_common::whoami;
 use hbb_common::{
@@ -752,6 +752,15 @@ pub async fn get_rendezvous_server(ms_timeout: u64) -> (String, Vec<String>, boo
     if let Ok(lic) = crate::platform::get_license_from_exe_name() {
         if !lic.host.is_empty() {
             a = lic.host;
+        }
+    }
+    if let Some(resolved) = txt_resolver::resolve_server_config(&a).await {
+        a = resolved.host;
+        if let Some(relay) = resolved.relay {
+            Config::set_option("relay-server".to_owned(), relay);
+        }
+        if let Some(key) = resolved.key {
+            Config::set_option("key".to_owned(), key);
         }
     }
     let mut b: Vec<String> = b
