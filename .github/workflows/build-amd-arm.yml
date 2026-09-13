@@ -145,8 +145,10 @@ jobs:
           flutter precache --windows
           Invoke-WebRequest -Uri https://github.com/rustdesk/engine/releases/download/main/windows-x64-release.zip -OutFile windows-x64-release.zip
           Expand-Archive -Path windows-x64-release.zip -DestinationPath windows-x64-release
-          $enginePath = Resolve-Path "C:/hostedtoolcache/windows/flutter/stable-${{ env.FLUTTER_VERSION }}-x64/bin/cache/artifacts/engine/windows-x64-release/"
-          Copy-Item -Force windows-x64-release/* $enginePath
+          $flutterBin = Split-Path -Parent (Get-Command flutter).Source
+          $enginePath = Join-Path $flutterBin "cache\artifacts\engine\windows-x64-release"
+          New-Item -ItemType Directory -Force -Path $enginePath | Out-Null
+          Copy-Item -Force -Recurse windows-x64-release\* $enginePath
 
       - name: Install Rust toolchain
         if: steps.check_selection.outputs.run_job == 'true'
