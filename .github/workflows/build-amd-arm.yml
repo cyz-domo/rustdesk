@@ -1,4 +1,4 @@
-name: Build Windows & Linux (AMD64 & ARM64)
+﻿name: Build Windows & Linux (AMD64 & ARM64)
 
 on:
   workflow_dispatch:
@@ -170,15 +170,16 @@ jobs:
         if: steps.check_selection.outputs.run_job == 'true'
         env:
           VCPKG_DEFAULT_HOST_TRIPLET: ${{ matrix.job.vcpkg-triplet }}
-        run: |
-          $env:VCPKG_ROOT\vcpkg install --triplet ${{ matrix.job.vcpkg-triplet }} --x-install-root="$env:VCPKG_ROOT/installed"
         shell: bash
+        run: |
+          "$VCPKG_ROOT/vcpkg" install --triplet ${{ matrix.job.vcpkg-triplet }} --x-install-root="$VCPKG_ROOT/installed"
 
       - name: Build rustdesk
         if: steps.check_selection.outputs.run_job == 'true'
         run: |
           python3 .\build.py --portable --flutter --skip-portable-pack --hwcodec ${{ matrix.job.build-args }}
-          Move-Item ./flutter/build/windows/${{ matrix.job.flutter-arch }}/runner/Release ./rustdesk
+          New-Item -ItemType Directory -Force -Path ./rustdesk | Out-Null
+          Copy-Item -Force -Recurse "./flutter/build/windows/${{ matrix.job.flutter-arch }}/runner/Release/*" ./rustdesk/
 
       - name: Build self-extracted executable
         if: steps.check_selection.outputs.run_job == 'true'
@@ -190,14 +191,26 @@ jobs:
           python3 ./generate.py -f ../../rustdesk/ -o . -e ../../rustdesk/rustdesk.exe
           popd
           mkdir -p ./SignOutput
-          mv ./target/release/rustdesk-portable-packer.exe ./SignOutput/rustdesk-${{ matrix.job.arch }}.exe
+          if [ -f "./target/release/rustdesk-portable-packer.exe" ]; then
+            cp -f ./target/release/rustdesk-portable-packer.exe ./SignOutput/rustdesk-${{ matrix.job.arch }}.exe
+          elif [ -f "./libs/portable/target/release/rustdesk-portable-packer.exe" ]; then
+            cp -f ./libs/portable/target/release/rustdesk-portable-packer.exe ./SignOutput/rustdesk-${{ matrix.job.arch }}.exe
+          fi
 
-      - name: Upload Windows Executable
+      - name: Upload Windows Self-Extract Executable
         if: steps.check_selection.outputs.run_job == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: rustdesk-windows-${{ matrix.job.arch }}-exe
           path: ./SignOutput/rustdesk-${{ matrix.job.arch }}.exe
+          if-no-files-found: warn
+
+      - name: Upload Windows Release Folder
+        if: steps.check_selection.outputs.run_job == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: rustdesk-windows-${{ matrix.job.arch }}-portable-folder
+          path: ./rustdesk
 
   build-linux:
     needs: [generate-bridge]
@@ -274,7 +287,7 @@ jobs:
         if: steps.check_selection.outputs.run_job == 'true'
         run: |
           sudo apt install -y libva-dev
-          $VCPKG_ROOT/vcpkg install --triplet ${{ matrix.job.vcpkg-triplet }} --x-install-root="$VCPKG_ROOT/installed"
+          "$VCPKG_ROOT/vcpkg" install --triplet ${{ matrix.job.vcpkg-triplet }} --x-install-root="$VCPKG_ROOT/installed"
 
       - uses: rustdesk-org/run-on-arch-action@d3fcfbb632b84cf7f6bc772bfaaa2c2f4f8789a8
         name: Build rustdesk in docker
