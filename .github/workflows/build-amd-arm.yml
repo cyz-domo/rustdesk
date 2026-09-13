@@ -104,7 +104,8 @@ jobs:
           flutter pub get
           popd
           python3 ./res/inline-sciter.py
-          ~/.cargo/bin/flutter_rust_bridge_codegen --rust-input ./src/flutter_ffi.rs --dart-output ./flutter/lib/generated_bridge.dart
+          ~/.cargo/bin/flutter_rust_bridge_codegen --rust-input ./src/flutter_ffi.rs --dart-output ./flutter/lib/generated_bridge.dart --c-output ./flutter/macos/Runner/bridge_generated.h
+          cp ./flutter/macos/Runner/bridge_generated.h ./flutter/ios/Runner/bridge_generated.h
           git status -s
 
       - name: Upload bridge artifact
@@ -116,6 +117,8 @@ jobs:
             flutter/lib/generated_bridge.freezed.dart
             src/bridge_generated.rs
             src/bridge_generated.io.rs
+            flutter/macos/Runner/bridge_generated.h
+            flutter/ios/Runner/bridge_generated.h
 
   build-windows:
     needs: [generate-bridge]
@@ -273,9 +276,9 @@ jobs:
 
       - name: Zip Windows Portable Folder
         if: steps.check_selection.outputs.run_job == 'true'
-        shell: bash
+        shell: pwsh
         run: |
-          cd ./rustdesk && zip -r ../rustdesk-windows-${{ matrix.job.arch }}-portable.zip ./*
+          Compress-Archive -Path ./rustdesk/* -DestinationPath ./rustdesk-windows-${{ matrix.job.arch }}-portable.zip -Force
 
       - name: Upload Windows Release Zip
         if: steps.check_selection.outputs.run_job == 'true'
