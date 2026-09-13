@@ -163,12 +163,36 @@ jobs:
           version: ${{ env.LLVM_VERSION }}
 
       - name: Install Flutter
+        id: flutter
         if: steps.check_selection.outputs.run_job == 'true'
         uses: subosito/flutter-action@v2
         with:
           channel: "stable"
-          flutter-version: ${{ env.FLUTTER_VERSION }}
+          flutter-version: ${{ matrix.job.arch == 'aarch64' && env.FLUTTER_WINDOWS_ARM_VERSION || env.FLUTTER_VERSION }}
           architecture: x64
+
+      - name: Force arm64 Dart SDK + engine
+        if: steps.check_selection.outputs.run_job == 'true' && matrix.job.arch == 'aarch64'
+        run: |
+          $flutterRoot = "${{ steps.flutter.outputs['CACHE-PATH'] }}"
+          Write-Host "PROCESSOR_ARCHITECTURE=$env:PROCESSOR_ARCHITECTURE"
+          Write-Host "Flutter root: $flutterRoot"
+          Remove-Item -Force "$flutterRoot\bin\cache\engine-dart-sdk.stamp" -ErrorAction SilentlyContinue
+          & "$flutterRoot\bin\internal\update_dart_sdk.ps1"
+          $dartVer = & "$flutterRoot\bin\dart.bat" --version 2>&1 | Out-String
+          Write-Host $dartVer
+          if ($dartVer -notmatch "windows_arm64") {
+            Write-Error "Expected an arm64 Dart SDK but got: $dartVer"
+            exit 1
+          }
+          & "$flutterRoot\bin\flutter.bat" precache --windows
+          $engineDir = "$flutterRoot\bin\cache\artifacts\engine"
+          Write-Host "Engine artifacts present:"
+          Get-ChildItem $engineDir -Directory | Select-Object -ExpandProperty Name | Write-Host
+          if (-not (Test-Path "$engineDir\windows-arm64-release")) {
+            Write-Error "Expected windows-arm64-release engine artifacts but they are missing (wrong-arch SDK)."
+            exit 1
+          }
 
       - name: Replace engine with rustdesk custom flutter engine
         if: steps.check_selection.outputs.run_job == 'true' && matrix.job.arch == 'x86_64'
@@ -454,8 +478,8 @@ jobs:
           name: bridge-artifact
           path: ./
 
-      - name: Install CMake for vcpkg on Linux ARM64
-        if: steps.check_selection.outputs.run_job == 'true' && matrix.job.arch == 'aarch64'
+      - name: Install CMake for vcpkg on Linux
+        if: steps.check_selection.outputs.run_job == 'true'
         run: |
           python3 -m pip install --user "cmake==${VCPKG_CMAKE_VERSION}"
           user_base="$(python3 -m site --user-base)"
