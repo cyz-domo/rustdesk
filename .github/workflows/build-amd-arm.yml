@@ -1,4 +1,4 @@
-name: Build Multi-Platform (Windows, macOS, Linux)
+name: Build Multi-Platform (Windows, macOS, Linux, Android)
 
 on:
   workflow_dispatch:
@@ -17,6 +17,14 @@ on:
         default: true
       build_macos_x64:
         description: 'macOS Intel (x64)'
+        type: boolean
+        default: false
+      build_android_arm64:
+        description: 'Android (ARM64 / arm64-v8a .apk)'
+        type: boolean
+        default: true
+      build_android_armv7:
+        description: 'Android (ARMv7 / 32位 .apk)'
         type: boolean
         default: false
       build_linux_x64:
@@ -50,13 +58,16 @@ env:
   MAC_RUST_VERSION: "1.81"
   FLUTTER_VERSION: "3.24.5"
   FLUTTER_WINDOWS_ARM_VERSION: "3.44.8"
+  CARGO_NDK_VERSION: "3.1.2"
+  NDK_VERSION: "r28c"
   LLVM_VERSION: "15.0.6"
+  VERSION: "1.5.0"
   VCPKG_COMMIT_ID: "9e593bb18ea69cc5095e012465dcd675a822ed0d"
   VCPKG_CMAKE_VERSION: "4.3.0"
 
 jobs:
   generate-bridge:
-    if: ${{ inputs.build_windows_x64 || inputs.build_windows_arm64 || inputs.build_macos_arm64 || inputs.build_macos_x64 || inputs.build_linux_x64 || inputs.build_linux_arm64 }}
+    if: ${{ inputs.build_windows_x64 || inputs.build_windows_arm64 || inputs.build_macos_arm64 || inputs.build_macos_x64 || inputs.build_linux_x64 || inputs.build_linux_arm64 || inputs.build_android_arm64 || inputs.build_android_armv7 }}
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout source code
@@ -415,6 +426,150 @@ jobs:
           path: rustdesk-${{ matrix.job.arch }}.dmg
           if-no-files-found: warn
 
+  build-android:
+    needs: [generate-bridge]
+    name: build-android-${{ matrix.job.arch }}
+    runs-on: ${{ matrix.job.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        job:
+          - {
+              arch: aarch64,
+              target: aarch64-linux-android,
+              abi: arm64-v8a,
+              os: ubuntu-22.04,
+              flag: build_android_arm64,
+            }
+          - {
+              arch: armv7,
+              target: armv7-linux-androideabi,
+              abi: armeabi-v7a,
+              os: ubuntu-22.04,
+              flag: build_android_armv7,
+            }
+    steps:
+      - name: Check target selection
+        id: check_selection
+        shell: bash
+        run: |
+          if [[ "${{ matrix.job.arch }}" == "aarch64" && "${{ inputs.build_android_arm64 }}" == "true" ]]; then
+            echo "run_job=true" >> $GITHUB_OUTPUT
+          elif [[ "${{ matrix.job.arch }}" == "armv7" && "${{ inputs.build_android_armv7 }}" == "true" ]]; then
+            echo "run_job=true" >> $GITHUB_OUTPUT
+          else
+            echo "run_job=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Checkout source code
+        if: steps.check_selection.outputs.run_job == 'true'
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install dependencies
+        if: steps.check_selection.outputs.run_job == 'true'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+               clang cmake curl gcc git g++ libclang-dev llvm-dev nasm ninja-build \
+               openjdk-17-jdk-headless pkg-config wget
+
+      - name: Setup Flutter
+        if: steps.check_selection.outputs.run_job == 'true'
+        uses: subosito/flutter-action@v2
+        with:
+          channel: "stable"
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+
+      - name: Setup NDK
+        if: steps.check_selection.outputs.run_job == 'true'
+        uses: nttld/setup-ndk@v1
+        id: setup-ndk
+        with:
+          ndk-version: ${{ env.NDK_VERSION }}
+          add-to-path: true
+
+      - name: Restore bridge files
+        if: steps.check_selection.outputs.run_job == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: bridge-artifact
+          path: ./
+
+      - name: Setup vcpkg
+        if: steps.check_selection.outputs.run_job == 'true'
+        uses: lukka/run-vcpkg@v11
+        with:
+          vcpkgDirectory: /opt/artifacts/vcpkg
+          vcpkgGitCommitId: ${{ env.VCPKG_COMMIT_ID }}
+          doNotCache: false
+
+      - name: Install vcpkg dependencies
+        if: steps.check_selection.outputs.run_job == 'true'
+        env:
+          ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
+          ANDROID_NDK_ROOT: ${{ steps.setup-ndk.outputs.ndk-path }}
+          VCPKG_ROOT: /opt/artifacts/vcpkg
+        run: |
+          ./flutter/build_android_deps.sh "${{ matrix.job.abi }}"
+        shell: bash
+
+      - name: Install Rust toolchain
+        if: steps.check_selection.outputs.run_job == 'true'
+        uses: dtolnay/rust-toolchain@v1
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+          components: "rustfmt"
+
+      - name: Build rustdesk lib
+        if: steps.check_selection.outputs.run_job == 'true'
+        env:
+          ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
+          ANDROID_NDK_ROOT: ${{ steps.setup-ndk.outputs.ndk-path }}
+        run: |
+          rustup target add ${{ matrix.job.target }}
+          cargo install cargo-ndk --version ${{ env.CARGO_NDK_VERSION }} --locked
+          if [ "${{ matrix.job.arch }}" = "aarch64" ]; then
+            ./flutter/ndk_arm64.sh
+          elif [ "${{ matrix.job.arch }}" = "armv7" ]; then
+            ./flutter/ndk_arm.sh
+          fi
+          mkdir -p ./flutter/android/app/src/main/jniLibs/${{ matrix.job.abi }}
+          cp ./target/${{ matrix.job.target }}/release/liblibrustdesk.so ./flutter/android/app/src/main/jniLibs/${{ matrix.job.abi }}/librustdesk.so
+
+      - name: Build Android APK
+        if: steps.check_selection.outputs.run_job == 'true'
+        shell: bash
+        env:
+          JAVA_HOME: /usr/lib/jvm/java-17-openjdk-amd64
+          ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
+        run: |
+          export PATH=/usr/lib/jvm/java-17-openjdk-amd64/bin:$PATH
+          sed -i "s/org.gradle.jvmargs=-Xmx1024M/org.gradle.jvmargs=-Xmx2g/g" ./flutter/android/gradle.properties || true
+          sed -i "s/signingConfigs.release/signingConfigs.debug/g" ./flutter/android/app/build.gradle || true
+          
+          mkdir -p ./flutter/android/app/src/main/jniLibs/${{ matrix.job.abi }}
+          if [ -f "${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/${{ matrix.job.target }}/libc++_shared.so" ]; then
+            cp "${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/${{ matrix.job.target }}/libc++_shared.so" ./flutter/android/app/src/main/jniLibs/${{ matrix.job.abi }}/
+          elif [ -f "${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/arm-linux-androideabi/libc++_shared.so" ]; then
+            cp "${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/arm-linux-androideabi/libc++_shared.so" ./flutter/android/app/src/main/jniLibs/${{ matrix.job.abi }}/
+          fi
+          cp ./target/${{ matrix.job.target }}/release/liblibrustdesk.so ./flutter/android/app/src/main/jniLibs/${{ matrix.job.abi }}/librustdesk.so
+          
+          pushd flutter
+          flutter build apk --release --target-platform android-${{ matrix.job.arch == 'aarch64' && 'arm64' || 'arm' }} --split-per-abi
+          mv build/app/outputs/flutter-apk/app-${{ matrix.job.abi }}-release.apk ../rustdesk-android-${{ matrix.job.arch }}.apk
+          popd
+
+      - name: Upload Android APK
+        if: steps.check_selection.outputs.run_job == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: rustdesk-android-${{ matrix.job.arch }}-apk
+          path: rustdesk-android-${{ matrix.job.arch }}.apk
+          if-no-files-found: warn
+
   build-linux:
     needs: [generate-bridge]
     name: build-linux-${{ matrix.job.arch }}
@@ -552,7 +707,7 @@ jobs:
 
   publish-release:
     name: Publish Release
-    needs: [build-windows, build-macos, build-linux]
+    needs: [build-windows, build-macos, build-android, build-linux]
     if: always() && inputs.create_release
     runs-on: ubuntu-latest
     permissions:
@@ -585,7 +740,7 @@ jobs:
         shell: bash
         run: |
           mkdir -p ./release_files
-          find ./dist -maxdepth 2 -type f \( -name "*.exe" -o -name "*.dmg" -o -name "*.deb" -o -name "*.zip" \) -exec cp -f {} ./release_files/ \;
+          find ./dist -maxdepth 2 -type f \( -name "*.exe" -o -name "*.dmg" -o -name "*.deb" -o -name "*.zip" -o -name "*.apk" \) -exec cp -f {} ./release_files/ \;
           ls -lh ./release_files/
 
       - name: Create Release
@@ -604,4 +759,4 @@ jobs:
             - **构建时间**: $(date -u '+%Y-%m-%d %H:%M:%S UTC')
             
             ### 📦 包含产物：
-            请在下方 Assets 列表中按需下载对应平台的二进制文件（Windows `.exe` / `.zip`，macOS `.dmg`，Linux `.deb`）。
+            请在下方 Assets 列表中按需下载对应平台的二进制文件（Windows `.exe` / `.zip`，macOS `.dmg`，Android `.apk`，Linux `.deb`）。
