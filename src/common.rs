@@ -686,7 +686,7 @@ pub fn test_nat_type() {
 async fn test_nat_type_() -> ResultType<bool> {
     log::info!("Testing nat ...");
     let start = std::time::Instant::now();
-    let server1 = Config::get_rendezvous_server();
+    let (server1, _, _) = crate::get_rendezvous_server(1_000).await;
     let server2 = crate::increase_port(&server1, -1);
     let mut msg_out = RendezvousMessage::new();
     let serial = Config::get_serial();
@@ -754,8 +754,11 @@ pub async fn get_rendezvous_server(ms_timeout: u64) -> (String, Vec<String>, boo
             a = lic.host;
         }
     }
+    let orig_a = a.clone();
+    let mut resolved_from_txt = false;
     if let Some(resolved) = txt_resolver::resolve_server_config(&a).await {
         a = resolved.host;
+        resolved_from_txt = true;
         if let Some(relay) = resolved.relay {
             Config::set_option("relay-server".to_owned(), relay);
         }
@@ -767,7 +770,10 @@ pub async fn get_rendezvous_server(ms_timeout: u64) -> (String, Vec<String>, boo
         .drain(..)
         .map(|x| socket_client::check_port(x, config::RENDEZVOUS_PORT))
         .collect();
-    let c = if b.contains(&a) {
+    let c = if resolved_from_txt {
+        b.retain(|x| x != &orig_a && x != &a);
+        true
+    } else if b.contains(&a) {
         b = b.drain(..).filter(|x| x != &a).collect();
         true
     } else {

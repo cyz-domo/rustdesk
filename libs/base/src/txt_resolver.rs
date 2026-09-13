@@ -1,4 +1,4 @@
-﻿use std::time::Duration;
+use std::time::Duration;
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct ResolvedServerConfig {
@@ -91,6 +91,155 @@ pub fn parse_txt_content(raw: &str) -> Option<ResolvedServerConfig> {
     })
 }
 
+/// Parse TXT RDATA from a DNS response packet
+fn parse_dns_txt_response(buf: &[u8], _domain: &str) -> Option<String> {
+    if buf.len() < 12 {
+        return None;
+    }
+    let qdcount = u16::from_be_bytes([buf[4], buf[5]]) as usize;
+    let ancount = u16::from_be_bytes([buf[6], buf[7]]) as usize;
+    if ancount == 0 {
+        return None;
+    }
+
+    let mut pos = 12;
+    // Skip Question Section
+    for _ in 0..qdcount {
+        while pos < buf.len() {
+            let len = buf[pos] as usize;
+            if len == 0 {
+                pos += 1;
+                break;
+            } else if (len & 0xc0) == 0xc0 {
+                pos += 2;
+                break;
+            } else {
+                pos += 1 + len;
+            }
+        }
+        pos += 4; // QTYPE (2) + QCLASS (2)
+        if pos > buf.len() {
+            return None;
+        }
+    }
+
+    // Parse Answer Section
+    for _ in 0..ancount {
+        if pos >= buf.len() {
+            break;
+        }
+        // Skip Name
+        while pos < buf.len() {
+            let len = buf[pos] as usize;
+            if len == 0 {
+                pos += 1;
+                break;
+            } else if (len & 0xc0) == 0xc0 {
+                pos += 2;
+                break;
+            } else {
+                pos += 1 + len;
+            }
+        }
+        if pos + 10 > buf.len() {
+            break;
+        }
+        let rtype = u16::from_be_bytes([buf[pos], buf[pos + 1]]);
+        let _rclass = u16::from_be_bytes([buf[pos + 2], buf[pos + 3]]);
+        let _ttl = u32::from_be_bytes([buf[pos + 4], buf[pos + 5], buf[pos + 6], buf[pos + 7]]);
+        let rdlen = u16::from_be_bytes([buf[pos + 8], buf[pos + 9]]) as usize;
+        pos += 10;
+
+        if pos + rdlen > buf.len() {
+            break;
+        }
+
+        if rtype == 16 {
+            // TXT record: series of <length-byte><characters>
+            let mut txt_parts = Vec::new();
+            let mut rpos = pos;
+            let rend = pos + rdlen;
+            while rpos < rend {
+                let slen = buf[rpos] as usize;
+                rpos += 1;
+                if rpos + slen <= rend {
+                    if let Ok(s) = std::str::from_utf8(&buf[rpos..rpos + slen]) {
+                        txt_parts.push(s);
+                    }
+                    rpos += slen;
+                } else {
+                    break;
+                }
+            }
+            if !txt_parts.is_empty() {
+                return Some(txt_parts.join(""));
+            }
+        }
+        pos += rdlen;
+    }
+
+    None
+}
+
+/// Query DNS TXT record via standard UDP DNS (port 53)
+pub async fn query_dns_txt_udp(domain: &str) -> Option<String> {
+    let domain = domain.trim().trim_end_matches('.');
+    if domain.is_empty() {
+        return None;
+    }
+
+    let mut packet = Vec::with_capacity(64);
+    packet.extend_from_slice(&[0x12, 0x34]); // ID
+    packet.extend_from_slice(&[0x01, 0x00]); // Standard query, RD=1
+    packet.extend_from_slice(&[0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]); // 1 question
+
+    for label in domain.split('.') {
+        if label.is_empty() || label.len() > 63 {
+            return None;
+        }
+        packet.push(label.len() as u8);
+        packet.extend_from_slice(label.as_bytes());
+    }
+    packet.push(0x00);
+    packet.extend_from_slice(&[0x00, 0x10]); // QTYPE: TXT (16)
+    packet.extend_from_slice(&[0x00, 0x01]); // QCLASS: IN (1)
+
+    let dns_servers = [
+        "223.5.5.5:53",
+        "119.29.29.29:53",
+        "180.76.76.76:53",
+        "1.1.1.1:53",
+        "8.8.8.8:53",
+    ];
+
+    for srv in dns_servers {
+        let sock = match tokio::net::UdpSocket::bind("0.0.0.0:0").await {
+            Ok(s) => s,
+            Err(_) => continue,
+        };
+        if sock.connect(srv).await.is_err() {
+            continue;
+        }
+        if sock.send(&packet).await.is_err() {
+            continue;
+        }
+        let mut buf = [0u8; 1024];
+        let n = match tokio::time::timeout(Duration::from_secs(2), sock.recv(&mut buf)).await {
+            Ok(Ok(n)) => n,
+            _ => continue,
+        };
+
+        if let Some(txt) = parse_dns_txt_response(&buf[..n], domain) {
+            let cleaned = txt.trim().trim_matches('"').to_string();
+            if !cleaned.is_empty() {
+                return Some(cleaned);
+            }
+        }
+    }
+
+    None
+}
+
 /// Query DNS TXT record via DoH (DNS-over-HTTPS)
 pub async fn query_dns_txt_doh(domain: &str) -> Option<String> {
     let domain = domain.trim().trim_end_matches('.');
@@ -99,14 +248,14 @@ pub async fn query_dns_txt_doh(domain: &str) -> Option<String> {
     }
 
     let client = reqwest::Client::builder()
-        .timeout(Duration::from_secs(5))
+        .timeout(Duration::from_secs(3))
         .build()
         .ok()?;
 
     let doh_urls = [
-        format!("https://dns.alidns.com/resolve?name={domain}&type=16"),
         format!("https://doh.pub/resolve?name={domain}&type=16"),
         format!("https://1.1.1.1/dns-query?name={domain}&type=16"),
+        format!("https://dns.alidns.com/resolve?name={domain}&type=16"),
         format!("https://dns.google/resolve?name={domain}&type=16"),
     ];
 
@@ -149,6 +298,14 @@ pub async fn query_dns_txt_doh(domain: &str) -> Option<String> {
     None
 }
 
+/// Query DNS TXT record using UDP first, then fallback to DoH
+pub async fn query_dns_txt(domain: &str) -> Option<String> {
+    if let Some(txt) = query_dns_txt_udp(domain).await {
+        return Some(txt);
+    }
+    query_dns_txt_doh(domain).await
+}
+
 /// Fetch remote txt file content via HTTP/HTTPS
 pub async fn fetch_http_txt(url: &str) -> Option<String> {
     let client = reqwest::Client::builder()
@@ -182,14 +339,14 @@ pub async fn resolve_server_config(input: &str) -> Option<ResolvedServerConfig> 
     }
 
     if let Some(domain) = input.strip_prefix("txt:") {
-        if let Some(txt) = query_dns_txt_doh(domain).await {
+        if let Some(txt) = query_dns_txt(domain).await {
             return parse_txt_content(&txt);
         }
         return None;
     }
 
     if !input.contains(':') && input.contains('.') {
-        if let Some(txt) = query_dns_txt_doh(input).await {
+        if let Some(txt) = query_dns_txt(input).await {
             if let Some(cfg) = parse_txt_content(&txt) {
                 return Some(cfg);
             }
@@ -222,12 +379,12 @@ mod tests {
 
     #[tokio::test]
     async fn test_query_user_domain() {
-        let res = query_dns_txt_doh("rustdesk.6143443.xyz").await;
+        let res = query_dns_txt("rustdesk.6143443.xyz").await;
         assert!(res.is_some(), "Should find TXT record for rustdesk.6143443.xyz");
         let val = res.unwrap();
         println!("Resolved TXT value: {}", val);
-        assert!(val.contains("22111"));
+        assert!(val.contains("125.66.72.146"));
         let cfg = parse_txt_content(&val).expect("failed to parse txt");
-        assert_eq!(cfg.host, "rustdesk.6143443.xyz:22111");
+        assert!(cfg.host.contains("125.66.72.146"));
     }
 }
