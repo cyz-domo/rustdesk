@@ -355,6 +355,10 @@ pub fn get_options() -> String {
 
 #[inline]
 pub fn test_if_valid_server(host: String, test_with_proxy: bool) -> String {
+    let trimmed = host.trim();
+    if trimmed.starts_with("txt:") || trimmed.starts_with("http://") || trimmed.starts_with("https://") {
+        return "".to_string();
+    }
     hbb_common::socket_client::test_if_valid_server(&host, test_with_proxy)
 }
 

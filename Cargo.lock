@@ -654,6 +654,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "backtrace",
+ "base64 0.22.1",
  "bytes",
  "filetime",
  "hbb_common",
@@ -663,6 +664,7 @@ dependencies = [
  "osascript",
  "protobuf",
  "protobuf-codegen",
+ "reqwest",
  "serde 1.0.228",
  "serde_derive",
  "serde_json 1.0.118",

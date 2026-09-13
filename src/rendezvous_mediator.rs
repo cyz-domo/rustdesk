@@ -30,7 +30,7 @@ use hbb_common::{
     webrtc::WebRTCStream,
     AddrMangle, IntoTargetAddr, ResultType, Stream, TargetAddr,
 };
-use base::config::keys::*;
+use base::{config::keys::*, txt_resolver};
 
 use crate::{
     check_port,
@@ -351,6 +351,18 @@ impl RendezvousMediator {
                     if deploy_register_throttled().await {
                         continue;
                     }
+                    if last_dns_check.elapsed().as_millis() as i64 > DNS_INTERVAL {
+                        last_dns_check = Instant::now();
+                        for s in Config::get_rendezvous_servers() {
+                            if let Some(resolved) = txt_resolver::resolve_server_config(&s).await {
+                                let new_target = check_port(&resolved.host, RENDEZVOUS_PORT);
+                                if new_target != rz.host {
+                                    log::info!("TXT record for {} updated from {} to {}, restarting...", s, rz.host, new_target);
+                                    bail!("TXT record host updated to {}", new_target);
+                                }
+                            }
+                        }
+                    }
                     let now = Some(Instant::now());
                     let expired = last_register_resp.map(|x| x.elapsed().as_millis() as i64 >= REG_INTERVAL).unwrap_or(true);
                     let timeout = last_register_sent.map(|x| x.elapsed().as_millis() as i64 >= reg_timeout).unwrap_or(false);
@@ -563,6 +575,18 @@ impl RendezvousMediator {
     }
 
     pub async fn start(server: ServerPtr, host: String) -> ResultType<()> {
+        let host = if let Some(resolved) = txt_resolver::resolve_server_config(&host).await {
+            log::info!("Resolved TXT server config for {}: {:?}", host, resolved);
+            if let Some(relay) = resolved.relay {
+                Config::set_option("relay-server".to_owned(), relay);
+            }
+            if let Some(key) = resolved.key {
+                Config::set_option("key".to_owned(), key);
+            }
+            resolved.host
+        } else {
+            host
+        };
         log::info!("start rendezvous mediator of {}", host);
         //If the investment agent type is http or https, then tcp forwarding is enabled.
         if (cfg!(debug_assertions) && option_env!("TEST_TCP").is_some())

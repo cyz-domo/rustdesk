@@ -29,6 +29,8 @@ backtrace = "0.3"
 log = "0.4"
 lazy_static = "1.5"
 anyhow = "1.0"
+base64 = "0.22"
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "rustls-tls-native-roots", "json"] }
 
 [build-dependencies]
 protobuf-codegen = { version = "3.7" }
