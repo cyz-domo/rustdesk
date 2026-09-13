@@ -324,7 +324,7 @@ pub async fn fetch_http_txt(url: &str) -> Option<String> {
 /// Resolve server configuration from user input string:
 /// 1. "http://..." or "https://..." -> Fetch URL content
 /// 2. "txt:domain.com" -> Query TXT record explicitly
-/// 3. "domain.com" (without port) -> Query TXT record; if present, use it; otherwise fallback to input
+/// 3. "domain.com" or "domain.com:port" -> Query TXT record for domain; if present, use it
 pub async fn resolve_server_config(input: &str) -> Option<ResolvedServerConfig> {
     let input = input.trim();
     if input.is_empty() {
@@ -339,14 +339,16 @@ pub async fn resolve_server_config(input: &str) -> Option<ResolvedServerConfig> 
     }
 
     if let Some(domain) = input.strip_prefix("txt:") {
+        let domain = domain.split(':').next().unwrap_or(domain).trim();
         if let Some(txt) = query_dns_txt(domain).await {
             return parse_txt_content(&txt);
         }
         return None;
     }
 
-    if !input.contains(':') && input.contains('.') {
-        if let Some(txt) = query_dns_txt(input).await {
+    let host = input.split(':').next().unwrap_or(input).trim();
+    if !host.is_empty() && host.contains('.') && host.parse::<std::net::IpAddr>().is_err() {
+        if let Some(txt) = query_dns_txt(host).await {
             if let Some(cfg) = parse_txt_content(&txt) {
                 return Some(cfg);
             }
@@ -375,6 +377,13 @@ mod tests {
         assert_eq!(res.host, "1.2.3.4:22111");
         assert_eq!(res.relay, Some("1.2.3.4:22112".to_string()));
         assert_eq!(res.key, Some("mysecretkey".to_string()));
+    }
+
+    #[tokio::test]
+    async fn test_resolve_server_config_ip_skipped() {
+        assert!(resolve_server_config("127.0.0.1").await.is_none());
+        assert!(resolve_server_config("127.0.0.1:21116").await.is_none());
+        assert!(resolve_server_config("125.66.72.146:22443").await.is_none());
     }
 
     #[tokio::test]
