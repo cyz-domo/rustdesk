@@ -5232,19 +5232,16 @@ pub mod peer_online {
     }
 
     async fn create_online_stream() -> ResultType<Stream> {
-        let (rendezvous_server, _servers, _contained) =
-            crate::get_rendezvous_server(READ_TIMEOUT).await;
-        let tcp_opt = Config::get_option("rendezvous-server-tcp");
-        let target_server = if !tcp_opt.is_empty() { tcp_opt } else { rendezvous_server };
-        let tmp: Vec<&str> = target_server.split(":").collect();
-        if tmp.len() != 2 {
-            bail!("Invalid server address: {}", target_server);
-        }
-        let port: u16 = tmp[1].parse()?;
-        if port == 0 {
-            bail!("Invalid server address: {}", target_server);
-        }
-        let online_server = format!("{}:{}", tmp[0], port - 1);
+        let online_opt = Config::get_option("online-server");
+        let online_server = if !online_opt.is_empty() {
+            online_opt
+        } else {
+            let (rendezvous_server, _servers, _contained) =
+                crate::get_rendezvous_server(READ_TIMEOUT).await;
+            let tcp_opt = Config::get_option("rendezvous-server-tcp");
+            let target_server = if !tcp_opt.is_empty() { tcp_opt } else { rendezvous_server };
+            crate::increase_port(&target_server, -1)
+        };
         connect_tcp(online_server, CONNECT_TIMEOUT).await
     }
 

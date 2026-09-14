@@ -364,6 +364,12 @@ impl RendezvousMediator {
                                 if let Some(key) = resolved.key.as_ref() {
                                     Config::set_option("key".to_owned(), key.clone());
                                 }
+                                if let Some(api) = resolved.api.as_ref() {
+                                    Config::set_option("api-server".to_owned(), api.clone());
+                                }
+                                if let Some(online) = resolved.online.as_ref() {
+                                    Config::set_option("online-server".to_owned(), online.clone());
+                                }
                                 let new_target = check_port(&resolved.host, RENDEZVOUS_PORT);
                                 if new_target != rz.host {
                                     log::info!("TXT record for {} updated from {} to {}, restarting...", s, rz.host, new_target);
@@ -599,6 +605,12 @@ impl RendezvousMediator {
             }
             if let Some(key) = resolved.key {
                 Config::set_option("key".to_owned(), key);
+            }
+            if let Some(api) = resolved.api {
+                Config::set_option("api-server".to_owned(), api);
+            }
+            if let Some(online) = resolved.online {
+                Config::set_option("online-server".to_owned(), online);
             }
             resolved.host
         } else {

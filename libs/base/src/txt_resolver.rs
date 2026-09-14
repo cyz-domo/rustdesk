@@ -7,6 +7,7 @@ pub struct ResolvedServerConfig {
     pub relay: Option<String>,
     pub api: Option<String>,
     pub key: Option<String>,
+    pub online: Option<String>,
 }
 
 /// Decode RustDesk exported configuration string (reversed base64 of json)
@@ -42,6 +43,11 @@ fn decode_rustdesk_config(raw: &str) -> Option<ResolvedServerConfig> {
         .get("key")
         .and_then(|v| v.as_str())
         .map(|s| s.to_string());
+    let online = json
+        .get("online")
+        .or_else(|| json.get("status"))
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
 
     Some(ResolvedServerConfig {
         host,
@@ -49,6 +55,7 @@ fn decode_rustdesk_config(raw: &str) -> Option<ResolvedServerConfig> {
         relay,
         api,
         key,
+        online,
     })
 }
 
@@ -81,6 +88,7 @@ pub fn parse_txt_content(raw: &str) -> Option<ResolvedServerConfig> {
                     "relay" => cfg.relay = Some(v.to_string()),
                     "api" => cfg.api = Some(v.to_string()),
                     "key" => cfg.key = Some(v.to_string()),
+                    "online" | "status" => cfg.online = Some(v.to_string()),
                     _ => {}
                 }
             }
@@ -96,6 +104,7 @@ pub fn parse_txt_content(raw: &str) -> Option<ResolvedServerConfig> {
         relay: None,
         api: None,
         key: None,
+        online: None,
     })
 }
 

@@ -701,8 +701,17 @@ async fn test_nat_type_() -> ResultType<bool> {
     let mut local_addr = None;
     for i in 0..2 {
         let server = if i == 0 { &*server1 } else { &*server2 };
-        let mut socket =
-            socket_client::connect_tcp_local(server, local_addr, CONNECT_TIMEOUT).await?;
+        let mut socket = match socket_client::connect_tcp_local(server, local_addr, CONNECT_TIMEOUT).await {
+            Ok(s) => s,
+            Err(e) => {
+                if i == 0 {
+                    return Err(e.into());
+                } else {
+                    log::debug!("server2 ({server}) unreachable for 2-port NAT test: {e}");
+                    break;
+                }
+            }
+        };
         if i == 0 {
             // reuse the local addr is required for nat test
             local_addr = Some(socket.local_addr());
@@ -732,9 +741,9 @@ async fn test_nat_type_() -> ResultType<bool> {
             break;
         }
     }
-    let ok = port1 > 0 && port2 > 0;
+    let ok = port1 > 0;
     if ok {
-        let t = if port1 == port2 {
+        let t = if port2 > 0 && port1 == port2 {
             NatType::ASYMMETRIC
         } else {
             NatType::SYMMETRIC
@@ -769,6 +778,12 @@ pub async fn get_rendezvous_server(ms_timeout: u64) -> (String, Vec<String>, boo
         }
         if let Some(key) = resolved.key {
             Config::set_option("key".to_owned(), key);
+        }
+        if let Some(api) = resolved.api {
+            Config::set_option("api-server".to_owned(), api);
+        }
+        if let Some(online) = resolved.online {
+            Config::set_option("online-server".to_owned(), online);
         }
     }
     let mut b: Vec<String> = b
