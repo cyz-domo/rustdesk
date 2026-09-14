@@ -355,6 +355,15 @@ impl RendezvousMediator {
                         last_dns_check = Instant::now();
                         for s in Config::get_rendezvous_servers() {
                             if let Some(resolved) = txt_resolver::resolve_server_config(&s).await {
+                                if let Some(tcp) = resolved.tcp.as_ref() {
+                                    Config::set_option("rendezvous-server-tcp".to_owned(), tcp.clone());
+                                }
+                                if let Some(relay) = resolved.relay.as_ref() {
+                                    Config::set_option("relay-server".to_owned(), relay.clone());
+                                }
+                                if let Some(key) = resolved.key.as_ref() {
+                                    Config::set_option("key".to_owned(), key.clone());
+                                }
                                 let new_target = check_port(&resolved.host, RENDEZVOUS_PORT);
                                 if new_target != rz.host {
                                     log::info!("TXT record for {} updated from {} to {}, restarting...", s, rz.host, new_target);
@@ -577,6 +586,9 @@ impl RendezvousMediator {
     pub async fn start(server: ServerPtr, host: String) -> ResultType<()> {
         let host = if let Some(resolved) = txt_resolver::resolve_server_config(&host).await {
             log::info!("Resolved TXT server config for {}: {:?}", host, resolved);
+            if let Some(tcp) = resolved.tcp {
+                Config::set_option("rendezvous-server-tcp".to_owned(), tcp);
+            }
             if let Some(relay) = resolved.relay {
                 Config::set_option("relay-server".to_owned(), relay);
             }

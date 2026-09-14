@@ -808,6 +808,11 @@ impl Client {
         // the outer select_ok closes its pc instead of leaking it in SESSIONS. Disarmed via
         // into_inner() once the stream is adopted into a connection attempt.
         let mut webrtc_offerer = webrtc_offerer.map(OffererGuard::new);
+        let tcp_opt = Config::get_option("rendezvous-server-tcp");
+        let orig_udp_server = rendezvous_server.clone();
+        if !tcp_opt.is_empty() {
+            rendezvous_server = tcp_opt;
+        }
         let mut start = Instant::now();
         let mut socket = connect_tcp(&*rendezvous_server, CONNECT_TIMEOUT).await;
         debug_assert!(!servers.contains(&rendezvous_server));
@@ -827,7 +832,7 @@ impl Client {
         } else if !contained {
             crate::refresh_rendezvous_server();
         }
-        log::info!("rendezvous server: {}", rendezvous_server);
+        log::info!("rendezvous server (tcp): {}, (udp): {}", rendezvous_server, orig_udp_server);
         let mut socket = socket?;
         let my_addr = socket.local_addr();
         let mut signed_id_pk = Vec::new();
@@ -5144,7 +5149,9 @@ async fn hc_connection_(
     let mut last_recv_msg = Instant::now();
     let mut keep_alive = crate::DEFAULT_KEEP_ALIVE;
 
-    let host = check_port(&rendezvous_server, RENDEZVOUS_PORT);
+    let tcp_opt = Config::get_option("rendezvous-server-tcp");
+    let target_server = if !tcp_opt.is_empty() { tcp_opt } else { rendezvous_server };
+    let host = check_port(&target_server, RENDEZVOUS_PORT);
     let mut conn = connect_tcp(host.clone(), CONNECT_TIMEOUT).await?;
     let key = crate::get_key(true).await;
     crate::secure_tcp(&mut conn, &key).await?;
@@ -5225,13 +5232,15 @@ pub mod peer_online {
     async fn create_online_stream() -> ResultType<Stream> {
         let (rendezvous_server, _servers, _contained) =
             crate::get_rendezvous_server(READ_TIMEOUT).await;
-        let tmp: Vec<&str> = rendezvous_server.split(":").collect();
+        let tcp_opt = Config::get_option("rendezvous-server-tcp");
+        let target_server = if !tcp_opt.is_empty() { tcp_opt } else { rendezvous_server };
+        let tmp: Vec<&str> = target_server.split(":").collect();
         if tmp.len() != 2 {
-            bail!("Invalid server address: {}", rendezvous_server);
+            bail!("Invalid server address: {}", target_server);
         }
         let port: u16 = tmp[1].parse()?;
         if port == 0 {
-            bail!("Invalid server address: {}", rendezvous_server);
+            bail!("Invalid server address: {}", target_server);
         }
         let online_server = format!("{}:{}", tmp[0], port - 1);
         connect_tcp(online_server, CONNECT_TIMEOUT).await

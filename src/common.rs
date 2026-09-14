@@ -687,6 +687,8 @@ async fn test_nat_type_() -> ResultType<bool> {
     log::info!("Testing nat ...");
     let start = std::time::Instant::now();
     let (server1, _, _) = crate::get_rendezvous_server(1_000).await;
+    let tcp_opt = Config::get_option("rendezvous-server-tcp");
+    let server1 = if !tcp_opt.is_empty() { tcp_opt } else { server1 };
     let server2 = crate::increase_port(&server1, -1);
     let mut msg_out = RendezvousMessage::new();
     let serial = Config::get_serial();
@@ -759,6 +761,9 @@ pub async fn get_rendezvous_server(ms_timeout: u64) -> (String, Vec<String>, boo
     if let Some(resolved) = txt_resolver::resolve_server_config(&a).await {
         a = resolved.host;
         resolved_from_txt = true;
+        if let Some(tcp) = resolved.tcp {
+            Config::set_option("rendezvous-server-tcp".to_owned(), tcp);
+        }
         if let Some(relay) = resolved.relay {
             Config::set_option("relay-server".to_owned(), relay);
         }
@@ -1280,6 +1285,10 @@ fn tcp_proxy_log_target(url: &str) -> String {
 
 #[inline]
 fn get_tcp_proxy_addr() -> String {
+    let tcp = Config::get_option("rendezvous-server-tcp");
+    if !tcp.is_empty() {
+        return check_port(tcp, RENDEZVOUS_PORT);
+    }
     check_port(Config::get_rendezvous_server(), RENDEZVOUS_PORT)
 }
 

@@ -3,6 +3,7 @@ use std::time::Duration;
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct ResolvedServerConfig {
     pub host: String,
+    pub tcp: Option<String>,
     pub relay: Option<String>,
     pub api: Option<String>,
     pub key: Option<String>,
@@ -25,6 +26,10 @@ fn decode_rustdesk_config(raw: &str) -> Option<ResolvedServerConfig> {
 
     let json: serde_json::Value = serde_json::from_slice(&bytes).ok()?;
     let host = json.get("host").and_then(|v| v.as_str())?.to_string();
+    let tcp = json
+        .get("tcp")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string());
     let relay = json
         .get("relay")
         .and_then(|v| v.as_str())
@@ -40,6 +45,7 @@ fn decode_rustdesk_config(raw: &str) -> Option<ResolvedServerConfig> {
 
     Some(ResolvedServerConfig {
         host,
+        tcp,
         relay,
         api,
         key,
@@ -71,6 +77,7 @@ pub fn parse_txt_content(raw: &str) -> Option<ResolvedServerConfig> {
                 let v = v.trim().trim_matches('"');
                 match k {
                     "host" => cfg.host = v.to_string(),
+                    "tcp" | "host_tcp" | "signaling" => cfg.tcp = Some(v.to_string()),
                     "relay" => cfg.relay = Some(v.to_string()),
                     "api" => cfg.api = Some(v.to_string()),
                     "key" => cfg.key = Some(v.to_string()),
@@ -85,6 +92,7 @@ pub fn parse_txt_content(raw: &str) -> Option<ResolvedServerConfig> {
 
     Some(ResolvedServerConfig {
         host: raw.to_string(),
+        tcp: None,
         relay: None,
         api: None,
         key: None,
@@ -375,8 +383,19 @@ mod tests {
         let content = "host=1.2.3.4:22111,relay=1.2.3.4:22112,key=mysecretkey";
         let res = parse_txt_content(content).expect("failed to parse");
         assert_eq!(res.host, "1.2.3.4:22111");
+        assert_eq!(res.tcp, None);
         assert_eq!(res.relay, Some("1.2.3.4:22112".to_string()));
         assert_eq!(res.key, Some("mysecretkey".to_string()));
+    }
+
+    #[test]
+    fn test_parse_stun_multi_port_txt() {
+        let content = "host=171.91.129.179:24869,tcp=171.91.129.179:24439,relay=171.91.129.179:24867,key=uSmsZQFJuhdstRBFhFXYaO0yprAr5wVy1rI+iuzNKEo=";
+        let res = parse_txt_content(content).expect("failed to parse");
+        assert_eq!(res.host, "171.91.129.179:24869");
+        assert_eq!(res.tcp, Some("171.91.129.179:24439".to_string()));
+        assert_eq!(res.relay, Some("171.91.129.179:24867".to_string()));
+        assert_eq!(res.key, Some("uSmsZQFJuhdstRBFhFXYaO0yprAr5wVy1rI+iuzNKEo=".to_string()));
     }
 
     #[tokio::test]
