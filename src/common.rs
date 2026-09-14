@@ -826,8 +826,14 @@ async fn test_rendezvous_server_() {
     for host in servers {
         futs.push(tokio::spawn(async move {
             let tm = std::time::Instant::now();
+            let tcp_opt = Config::get_option("rendezvous-server-tcp");
+            let target = if !tcp_opt.is_empty() {
+                crate::check_port(tcp_opt, RENDEZVOUS_PORT)
+            } else {
+                crate::check_port(&host, RENDEZVOUS_PORT)
+            };
             if socket_client::connect_tcp(
-                crate::check_port(&host, RENDEZVOUS_PORT),
+                target,
                 CONNECT_TIMEOUT,
             )
             .await

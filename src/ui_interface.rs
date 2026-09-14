@@ -1568,8 +1568,14 @@ async fn check_id(
     id: String,
     uuid: Bytes,
 ) -> &'static str {
+    let tcp_opt = Config::get_option("rendezvous-server-tcp");
+    let target = if !tcp_opt.is_empty() {
+        crate::check_port(tcp_opt, RENDEZVOUS_PORT)
+    } else {
+        crate::check_port(rendezvous_server, RENDEZVOUS_PORT)
+    };
     if let Ok(mut socket) = hbb_common::socket_client::connect_tcp(
-        crate::check_port(rendezvous_server, RENDEZVOUS_PORT),
+        target,
         CONNECT_TIMEOUT,
     )
     .await
