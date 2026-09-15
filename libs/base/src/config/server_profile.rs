@@ -134,3 +134,58 @@ pub fn get_key_by_host(host: &str) -> String {
     Config::get_option("key")
 }
 
+lazy_static::lazy_static! {
+    static ref SERVER_LATENCIES: std::sync::Mutex<std::collections::HashMap<String, i64>> = Default::default();
+}
+
+pub fn update_server_latency(host: &str, latency: i64) {
+    if let Ok(mut map) = SERVER_LATENCIES.lock() {
+        map.insert(host.to_string(), latency);
+    }
+    Config::update_latency(host, latency);
+}
+
+pub fn get_server_latency(host: &str) -> i64 {
+    if let Ok(map) = SERVER_LATENCIES.lock() {
+        if let Some(&lat) = map.get(host) {
+            return lat;
+        }
+        for (k, v) in map.iter() {
+            if k == host || host.starts_with(k) || k.starts_with(host) {
+                return *v;
+            }
+        }
+    }
+    -1
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct ServerProfileStatus {
+    pub id: String,
+    pub name: String,
+    pub host: String,
+    pub enabled: bool,
+    pub online: bool,
+    pub latency_ms: i64,
+}
+
+pub fn get_server_profile_statuses() -> Vec<ServerProfileStatus> {
+    let profiles = get_server_profiles();
+    profiles
+        .into_iter()
+        .map(|p| {
+            let lat_us = get_server_latency(&p.host);
+            let online = p.enabled && lat_us > 0;
+            let latency_ms = if lat_us > 0 { (lat_us + 999) / 1000 } else { -1 };
+            ServerProfileStatus {
+                id: p.id,
+                name: p.name,
+                host: p.host,
+                enabled: p.enabled,
+                online,
+                latency_ms,
+            }
+        })
+        .collect()
+}
+

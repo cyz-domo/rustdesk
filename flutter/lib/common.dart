@@ -3099,6 +3099,34 @@ class ServerProfileItem {
   }
 }
 
+class ServerStatusItem {
+  String id;
+  String name;
+  String host;
+  bool enabled;
+  bool online;
+  int latencyMs;
+
+  ServerStatusItem({
+    required this.id,
+    required this.name,
+    required this.host,
+    required this.enabled,
+    required this.online,
+    required this.latencyMs,
+  });
+
+  factory ServerStatusItem.fromJson(Map<String, dynamic> json) =>
+      ServerStatusItem(
+        id: json['id'] ?? '',
+        name: json['name'] ?? '',
+        host: json['host'] ?? '',
+        enabled: json['enabled'] ?? true,
+        online: json['online'] ?? false,
+        latencyMs: json['latency_ms'] ?? -1,
+      );
+}
+
 Widget dialogButton(String text,
     {required VoidCallback? onPressed,
     bool isOutline = false,

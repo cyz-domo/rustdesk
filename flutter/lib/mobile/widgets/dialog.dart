@@ -354,17 +354,53 @@ void showServerSettingsWithOptions(
                                       });
                                     },
                                   ),
-                                  Text(
-                                    profiles[i].name.isNotEmpty
-                                        ? profiles[i].name
-                                        : 'Server ${i + 1}',
-                                    style: TextStyle(
-                                      fontWeight: selectedIndex == i
-                                          ? FontWeight.bold
-                                          : FontWeight.normal,
-                                      fontSize: 13,
-                                    ),
-                                  ),
+                                  Builder(builder: (context) {
+                                    final stat = stateGlobal.serverStatuses.firstWhereOrNull(
+                                        (s) => s.id == profiles[i].id || (profiles[i].host.isNotEmpty && s.host == profiles[i].host));
+                                    final isOnline = stat?.online ?? false;
+                                    final latStr = (stat != null && stat.latencyMs > 0) ? '${stat.latencyMs}ms' : '';
+                                    return Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          profiles[i].name.isNotEmpty
+                                              ? profiles[i].name
+                                              : 'Server ${i + 1}',
+                                          style: TextStyle(
+                                            fontWeight: selectedIndex == i
+                                                ? FontWeight.bold
+                                                : FontWeight.normal,
+                                            fontSize: 13,
+                                          ),
+                                        ),
+                                        if (profiles[i].enabled && stat != null) ...[
+                                          SizedBox(width: 5),
+                                          Container(
+                                            width: 7,
+                                            height: 7,
+                                            decoration: BoxDecoration(
+                                              shape: BoxShape.circle,
+                                              color: isOnline
+                                                  ? Color.fromARGB(255, 50, 190, 166)
+                                                  : Color.fromARGB(255, 224, 79, 95),
+                                            ),
+                                          ),
+                                          if (latStr.isNotEmpty) ...[
+                                            SizedBox(width: 3),
+                                            Text(
+                                              latStr,
+                                              style: TextStyle(
+                                                fontSize: 10,
+                                                color: isOnline
+                                                    ? Color.fromARGB(255, 50, 190, 166)
+                                                    : Colors.grey,
+                                              ),
+                                            ),
+                                          ],
+                                        ],
+                                      ],
+                                    );
+                                  }),
                                   if (profiles.length > 1) ...[
                                     SizedBox(width: 4),
                                     InkWell(

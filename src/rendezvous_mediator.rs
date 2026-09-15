@@ -383,7 +383,7 @@ impl RendezvousMediator {
                     n = 3000;
                 }
                 if (latency - old_latency).abs() > n || old_latency <= 0 {
-                    Config::update_latency(&host, latency);
+                    server_profile::update_server_latency(&host, latency);
                     log::debug!("Latency of {}: {}ms", host, latency as f64 / 1000.);
                     old_latency = latency;
                 }
@@ -450,7 +450,7 @@ impl RendezvousMediator {
                         if timeout {
                             fails += 1;
                             if fails >= MAX_FAILS2 {
-                                Config::update_latency(&host, -1);
+                                server_profile::update_server_latency(&host, -1);
                                 old_latency = 0;
                                 if last_dns_check.elapsed().as_millis() as i64 > DNS_INTERVAL {
                                     // in some case of network reconnect (dial IP network),
@@ -463,7 +463,7 @@ impl RendezvousMediator {
                                     last_dns_check = Instant::now();
                                 }
                             } else if fails >= MAX_FAILS1 {
-                                Config::update_latency(&host, 0);
+                                server_profile::update_server_latency(&host, 0);
                                 old_latency = 0;
                             }
                         }
@@ -620,7 +620,7 @@ impl RendezvousMediator {
                 let latency = last_register_sent
                     .map(|x| x.elapsed().as_micros() as i64)
                     .unwrap_or(0);
-                Config::update_latency(&host, latency);
+                server_profile::update_server_latency(&host, latency);
                 log::debug!("Latency of {}: {}ms", host, latency as f64 / 1000.);
             };
             select! {

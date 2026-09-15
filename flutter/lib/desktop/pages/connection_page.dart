@@ -155,16 +155,44 @@ class _OnlineStatusWidgetState extends State<OnlineStatusWidget> {
 
   _buildConnStatusMsg() {
     widget.onSvcStatusChanged?.call();
-    return Text(
-      _svcStopped.value
-          ? translate("Service is not running")
-          : stateGlobal.svcStatus.value == SvcStatus.connecting
-              ? translate("connecting_status")
-              : stateGlobal.svcStatus.value == SvcStatus.notReady
-                  ? translate("not_ready_status")
-                  : translate('Ready'),
+    String text = _svcStopped.value
+        ? translate("Service is not running")
+        : stateGlobal.svcStatus.value == SvcStatus.connecting
+            ? translate("connecting_status")
+            : stateGlobal.svcStatus.value == SvcStatus.notReady
+                ? translate("not_ready_status")
+                : translate('Ready');
+
+    if (stateGlobal.svcStatus.value == SvcStatus.ready && stateGlobal.serverStatuses.length > 1) {
+      final onlineCount = stateGlobal.serverStatuses.where((s) => s.online).length;
+      final totalCount = stateGlobal.serverStatuses.where((s) => s.enabled).length;
+      text = '$text ($onlineCount/$totalCount)';
+    }
+
+    String tooltip = '';
+    if (stateGlobal.serverStatuses.isNotEmpty) {
+      tooltip = stateGlobal.serverStatuses.map((s) {
+        final icon = s.online ? '🟢' : (s.enabled ? '🔴' : '⚪');
+        final lat = s.online
+            ? '(${s.latencyMs}ms)'
+            : (s.enabled ? '(${translate("offline")})' : '(${translate("disabled")})');
+        return '$icon ${s.name.isNotEmpty ? s.name : s.host} $lat';
+      }).join('\n');
+    }
+
+    final widgetText = Text(
+      text,
       style: TextStyle(fontSize: em),
     );
+
+    if (tooltip.isNotEmpty) {
+      return Tooltip(
+        message: tooltip,
+        waitDuration: const Duration(milliseconds: 200),
+        child: widgetText,
+      );
+    }
+    return widgetText;
   }
 
   updateStatus() async {
@@ -183,6 +211,14 @@ class _OnlineStatusWidgetState extends State<OnlineStatusWidget> {
     _svcIsUsingPublicServer.value = await bind.mainIsUsingPublicServer();
     try {
       stateGlobal.videoConnCount.value = status['video_conn_count'] as int;
+    } catch (_) {}
+    try {
+      if (status['server_statuses'] != null && status['server_statuses'] is List) {
+        stateGlobal.serverStatuses.value = (status['server_statuses'] as List)
+            .whereType<Map>()
+            .map((e) => ServerStatusItem.fromJson(Map<String, dynamic>.from(e)))
+            .toList();
+      }
     } catch (_) {}
   }
 }

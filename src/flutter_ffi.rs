@@ -1117,9 +1117,13 @@ pub fn main_get_lan_peers() -> String {
 }
 
 pub fn main_get_connect_status() -> String {
+    let server_statuses = base::server_profile::get_server_profile_statuses();
     #[cfg(not(any(target_os = "android", target_os = "ios")))]
     {
-        serde_json::to_string(&get_connect_status()).unwrap_or("".to_string())
+        let status = get_connect_status();
+        let mut val = serde_json::to_value(&status).unwrap_or_else(|_| serde_json::json!({}));
+        val["server_statuses"] = serde_json::to_value(&server_statuses).unwrap_or_else(|_| serde_json::json!([]));
+        val.to_string()
     }
     #[cfg(any(target_os = "android", target_os = "ios"))]
     {
@@ -1127,7 +1131,10 @@ pub fn main_get_connect_status() -> String {
         if state > 0 {
             state = 1;
         }
-        serde_json::json!({ "status_num": state }).to_string()
+        serde_json::json!({
+            "status_num": state,
+            "server_statuses": server_statuses,
+        }).to_string()
     }
 }
 
