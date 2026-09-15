@@ -333,13 +333,13 @@ async fn create_relay_connection_(
     ipv4: bool,
     meta: ConnectionMeta,
 ) -> ResultType<()> {
+    let k = server_profile::get_key_by_host(&relay_server);
     let mut stream = socket_client::connect_tcp(
-        socket_client::ipv4_to_ipv6(crate::check_port(relay_server, RELAY_PORT), ipv4),
+        socket_client::ipv4_to_ipv6(crate::check_port(&relay_server, RELAY_PORT), ipv4),
         CONNECT_TIMEOUT,
     )
     .await?;
     let mut msg_out = RendezvousMessage::new();
-    let k = server_profile::get_key_by_host(&relay_server);
     let licence_key = if !k.is_empty() {
         k
     } else {

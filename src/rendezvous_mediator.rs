@@ -335,7 +335,7 @@ impl RendezvousMediator {
             .unwrap_or(host.to_owned())
     }
 
-    pub async fn start_udp_ctx(server: ServerPtr, mut ctx: ServerContext) -> ResultType<()> {
+    pub async fn start_udp_ctx(server: ServerPtr, ctx: ServerContext) -> ResultType<()> {
         let host = check_port(&ctx.host, RENDEZVOUS_PORT);
         log::info!("start udp: {host} ({})", ctx.name);
         let (mut socket, mut addr) = new_udp_for(&host, CONNECT_TIMEOUT).await?;
@@ -589,7 +589,7 @@ impl RendezvousMediator {
         Ok(())
     }
 
-    pub async fn start_tcp_ctx(server: ServerPtr, mut ctx: ServerContext) -> ResultType<()> {
+    pub async fn start_tcp_ctx(server: ServerPtr, ctx: ServerContext) -> ResultType<()> {
         let host = ctx.tcp_host();
         log::info!("start tcp: {} ({})", hbb_common::websocket::check_ws(&host), ctx.name);
         let mut conn = connect_tcp(host.clone(), CONNECT_TIMEOUT).await?;
