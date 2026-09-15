@@ -28,11 +28,11 @@ on:
         type: boolean
         default: false
       build_linux_x64:
-        description: 'Linux (x64 .deb)'
+        description: 'Linux (x64 .deb & .rpm)'
         type: boolean
         default: false
       build_linux_arm64:
-        description: 'Linux (ARM64 .deb)'
+        description: 'Linux (ARM64 .deb & .rpm)'
         type: boolean
         default: false
       create_release:
@@ -742,15 +742,35 @@ jobs:
             pushd /workspace
             export DEB_ARCH=${{ matrix.job.deb_arch }}
             python3 ./build.py --flutter --skip-cargo
-            mv rustdesk*.deb rustdesk-${{ matrix.job.arch }}.deb
+            for name in rustdesk*.deb; do
+              [ -f "$name" ] && mv "$name" "rustdesk-${{ matrix.job.arch }}.deb"
+            done
+
+            # RPM package (Fedora / RHEL / CentOS / Rocky Linux / AlmaLinux)
+            echo "start packaging RPM package"
+            case ${{ matrix.job.arch }} in
+              aarch64)
+                sed -i "s/linux\/x64/linux\/arm64/g" ./res/rpm-flutter.spec
+                ;;
+            esac
+            HBB=`pwd` rpmbuild ./res/rpm-flutter.spec -bb
+            mkdir -p ~/rpmbuild/RPMS/${{ matrix.job.arch }}
+            pushd ~/rpmbuild/RPMS/${{ matrix.job.arch }} || pushd ~/rpmbuild/RPMS/*
+            for name in rustdesk*.rpm; do
+              [ -f "$name" ] && cp -f "$name" /workspace/rustdesk-${{ matrix.job.arch }}.rpm
+            done
+            popd
             popd
 
-      - name: Upload Linux DEB
+      - name: Upload Linux Packages (DEB & RPM)
         if: steps.check_selection.outputs.run_job == 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: rustdesk-linux-${{ matrix.job.arch }}-deb
-          path: rustdesk-${{ matrix.job.arch }}.deb
+          name: rustdesk-linux-${{ matrix.job.arch }}-pkg
+          path: |
+            rustdesk-${{ matrix.job.arch }}.deb
+            rustdesk-${{ matrix.job.arch }}.rpm
+          if-no-files-found: warn
 
   publish-release:
     name: Publish Release
@@ -806,7 +826,8 @@ jobs:
           | \`rustdesk-*.zip\` | Windows (x64) 绿色免解压包 | 解压后直接运行内部的 \`rustdesk.exe\` |
           | \`rustdesk-*.dmg\` | macOS (Apple Silicon / M系列) | 双击挂载，拖入 Applications 目录 |
           | \`rustdesk-*.apk\` | Android (ARM64) 移动客户端 | 手机直接安装运行 |
-          | \`rustdesk-*.deb\` | Linux (x64 Debian/Ubuntu) | \`sudo dpkg -i rustdesk-*.deb\` |
+          | \`rustdesk-*.deb\` | Linux (x64 / ARM64 Debian/Ubuntu) | \`sudo dpkg -i rustdesk-*.deb\` |
+          | \`rustdesk-*.rpm\` | Linux (x64 / ARM64 RHEL/CentOS/Fedora) | \`sudo dnf localinstall rustdesk-*.rpm\` 或 \`sudo rpm -ivh rustdesk-*.rpm\` |
 
           ### 💡 Lucky STUN 动态 DNS TXT 快速配置
           在客户端「ID/中继服务器」处，ID 服务器直接填写你的动态域名（如 \`rd.example.com\`），客户端将自动解析 TXT 记录中的 \`host\`(UDP)、\`tcp\`(TCP)、\`relay\`(中继) 与 \`key\`。
@@ -822,7 +843,7 @@ jobs:
         shell: bash
         run: |
           mkdir -p ./release_files
-          find ./dist -maxdepth 2 -type f \( -name "*.exe" -o -name "*.dmg" -o -name "*.deb" -o -name "*.zip" -o -name "*.apk" \) ! -name "*bridge*" -exec cp -f {} ./release_files/ \;
+          find ./dist -maxdepth 2 -type f \( -name "*.exe" -o -name "*.dmg" -o -name "*.deb" -o -name "*.rpm" -o -name "*.zip" -o -name "*.apk" \) ! -name "*bridge*" -exec cp -f {} ./release_files/ \;
           echo "=== Release Files ==="
           ls -lh ./release_files/
 
