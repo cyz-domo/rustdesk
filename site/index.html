@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RustDesk 动态 STUN 增强版 - 免公网 IP 自建远程桌面</title>
+    <meta name="description" content="基于 Lucky NAT1 STUN 穿透与动态 DNS TXT 解析的 RustDesk 增强版，支持 TCP/UDP 独立端口分流、P2P 直连、120 FPS 高帧率与全自动重拨热重载。">
+    <link rel="icon" href="https://raw.githubusercontent.com/rustdesk/rustdesk/master/res/icon.ico" type="image/x-icon">
+    <!-- Google Fonts & Tailwind Play CDN for instant styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0fdf4',
+                            100: '#dcfce7',
+                            400: '#4ade80',
+                            500: '#22c55e',
+                            600: '#16a34a',
+                            700: '#15803d',
+                            900: '#14532d',
+                            accent: '#0284c7'
+                        },
+                        dark: {
+                            bg: '#0b0f19',
+                            card: '#111827',
+                            border: '#1f2937',
+                            muted: '#374151'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['Fira Code', 'monospace']
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        html { scroll-behavior: smooth; }
+        body { font-family: 'Inter', sans-serif; }
+        .gradient-text {
+            background: linear-gradient(135deg, #4ade80 0%, #38bdf8 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .glow-card {
+            background: rgba(17, 24, 39, 0.75);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            transition: all 0.3s ease;
+        }
+        .glow-card:hover {
+            border-color: rgba(74, 222, 128, 0.4);
+            box-shadow: 0 0 25px -5px rgba(34, 197, 94, 0.15);
+            transform: translateY(-2px);
+        }
+        .code-block {
+            background: #0d1117;
+            border: 1px solid #30363d;
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 antialiased selection:bg-brand-500 selection:text-slate-950">
+
+    <!-- 顶部导航栏 -->
+    <header class="sticky top-0 z-50 bg-slate-950/80 backdrop-blur-md border-b border-slate-800/80">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-sky-500 flex items-center justify-center font-bold text-slate-950 text-xl shadow-lg shadow-brand-500/20">
+                    ⚡
+                </div>
+                <div>
+                    <span class="font-bold text-lg text-white">RustDesk</span>
+                    <span class="text-xs bg-brand-500/20 text-brand-400 px-2 py-0.5 rounded-full ml-1 font-semibold border border-brand-500/30">STUN Edition</span>
+                </div>
+            </div>
+            <nav class="hidden md:flex items-center space-x-8 text-sm font-medium text-slate-300">
+                <a href="#features" class="hover:text-brand-400 transition-colors">核心特性</a>
+                <a href="#architecture" class="hover:text-brand-400 transition-colors">网络架构</a>
+                <a href="#guide" class="hover:text-brand-400 transition-colors">Lucky 配置教程</a>
+                <a href="#download" class="hover:text-brand-400 transition-colors">下载客户端</a>
+                <a href="#faq" class="hover:text-brand-400 transition-colors">常见问题</a>
+            </nav>
+            <div class="flex items-center space-x-4">
+                <a href="https://github.com/cyz-domo/rustdesk" target="_blank" class="flex items-center space-x-2 text-xs font-semibold px-4 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-200 transition-all">
+                    <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+                    <span>GitHub 源码</span>
+                </a>
+                <a href="#download" class="hidden sm:inline-flex items-center text-xs font-semibold px-4 py-2 rounded-lg bg-brand-500 hover:bg-brand-600 text-slate-950 transition-all shadow-md shadow-brand-500/20">
+                    <span>立即下载</span>
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <!-- Hero 区域 -->
+    <section class="relative pt-20 pb-28 overflow-hidden">
+        <!-- 氛围光晕 -->
+        <div class="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[350px] bg-brand-500/15 blur-[120px] rounded-full pointer-events-none"></div>
+        <div class="absolute top-1/3 left-1/3 w-[300px] h-[250px] bg-sky-500/15 blur-[100px] rounded-full pointer-events-none"></div>
+
+        <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
+            <div class="inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-full bg-slate-900/90 border border-slate-700/80 text-xs font-medium text-slate-300 mb-8 shadow-inner">
+                <span class="w-2 h-2 rounded-full bg-brand-400 animate-pulse"></span>
+                <span>Lucky (大吉) NAT1 穿透专属定制 · 完美兼容官方标准</span>
+            </div>
+
+            <h1 class="text-4xl sm:text-6xl font-extrabold tracking-tight text-white mb-6 leading-tight">
+                免公网 IPv4 的极速远程桌面<br>
+                <span class="gradient-text">Lucky STUN + 动态 DNS TXT 解析</span>
+            </h1>
+
+            <p class="text-lg sm:text-xl text-slate-400 max-w-3xl mx-auto mb-10 leading-relaxed font-light">
+                针对家庭宽带 NAT1 打洞量身打造。独创 TCP/UDP 独立端口分流架构，搭配 DNS TXT 动态寻址引擎，实现宽带重拨无感自愈与电竞级 120 FPS P2P 直连。
+            </p>
+
+            <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
+                <a href="#download" class="w-full sm:w-auto px-8 py-3.5 rounded-xl bg-gradient-to-r from-brand-500 to-brand-400 hover:from-brand-600 hover:to-brand-500 text-slate-950 font-bold text-base shadow-xl shadow-brand-500/25 transition-all transform hover:-translate-y-0.5 flex items-center justify-center space-x-2">
+                    <svg class="w-5 h-5 fill-current" viewBox="0 0 20 20"><path d="M10.75 2.75a.75.75 0 00-1.5 0v8.614L6.295 8.235a.75.75 0 10-1.09 1.03l4.25 4.5a.75.75 0 001.09 0l4.25-4.5a.75.75 0 00-1.09-1.03l-2.955 3.129V2.75z"/><path d="M3.5 12.75a.75.75 0 00-1.5 0v2.5A2.75 2.75 0 004.75 18h10.5A2.75 2.75 0 0018 15.25v-2.5a.75.75 0 00-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5z"/></svg>
+                    <span>下载最新客户端</span>
+                </a>
+                <a href="#guide" class="w-full sm:w-auto px-8 py-3.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-200 font-semibold text-base border border-slate-700 transition-all flex items-center justify-center space-x-2">
+                    <span>📖 查看配置教程</span>
+                </a>
+                <a href="https://github.com/cyz-domo/rustdesk/releases" target="_blank" class="w-full sm:w-auto px-6 py-3.5 rounded-xl bg-slate-900/50 hover:bg-slate-800/80 text-slate-300 font-medium text-base border border-slate-800 transition-all">
+                    <span>📦 全部 Releases</span>
+                </a>
+            </div>
+
+            <!-- 数据指示标签 -->
+            <div class="mt-14 grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto pt-8 border-t border-slate-800/60">
+                <div class="p-4 rounded-xl bg-slate-900/40 border border-slate-800/40">
+                    <div class="text-2xl font-bold text-brand-400 font-mono">0 元</div>
+                    <div class="text-xs text-slate-400 mt-1">无需固定公网 IPv4 成本</div>
+                </div>
+                <div class="p-4 rounded-xl bg-slate-900/40 border border-slate-800/40">
+                    <div class="text-2xl font-bold text-sky-400 font-mono">120 FPS</div>
+                    <div class="text-xs text-slate-400 mt-1">支持最高 120 帧极速画质</div>
+                </div>
+                <div class="p-4 rounded-xl bg-slate-900/40 border border-slate-800/40">
+                    <div class="text-2xl font-bold text-emerald-400 font-mono">10 ms</div>
+                    <div class="text-xs text-slate-400 mt-1">UDP 53 原生 DNS 毫秒解析</div>
+                </div>
+                <div class="p-4 rounded-xl bg-slate-900/40 border border-slate-800/40">
+                    <div class="text-2xl font-bold text-indigo-400 font-mono">100%</div>
+                    <div class="text-xs text-slate-400 mt-1">官方单端口方案向下兼容</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 核心特性区域 -->
+    <section id="features" class="py-20 bg-slate-900/40 border-y border-slate-800/80">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center max-w-3xl mx-auto mb-16">
+                <h2 class="text-xs uppercase tracking-widest text-brand-400 font-bold mb-3 font-mono">CORE ADVANTAGES</h2>
+                <p class="text-3xl sm:text-4xl font-extrabold text-white">为什么需要 Lucky 定制增强版？</p>
+                <p class="text-slate-400 mt-4 text-base">突破官方单端口同协议假设，为 STUN 动态 NAT 穿透提供全链路深度适配</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <!-- 特性 1 -->
+                <div class="glow-card rounded-2xl p-8">
+                    <div class="w-12 h-12 rounded-xl bg-brand-500/10 border border-brand-500/20 flex items-center justify-center text-brand-400 text-2xl mb-6">
+                        🔀
+                    </div>
+                    <h3 class="text-xl font-bold text-white mb-3">TCP / UDP 独立端口分流</h3>
+                    <p class="text-slate-400 text-sm leading-relaxed">
+                        Lucky 单协议打洞导致 hbbs 的 UDP（心跳注册）与 TCP（打洞信令）分配为不同公网端口。增强版实现了底层套接字精准分流，从根源解决打洞超时与连接阻塞。
+                    </p>
+                </div>
+
+                <!-- 特性 2 -->
+                <div class="glow-card rounded-2xl p-8">
+                    <div class="w-12 h-12 rounded-xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-400 text-2xl mb-6">
+                        🌐
+                    </div>
+                    <h3 class="text-xl font-bold text-white mb-3">动态 DNS TXT 自动寻址</h3>
+                    <p class="text-slate-400 text-sm leading-relaxed">
+                        Lucky WebHook 自动推送最新端口至 DNS TXT。客户端原生支持 UDP 53 毫秒级多源 DNS 解析，宽带重拨或重启后被控端自动后台热重载，无需人工维护。
+                    </p>
+                </div>
+
+                <!-- 特性 3 -->
+                <div class="glow-card rounded-2xl p-8">
+                    <div class="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 text-2xl mb-6">
+                        ⚡
+                    </div>
+                    <h3 class="text-xl font-bold text-white mb-3">P2P 直连与 120 FPS 高帧</h3>
+                    <p class="text-slate-400 text-sm leading-relaxed">
+                        优先局域网直连与公网 STUN / WebRTC P2P 打洞。打洞成功直接点对点传输，零服务器带宽消耗；支持 5~120 FPS 自由调节与 NVENC/AMF/QSV 显卡硬解。
+                    </p>
+                </div>
+
+                <!-- 特性 4 -->
+                <div class="glow-card rounded-2xl p-8">
+                    <div class="w-12 h-12 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400 text-2xl mb-6">
+                        🛡️
+                    </div>
+                    <h3 class="text-xl font-bold text-white mb-3">端到端 Ed25519 安全加密</h3>
+                    <p class="text-slate-400 text-sm leading-relaxed">
+                        完全继承 RustDesk 军工级安全架构。TXT 自动注入服务端公钥 Key，支持非对称握手与端到端 ChaCha20/AES 流加密，杜绝中间人劫持。
+                    </p>
+                </div>
+
+                <!-- 特性 5 -->
+                <div class="glow-card rounded-2xl p-8">
+                    <div class="w-12 h-12 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400 text-2xl mb-6">
+                        🔄
+                    </div>
+                    <h3 class="text-xl font-bold text-white mb-3">hbbr 中继自动降级兜底</h3>
+                    <p class="text-slate-400 text-sm leading-relaxed">
+                        在极端对称型 NAT 或企业级严格防火墙环境下，若 P2P 打洞失败，客户端自动无缝降级切换至 hbbr 中继隧道传输，确保 100% 随时随地可连。
+                    </p>
+                </div>
+
+                <!-- 特性 6 -->
+                <div class="glow-card rounded-2xl p-8">
+                    <div class="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 text-2xl mb-6">
+                        👌
+                    </div>
+                    <h3 class="text-xl font-bold text-white mb-3">全量平台与官方架构兼容</h3>
+                    <p class="text-slate-400 text-sm leading-relaxed">
+                        支持 Windows、macOS (Apple Silicon)、Android、Linux。对未包含 <code class="text-xs bg-slate-800 px-1 py-0.5 rounded">tcp=</code> 的传统单端口官方服务器 100% 向后兼容。
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 网络架构区域 -->
+    <section id="architecture" class="py-20">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center max-w-3xl mx-auto mb-16">
+                <h2 class="text-xs uppercase tracking-widest text-sky-400 font-bold mb-3 font-mono">ARCHITECTURE</h2>
+                <p class="text-3xl sm:text-4xl font-extrabold text-white">网络交互与通信流架构</p>
+                <p class="text-slate-400 mt-4 text-base">从家庭内网服务到 DNS TXT 分发，再到主控/被控端智能分流的完整链路</p>
+            </div>
+
+            <!-- 架构展示卡片 -->
+            <div class="glow-card rounded-2xl p-6 sm:p-10 border border-slate-800">
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 items-center">
+                    
+                    <!-- 左侧：内网与 Lucky 映射 -->
+                    <div class="space-y-4">
+                        <div class="text-xs font-mono font-semibold uppercase text-brand-400">1. 内网部署与 Lucky STUN 隧道</div>
+                        <div class="p-4 rounded-xl bg-slate-900 border border-slate-800 space-y-3">
+                            <div class="flex items-center justify-between text-xs font-mono">
+                                <span class="text-slate-300">hbbs (UDP 21116)</span>
+                                <span class="text-brand-400">➡️ STUN 1 (UDP)</span>
+                            </div>
+                            <div class="text-xs text-slate-400 font-mono bg-slate-950 p-2 rounded border border-slate-800">
+                                映射为公网 <span class="text-brand-300">host: 171.x.x.x:24869</span>
+                            </div>
+
+                            <div class="flex items-center justify-between text-xs font-mono pt-2 border-t border-slate-800">
+                                <span class="text-slate-300">hbbs (TCP 21116)</span>
+                                <span class="text-sky-400">➡️ STUN 2 (TCP)</span>
+                            </div>
+                            <div class="text-xs text-slate-400 font-mono bg-slate-950 p-2 rounded border border-slate-800">
+                                映射为公网 <span class="text-sky-300">tcp: 171.x.x.x:24439</span>
+                            </div>
+
+                            <div class="flex items-center justify-between text-xs font-mono pt-2 border-t border-slate-800">
+                                <span class="text-slate-300">hbbr (TCP 21117)</span>
+                                <span class="text-purple-400">➡️ STUN 3 (TCP)</span>
+                            </div>
+                            <div class="text-xs text-slate-400 font-mono bg-slate-950 p-2 rounded border border-slate-800">
+                                映射为公网 <span class="text-purple-300">relay: 171.x.x.x:24867</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 中间：DNS TXT 解析 -->
+                    <div class="space-y-4">
+                        <div class="text-xs font-mono font-semibold uppercase text-sky-400">2. DNS TXT 动态记录</div>
+                        <div class="p-4 rounded-xl bg-slate-900 border border-slate-800 space-y-3">
+                            <div class="text-xs text-slate-300 font-medium">Lucky WebHook 自动同步至域名 TXT 记录：</div>
+                            <div class="text-xs font-mono text-slate-300 bg-slate-950 p-3 rounded-lg border border-slate-800 break-all leading-relaxed">
+                                <span class="text-emerald-400">host</span>=171.91.129.179:24869,<br>
+                                <span class="text-sky-400">tcp</span>=171.91.129.179:24439,<br>
+                                <span class="text-purple-400">relay</span>=171.91.129.179:24867,<br>
+                                <span class="text-amber-400">key</span>=uSmsZQFJuhdstR...
+                            </div>
+                            <div class="text-xs text-slate-400">
+                                ⚡ RustDesk 内置 UDP 53 DNS 引擎，极速秒级解析提取。
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 右侧：客户端智能分流 -->
+                    <div class="space-y-4">
+                        <div class="text-xs font-mono font-semibold uppercase text-emerald-400">3. 客户端自动化分流运行</div>
+                        <div class="p-4 rounded-xl bg-slate-900 border border-slate-800 space-y-2 text-xs">
+                            <div class="p-2.5 rounded bg-slate-950 border border-slate-800 flex items-center justify-between">
+                                <span>🟢 被控端心跳/注册</span>
+                                <span class="font-mono text-emerald-400 font-semibold">直连 host (UDP)</span>
+                            </div>
+                            <div class="p-2.5 rounded bg-slate-950 border border-slate-800 flex items-center justify-between">
+                                <span>🔵 主控握手/信令协商</span>
+                                <span class="font-mono text-sky-400 font-semibold">直连 tcp (TCP)</span>
+                            </div>
+                            <div class="p-2.5 rounded bg-slate-950 border border-slate-800 flex items-center justify-between">
+                                <span>🟣 穿透失败中继转发</span>
+                                <span class="font-mono text-purple-400 font-semibold">直连 relay (TCP)</span>
+                            </div>
+                            <div class="p-2.5 rounded bg-slate-950 border border-slate-800 flex items-center justify-between">
+                                <span>⚡ P2P NAT 打洞通道</span>
+                                <span class="font-mono text-amber-400 font-semibold">端到端直连 (0服务器流量)</span>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Lucky 配置教程区域 -->
+    <section id="guide" class="py-20 bg-slate-900/40 border-y border-slate-800/80">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center max-w-3xl mx-auto mb-16">
+                <h2 class="text-xs uppercase tracking-widest text-brand-400 font-bold mb-3 font-mono">TUTORIAL</h2>
+                <p class="text-3xl sm:text-4xl font-extrabold text-white">Lucky STUN 打洞配置保姆级教程</p>
+                <p class="text-slate-400 mt-4 text-base">只需 4 步，轻松搭建完全免费的公网自建远程桌面</p>
+            </div>
+
+            <div class="max-w-4xl mx-auto space-y-8">
+                
+                <!-- 步骤 1 -->
+                <div class="glow-card rounded-2xl p-6 sm:p-8">
+                    <div class="flex items-start space-x-4">
+                        <div class="flex-shrink-0 w-8 h-8 rounded-lg bg-brand-500/20 text-brand-400 font-bold flex items-center justify-center font-mono border border-brand-500/30">
+                            1
+                        </div>
+                        <div class="flex-1">
+                            <h3 class="text-lg font-bold text-white">服务端部署 (运行 hbbs 与 hbbr)</h3>
+                            <p class="text-sm text-slate-400 mt-1 mb-3">在你的内网 NAS / Linux / 软路由上启动服务并生成密钥：</p>
+                            <div class="code-block rounded-xl p-4 font-mono text-xs text-slate-300 overflow-x-auto">
+                                <span class="text-slate-500"># 启动 hbbs (指定中继并生成 Key)</span><br>
+                                hbbs -r 0.0.0.0:21117 -k _<br><br>
+                                <span class="text-slate-500"># 启动 hbbr (指定 Key)</span><br>
+                                hbbr -k _
+                            </div>
+                            <p class="text-xs text-slate-400 mt-2">
+                                提示：在启动目录下会生成 <code class="text-brand-400">id_ed25519.pub</code> 文件，复制其内容作为密钥备用。
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 步骤 2 -->
+                <div class="glow-card rounded-2xl p-6 sm:p-8">
+                    <div class="flex items-start space-x-4">
+                        <div class="flex-shrink-0 w-8 h-8 rounded-lg bg-sky-500/20 text-sky-400 font-bold flex items-center justify-center font-mono border border-sky-500/30">
+                            2
+                        </div>
+                        <div class="flex-1">
+                            <h3 class="text-lg font-bold text-white">在 Lucky 管理后台创建 3 条 STUN 穿透规则</h3>
+                            <p class="text-sm text-slate-400 mt-1 mb-4">登录 Lucky 后台 ->「STUN 内网穿透」-> 新建规则：</p>
+                            
+                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                                <div class="p-3.5 rounded-xl bg-slate-900 border border-slate-800">
+                                    <div class="font-bold text-brand-400 mb-1">规则 1：hbbs UDP</div>
+                                    <div class="text-slate-400">协议：<span class="text-slate-200">UDP</span></div>
+                                    <div class="text-slate-400">目标端口：<span class="text-slate-200 font-mono">21116</span></div>
+                                </div>
+                                <div class="p-3.5 rounded-xl bg-slate-900 border border-slate-800">
+                                    <div class="font-bold text-sky-400 mb-1">规则 2：hbbs TCP</div>
+                                    <div class="text-slate-400">协议：<span class="text-slate-200">TCP</span></div>
+                                    <div class="text-slate-400">目标端口：<span class="text-slate-200 font-mono">21116</span></div>
+                                </div>
+                                <div class="p-3.5 rounded-xl bg-slate-900 border border-slate-800">
+                                    <div class="font-bold text-purple-400 mb-1">规则 3：hbbr TCP</div>
+                                    <div class="text-slate-400">协议：<span class="text-slate-200">TCP</span></div>
+                                    <div class="text-slate-400">目标端口：<span class="text-slate-200 font-mono">21117</span></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 步骤 3 -->
+                <div class="glow-card rounded-2xl p-6 sm:p-8">
+                    <div class="flex items-start space-x-4">
+                        <div class="flex-shrink-0 w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 font-bold flex items-center justify-center font-mono border border-emerald-500/30">
+                            3
+                        </div>
+                        <div class="flex-1">
+                            <h3 class="text-lg font-bold text-white">配置 Lucky WebHook 或 DNS TXT 记录</h3>
+                            <p class="text-sm text-slate-400 mt-1 mb-3">将 3 条 STUN 隧道的公网映射结果拼接为 TXT 记录：</p>
+                            
+                            <div class="code-block rounded-xl p-4 font-mono text-xs text-brand-300 break-all select-all">
+                                host=171.91.129.179:24869,tcp=171.91.129.179:24439,relay=171.91.129.179:24867,key=你的公钥字符串
+                            </div>
+
+                            <p class="text-xs text-slate-400 mt-3">
+                                💡 在 Lucky WebHook 中可使用变量如 <code class="text-slate-200">#{RustDesk-UDP.ip}:#{RustDesk-UDP.port}</code> 自动联动更新 Cloudflare、腾讯云、阿里云 DNS。
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 步骤 4 -->
+                <div class="glow-card rounded-2xl p-6 sm:p-8">
+                    <div class="flex items-start space-x-4">
+                        <div class="flex-shrink-0 w-8 h-8 rounded-lg bg-indigo-500/20 text-indigo-400 font-bold flex items-center justify-center font-mono border border-indigo-500/30">
+                            4
+                        </div>
+                        <div class="flex-1">
+                            <h3 class="text-lg font-bold text-white">客户端极简填入（一键完成）</h3>
+                            <p class="text-sm text-slate-400 mt-1 mb-3">打开 RustDesk 客户端 -> 点击「网络设置（ID/中继服务器）」：</p>
+                            <div class="p-4 rounded-xl bg-slate-900 border border-slate-800 text-xs space-y-2">
+                                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                    <span class="text-slate-400">ID 服务器 (ID Server)：</span>
+                                    <span class="font-mono bg-slate-950 px-3 py-1.5 rounded border border-slate-700 text-brand-400 font-semibold">你的域名 (如 rustdesk.example.com)</span>
+                                </div>
+                                <div class="text-slate-500">中继服务器 / API / Key：<span class="text-slate-400">留空即可（客户端自动从 TXT 提取）</span></div>
+                            </div>
+                            <p class="text-xs text-emerald-400 font-medium mt-3">
+                                🟢 保存后客户端左下角显示「就绪 (Ready)」，即可随时开始高速远程桌面！
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- 客户端下载区域 -->
+    <section id="download" class="py-20 relative">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center max-w-3xl mx-auto mb-16">
+                <h2 class="text-xs uppercase tracking-widest text-brand-400 font-bold mb-3 font-mono">DOWNLOADS</h2>
+                <p class="text-3xl sm:text-4xl font-extrabold text-white">客户端版本下载</p>
+                <p class="text-slate-400 mt-4 text-base">下载已集成动态 STUN 增强特性的全平台客户端安装包与便携版</p>
+            </div>
+
+            <!-- 下载卡片网格 -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl mx-auto">
+                
+                <!-- Windows x64 便携/安装版 -->
+                <div class="glow-card rounded-2xl p-6 flex flex-col justify-between border-slate-800">
+                    <div>
+                        <div class="flex items-center justify-between mb-4">
+                            <span class="text-3xl">🪟</span>
+                            <span class="text-xs bg-brand-500/20 text-brand-400 font-semibold px-2.5 py-0.5 rounded-full border border-brand-500/30">推荐</span>
+                        </div>
+                        <h3 class="text-lg font-bold text-white">Windows (x64)</h3>
+                        <p class="text-xs text-slate-400 mt-1 mb-6 leading-relaxed">
+                            单文件免安装便携版；双击直接运行，主界面支持一键固化为系统常驻服务。
+                        </p>
+                    </div>
+                    <div class="space-y-2.5">
+                        <a href="https://github.com/cyz-domo/rustdesk/releases/latest" target="_blank" class="w-full py-2.5 rounded-xl bg-brand-500 hover:bg-brand-600 text-slate-950 font-bold text-xs flex items-center justify-center space-x-1.5 transition-all shadow-md shadow-brand-500/20">
+                            <span>下载 .exe 单文件</span>
+                        </a>
+                        <a href="https://github.com/cyz-domo/rustdesk/releases/latest" target="_blank" class="w-full py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 font-medium text-xs flex items-center justify-center border border-slate-700 transition-all">
+                            <span>下载 .zip 绿色包</span>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- macOS Apple Silicon -->
+                <div class="glow-card rounded-2xl p-6 flex flex-col justify-between border-slate-800">
+                    <div>
+                        <div class="flex items-center justify-between mb-4">
+                            <span class="text-3xl">🍎</span>
+                            <span class="text-xs bg-sky-500/20 text-sky-400 font-semibold px-2.5 py-0.5 rounded-full border border-sky-500/30">Apple Silicon</span>
+                        </div>
+                        <h3 class="text-lg font-bold text-white">macOS (ARM64)</h3>
+                        <p class="text-xs text-slate-400 mt-1 mb-6 leading-relaxed">
+                            适用于 Apple M1 / M2 / M3 / M4 系列 Mac，支持 ScreenCaptureKit 高清原生录屏。
+                        </p>
+                    </div>
+                    <div>
+                        <a href="https://github.com/cyz-domo/rustdesk/releases/latest" target="_blank" class="w-full py-2.5 rounded-xl bg-sky-500 hover:bg-sky-600 text-slate-950 font-bold text-xs flex items-center justify-center space-x-1.5 transition-all shadow-md shadow-sky-500/20">
+                            <span>下载 .dmg 安装包</span>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Android 移动端 -->
+                <div class="glow-card rounded-2xl p-6 flex flex-col justify-between border-slate-800">
+                    <div>
+                        <div class="flex items-center justify-between mb-4">
+                            <span class="text-3xl">🤖</span>
+                            <span class="text-xs bg-emerald-500/20 text-emerald-400 font-semibold px-2.5 py-0.5 rounded-full border border-emerald-500/30">Android</span>
+                        </div>
+                        <h3 class="text-lg font-bold text-white">Android (ARM64)</h3>
+                        <p class="text-xs text-slate-400 mt-1 mb-6 leading-relaxed">
+                            安卓手机与平板移动客户端，支持触屏模拟、远程被控及随时随地随身运维。
+                        </p>
+                    </div>
+                    <div>
+                        <a href="https://github.com/cyz-domo/rustdesk/releases/latest" target="_blank" class="w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold text-xs flex items-center justify-center space-x-1.5 transition-all shadow-md shadow-emerald-500/20">
+                            <span>下载 .apk 安装包</span>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Linux x64 -->
+                <div class="glow-card rounded-2xl p-6 flex flex-col justify-between border-slate-800">
+                    <div>
+                        <div class="flex items-center justify-between mb-4">
+                            <span class="text-3xl">🐧</span>
+                            <span class="text-xs bg-indigo-500/20 text-indigo-400 font-semibold px-2.5 py-0.5 rounded-full border border-indigo-500/30">Linux</span>
+                        </div>
+                        <h3 class="text-lg font-bold text-white">Linux (x86_64)</h3>
+                        <p class="text-xs text-slate-400 mt-1 mb-6 leading-relaxed">
+                            适用于 Ubuntu / Debian / Deepin 等主流 Linux 发行版，支持 X11 与 Wayland。
+                        </p>
+                    </div>
+                    <div>
+                        <a href="https://github.com/cyz-domo/rustdesk/releases/latest" target="_blank" class="w-full py-2.5 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white font-bold text-xs flex items-center justify-center space-x-1.5 transition-all shadow-md shadow-indigo-500/20">
+                            <span>下载 .deb 安装包</span>
+                        </a>
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="mt-10 text-center">
+                <a href="https://github.com/cyz-domo/rustdesk/releases" target="_blank" class="inline-flex items-center space-x-2 text-sm text-slate-400 hover:text-brand-400 transition-colors">
+                    <span>查看历史版本与完整资产列表 (GitHub Releases) ➡️</span>
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- 常见问题 FAQ 区域 -->
+    <section id="faq" class="py-20 bg-slate-900/40 border-t border-slate-800/80">
+        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-16">
+                <h2 class="text-xs uppercase tracking-widest text-brand-400 font-bold mb-3 font-mono">FAQ</h2>
+                <p class="text-3xl font-extrabold text-white">常见问题与排查指引</p>
+            </div>
+
+            <div class="space-y-6">
+                <div class="glow-card rounded-2xl p-6">
+                    <h3 class="font-bold text-base text-white mb-2">Q1: Mac 下载后提示“已损坏，无法打开”？</h3>
+                    <p class="text-sm text-slate-400 leading-relaxed">
+                        这是由于 macOS Gatekeeper 门禁对未购买苹果开发者证书的软件进行的默认拦截。只需打开 Mac 终端输入：<br>
+                        <code class="text-xs font-mono bg-slate-950 px-2 py-1 rounded text-brand-300 mt-2 inline-block border border-slate-800">sudo xattr -rd com.apple.quarantine /Applications/RustDesk.app</code><br>
+                        回车输入开机密码后即可直接双击正常打开。
+                    </p>
+                </div>
+
+                <div class="glow-card rounded-2xl p-6">
+                    <h3 class="font-bold text-base text-white mb-2">Q2: 家庭宽带重新拨号导致公网端口变化，需要手动重启被控端吗？</h3>
+                    <p class="text-sm text-slate-400 leading-relaxed">
+                        完全不需要。RustDesk 被控端内置周期性 DNS TXT 轮询检测机制。当检测到 Lucky 推送的端口或公网 IP 变动时，客户端会自动无感热重载并与新的公网端口握手。
+                    </p>
+                </div>
+
+                <div class="glow-card rounded-2xl p-6">
+                    <h3 class="font-bold text-base text-white mb-2">Q3: 如何确认当前远程桌面是 P2P 直连还是服务器中继？</h3>
+                    <p class="text-sm text-slate-400 leading-relaxed">
+                        在远程窗口顶部的标签栏（Tab）中：<br>
+                        - 🟢 <strong>绿色纯锁图标</strong>：表示 <strong>P2P 端到端直连</strong>（鼠标悬停显示 Direct and encrypted connection），延迟最低且不耗服务器流量；<br>
+                        - 🔄 <strong>带转接箭头的锁图标</strong>：表示走 <strong>hbbr 中继服务器</strong> 转发（打洞失败时的兜底保护）。
+                    </p>
+                </div>
+
+                <div class="glow-card rounded-2xl p-6">
+                    <h3 class="font-bold text-base text-white mb-2">Q4: 为什么默认是 30 帧，如何开启 60 FPS 或 120 FPS？</h3>
+                    <p class="text-sm text-slate-400 leading-relaxed">
+                        进入客户端「设置」->「显示」-> 勾选「自定义画质与帧率」，将滑块拖动到 60 或 120 即可。同时在「硬件加速」中开启 NVENC / AMF / QSV 显卡硬编解码，在 P2P 直连下体验电竞级丝滑控制。
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 页脚 Footer -->
+    <footer class="py-10 border-t border-slate-900 bg-slate-950 text-slate-500 text-xs text-center">
+        <div class="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div>
+                © 2026 RustDesk 动态 STUN 增强版 · 基于开源项目 RustDesk 构建
+            </div>
+            <div class="flex items-center space-x-6 text-slate-400">
+                <a href="https://github.com/cyz-domo/rustdesk" target="_blank" class="hover:text-brand-400 transition-colors">GitHub 仓库</a>
+                <a href="https://github.com/cyz-domo/rustdesk/releases" target="_blank" class="hover:text-brand-400 transition-colors">Releases 产物</a>
+                <a href="https://github.com/cyz-domo/rustdesk/blob/master/docs/LUCKY_STUN_GUIDE.md" target="_blank" class="hover:text-brand-400 transition-colors">配置文档</a>
+            </div>
+        </div>
+    </footer>
+
+</body>
+</html>
