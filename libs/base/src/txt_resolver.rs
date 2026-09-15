@@ -399,11 +399,11 @@ mod tests {
 
     #[test]
     fn test_parse_stun_multi_port_txt() {
-        let content = "host=171.91.129.179:24869,tcp=171.91.129.179:24439,relay=171.91.129.179:24867,key=uSmsZQFJuhdstRBFhFXYaO0yprAr5wVy1rI+iuzNKEo=";
+        let content = "host=198.51.100.123:24869,tcp=198.51.100.123:24439,relay=198.51.100.123:24867,key=uSmsZQFJuhdstRBFhFXYaO0yprAr5wVy1rI+iuzNKEo=";
         let res = parse_txt_content(content).expect("failed to parse");
-        assert_eq!(res.host, "171.91.129.179:24869");
-        assert_eq!(res.tcp, Some("171.91.129.179:24439".to_string()));
-        assert_eq!(res.relay, Some("171.91.129.179:24867".to_string()));
+        assert_eq!(res.host, "198.51.100.123:24869");
+        assert_eq!(res.tcp, Some("198.51.100.123:24439".to_string()));
+        assert_eq!(res.relay, Some("198.51.100.123:24867".to_string()));
         assert_eq!(res.key, Some("uSmsZQFJuhdstRBFhFXYaO0yprAr5wVy1rI+iuzNKEo=".to_string()));
     }
 
@@ -411,7 +411,7 @@ mod tests {
     async fn test_resolve_server_config_ip_skipped() {
         assert!(resolve_server_config("127.0.0.1").await.is_none());
         assert!(resolve_server_config("127.0.0.1:21116").await.is_none());
-        assert!(resolve_server_config("125.66.72.146:22443").await.is_none());
+        assert!(resolve_server_config("198.51.100.123:22443").await.is_none());
     }
 
     #[tokio::test]

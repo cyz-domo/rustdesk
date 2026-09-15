@@ -24,9 +24,9 @@
 ```mermaid
 flowchart TD
     subgraph Lucky_NAT_Mapping["Lucky STUN 动态端口映射"]
-        hbbs_udp["hbbs (内网 21116 UDP)"] -->|STUN 规则 1 (UDP)| Ext_UDP["公网 host (例: 171.91.129.179:24869)"]
-        hbbs_tcp["hbbs (内网 21116 TCP)"] -->|STUN 规则 2 (TCP)| Ext_TCP["公网 tcp (例: 171.91.129.179:24439)"]
-        hbbr_tcp["hbbr (内网 21117 TCP)"] -->|STUN 规则 3 (TCP)| Ext_RELAY["公网 relay (例: 171.91.129.179:24867)"]
+        hbbs_udp["hbbs (内网 21116 UDP)"] -->|STUN 规则 1 (UDP)| Ext_UDP["公网 host (例: 198.51.100.123:24869)"]
+        hbbs_tcp["hbbs (内网 21116 TCP)"] -->|STUN 规则 2 (TCP)| Ext_TCP["公网 tcp (例: 198.51.100.123:24439)"]
+        hbbr_tcp["hbbr (内网 21117 TCP)"] -->|STUN 规则 3 (TCP)| Ext_RELAY["公网 relay (例: 198.51.100.123:24867)"]
     end
 
     subgraph DNS_System["DNS TXT 记录分发"]
@@ -59,15 +59,15 @@ flowchart TD
 
 | 键名 | 是否必需 | 说明 | 示例 |
 | :--- | :---: | :--- | :--- |
-| `host` | 是 | `hbbs` 的公网地址（在 STUN 模式下对应 **UDP 端口**） | `171.91.129.179:24869` |
-| `tcp` | 否 | `hbbs` 的公网信令 **TCP 端口**（未配置时自动回退为 `host`） | `171.91.129.179:24439` |
-| `relay` | 否 | `hbbr` 的公网中继 **TCP 端口** | `171.91.129.179:24867` |
-| `api` | 否 | Web/Api 服务地址 | `http://171.91.129.179:21114` |
+| `host` | 是 | `hbbs` 的公网地址（在 STUN 模式下对应 **UDP 端口**） | `198.51.100.123:24869` |
+| `tcp` | 否 | `hbbs` 的公网信令 **TCP 端口**（未配置时自动回退为 `host`） | `198.51.100.123:24439` |
+| `relay` | 否 | `hbbr` 的公网中继 **TCP 端口** | `198.51.100.123:24867` |
+| `api` | 否 | Web/Api 服务地址 | `http://198.51.100.123:21114` |
 | `key` | 否 | 服务端强制验证密钥公钥 (`-k _` 生成的 `.pub` 字符串) | `uSmsZQFJuhdstRBF...` |
 
 #### 标准 Lucky STUN 穿透 TXT 示例：
 ```text
-host=171.91.129.179:24869,tcp=171.91.129.179:24439,relay=171.91.129.179:24867,key=uSmsZQFJuhdstRBFhFXYaO0yprAr5wVy1rI+iuzNKEo=
+host=198.51.100.123:24869,tcp=198.51.100.123:24439,relay=198.51.100.123:24867,key=uSmsZQFJuhdstRBFhFXYaO0yprAr5wVy1rI+iuzNKEo=
 ```
 
 #### 标准官方自建服务器（同一端口）TXT 示例：
