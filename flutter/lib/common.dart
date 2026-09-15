@@ -2973,6 +2973,132 @@ class ServerConfig {
         key = options['key'] ?? "";
 }
 
+class ServerProfileItem {
+  String id;
+  String name;
+  String host;
+  String relay;
+  String api;
+  String key;
+  bool enabled;
+
+  ServerProfileItem({
+    required this.id,
+    required this.name,
+    required this.host,
+    this.relay = '',
+    this.api = '',
+    this.key = '',
+    this.enabled = true,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'name': name,
+        'host': host,
+        'relay': relay.isNotEmpty ? relay : null,
+        'api': api.isNotEmpty ? api : null,
+        'key': key.isNotEmpty ? key : null,
+        'enabled': enabled,
+      };
+
+  factory ServerProfileItem.fromJson(Map<String, dynamic> json) =>
+      ServerProfileItem(
+        id: json['id'] ?? '',
+        name: json['name'] ?? '',
+        host: json['host'] ?? '',
+        relay: json['relay'] ?? '',
+        api: json['api'] ?? '',
+        key: json['key'] ?? '',
+        enabled: json['enabled'] ?? true,
+      );
+
+  static String encodeProfiles(List<ServerProfileItem> profiles) {
+    if (profiles.isEmpty) return '';
+    if (profiles.length == 1) {
+      final p = profiles[0];
+      return ServerConfig(
+        idServer: p.host,
+        relayServer: p.relay,
+        apiServer: p.api,
+        key: p.key,
+      ).encode();
+    }
+    final primary = profiles.firstWhereOrNull((p) => p.enabled && p.host.isNotEmpty) ??
+        profiles.firstWhereOrNull((p) => p.host.isNotEmpty) ??
+        profiles[0];
+    Map<String, dynamic> config = {
+      'host': primary.host.trim(),
+      'relay': primary.relay.trim(),
+      'api': primary.api.trim(),
+      'key': primary.key.trim(),
+      'profiles': profiles.map((p) => p.toJson()).toList(),
+    };
+    return base64UrlEncode(Uint8List.fromList(jsonEncode(config).codeUnits))
+        .split('')
+        .reversed
+        .join();
+  }
+
+  static List<ServerProfileItem> decodeProfiles(String msg) {
+    msg = msg.trim();
+    if (msg.isEmpty) return [];
+    dynamic json;
+    try {
+      json = jsonDecode(msg);
+    } catch (_) {
+      try {
+        final input = msg.split('').reversed.join('');
+        final bytes = base64Decode(base64.normalize(input));
+        json = jsonDecode(utf8.decode(bytes, allowMalformed: true));
+      } catch (_) {}
+    }
+
+    if (json is Map) {
+      if (json.containsKey('profiles') && json['profiles'] is List) {
+        final list = json['profiles'] as List;
+        final res = list
+            .whereType<Map>()
+            .map((e) => ServerProfileItem.fromJson(Map<String, dynamic>.from(e)))
+            .toList();
+        if (res.isNotEmpty) return res;
+      }
+      final host = (json['host'] ?? '').toString().trim();
+      if (host.isNotEmpty) {
+        return [
+          ServerProfileItem(
+            id: 'profile-1',
+            name: 'Server 1',
+            host: host,
+            relay: (json['relay'] ?? '').toString().trim(),
+            api: (json['api'] ?? '').toString().trim(),
+            key: (json['key'] ?? '').toString().trim(),
+            enabled: true,
+          )
+        ];
+      }
+    }
+
+    // Plain text fallback (comma/semicolon/newline separated)
+    final parts = msg
+        .split(RegExp(r'[;,\n]'))
+        .map((s) => s.trim())
+        .where((s) => s.isNotEmpty)
+        .toList();
+    if (parts.isNotEmpty) {
+      return parts.asMap().entries.map((e) {
+        return ServerProfileItem(
+          id: 'profile-${e.key + 1}',
+          name: 'Server ${e.key + 1}',
+          host: e.value,
+          enabled: true,
+        );
+      }).toList();
+    }
+    return [];
+  }
+}
+
 Widget dialogButton(String text,
     {required VoidCallback? onPressed,
     bool isOutline = false,

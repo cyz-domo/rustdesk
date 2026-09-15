@@ -30,7 +30,11 @@ use hbb_common::{
     webrtc::WebRTCStream,
     AddrMangle, IntoTargetAddr, ResultType, Stream, TargetAddr,
 };
-use base::{config::keys::*, txt_resolver};
+use base::{
+    config::keys::*,
+    server_profile::{self, ServerProfile},
+    txt_resolver,
+};
 
 use crate::{
     check_port,
@@ -163,12 +167,70 @@ pub(crate) fn reset_needs_deploy_notification() {
     NOTIFIED_NEEDS_DEPLOY.store(false, Ordering::SeqCst);
 }
 
+#[derive(Clone, Debug, Default)]
+pub struct ServerContext {
+    pub profile_id: String,
+    pub name: String,
+    pub host: String,
+    pub tcp_host: Option<String>,
+    pub relay: Option<String>,
+    pub api: Option<String>,
+    pub key: Option<String>,
+    pub online: Option<String>,
+}
+
+impl ServerContext {
+    pub fn tcp_host(&self) -> String {
+        if let Some(tcp) = &self.tcp_host {
+            check_port(tcp, RENDEZVOUS_PORT)
+        } else {
+            let tcp_opt = Config::get_option("rendezvous-server-tcp");
+            if !tcp_opt.is_empty() {
+                check_port(&tcp_opt, RENDEZVOUS_PORT)
+            } else {
+                self.host.clone()
+            }
+        }
+    }
+
+    pub fn get_key(&self) -> String {
+        if let Some(k) = &self.key {
+            if !k.is_empty() {
+                return k.clone();
+            }
+        }
+        let k = server_profile::get_key_by_host(&self.host);
+        if !k.is_empty() {
+            k
+        } else {
+            Config::get_option("key")
+        }
+    }
+
+    pub fn get_relay_server(&self, provided_by_rendezvous_server: String) -> String {
+        if !provided_by_rendezvous_server.is_empty() {
+            return provided_by_rendezvous_server;
+        }
+        if let Some(relay) = &self.relay {
+            if !relay.is_empty() {
+                return relay.clone();
+            }
+        }
+        let mut relay_server = Config::get_option("relay-server");
+        if relay_server.is_empty() {
+            relay_server = crate::increase_port(&self.host, 1);
+        }
+        relay_server
+    }
+}
+
 #[derive(Clone)]
 pub struct RendezvousMediator {
     addr: TargetAddr<'static>,
     host: String,
     host_prefix: String,
     keep_alive: i32,
+    ctx: ServerContext,
 }
 
 impl RendezvousMediator {
@@ -218,26 +280,29 @@ impl RendezvousMediator {
                 && !crate::platform::installing_service()
             {
                 let mut futs = Vec::new();
-                let servers = Config::get_rendezvous_servers();
+                let profiles = server_profile::get_active_server_profiles();
                 SHOULD_EXIT.store(false, Ordering::SeqCst);
                 MANUAL_RESTARTED.store(false, Ordering::SeqCst);
-                for host in servers.clone() {
+                for profile in profiles {
                     let server = server.clone();
                     let timeout = timeout.clone();
                     futs.push(tokio::spawn(async move {
-                        if let Err(err) = Self::start(server, host).await {
-                            let err = format!("rendezvous mediator error: {err}");
-                            // When user reboot, there might be below error, waiting too long
-                            // (CONNECT_TIMEOUT 18s) will make user think there is bug
-                            if err.contains("10054") || err.contains("11001") {
-                                // No such host is known. (os error 11001)
-                                // An existing connection was forcibly closed by the remote host. (os error 10054): also happens for UDP
-                                *timeout.write().unwrap() = 3000;
+                        loop {
+                            if SHOULD_EXIT.load(Ordering::SeqCst) {
+                                break;
                             }
-                            log::error!("{err}");
+                            if let Err(err) = Self::start_profile(server.clone(), profile.clone()).await {
+                                let err = format!("rendezvous mediator error ({}) {}: {err}", profile.name, profile.host);
+                                if err.contains("10054") || err.contains("11001") {
+                                    *timeout.write().unwrap() = 3000;
+                                }
+                                log::error!("{err}");
+                            }
+                            if SHOULD_EXIT.load(Ordering::SeqCst) {
+                                break;
+                            }
+                            sleep(1.0).await;
                         }
-                        // SHOULD_EXIT here is to ensure once one exits, the others also exit.
-                        SHOULD_EXIT.store(true, Ordering::SeqCst);
                     }));
                 }
                 join_all(futs).await;
@@ -252,7 +317,6 @@ impl RendezvousMediator {
                     sleep(((timeout - elapsed) / 1000) as _).await;
                 }
             } else {
-                // https://github.com/rustdesk/rustdesk/issues/12233
                 sleep(0.033).await;
             }
         }
@@ -271,15 +335,16 @@ impl RendezvousMediator {
             .unwrap_or(host.to_owned())
     }
 
-    pub async fn start_udp(server: ServerPtr, host: String) -> ResultType<()> {
-        let host = check_port(&host, RENDEZVOUS_PORT);
-        log::info!("start udp: {host}");
+    pub async fn start_udp_ctx(server: ServerPtr, mut ctx: ServerContext) -> ResultType<()> {
+        let host = check_port(&ctx.host, RENDEZVOUS_PORT);
+        log::info!("start udp: {host} ({})", ctx.name);
         let (mut socket, mut addr) = new_udp_for(&host, CONNECT_TIMEOUT).await?;
         let mut rz = Self {
             addr: addr.clone(),
             host: host.clone(),
             host_prefix: Self::get_host_prefix(&host),
             keep_alive: crate::DEFAULT_KEEP_ALIVE,
+            ctx: ctx.clone(),
         };
 
         let mut timer = crate::rustdesk_interval(interval(crate::TIMER_OUT));
@@ -333,7 +398,7 @@ impl RendezvousMediator {
                                 log::debug!("Non-protobuf message bytes received: {:?}", bytes);
                             }
                         },
-                        Some(Err(e)) => bail!("Failed to receive next: {}", e),  // maybe socks5 tcp disconnected
+                        Some(Err(e)) => bail!("Failed to receive next: {}", e),
                         None => {
                             bail!("Socket receive none. Maybe socks5 server is down.");
                         },
@@ -343,38 +408,31 @@ impl RendezvousMediator {
                     if SHOULD_EXIT.load(Ordering::SeqCst) {
                         break;
                     }
-                    // The server already told us this device is not deployed. Skip
-                    // the whole register / fails / latency / UDP-rebind path until
-                    // DEPLOY_RETRY_INTERVAL elapses, otherwise the loop spins every
-                    // few seconds (log spam + misapplied network-recovery rebind)
-                    // until the operator runs `rustdesk --deploy`.
                     if deploy_register_throttled().await {
                         continue;
                     }
                     if last_dns_check.elapsed().as_millis() as i64 > DNS_INTERVAL {
                         last_dns_check = Instant::now();
-                        for s in Config::get_rendezvous_servers() {
-                            if let Some(resolved) = txt_resolver::resolve_server_config(&s).await {
-                                if let Some(tcp) = resolved.tcp.as_ref() {
-                                    Config::set_option("rendezvous-server-tcp".to_owned(), tcp.clone());
-                                }
-                                if let Some(relay) = resolved.relay.as_ref() {
-                                    Config::set_option("relay-server".to_owned(), relay.clone());
-                                }
-                                if let Some(key) = resolved.key.as_ref() {
-                                    Config::set_option("key".to_owned(), key.clone());
-                                }
-                                if let Some(api) = resolved.api.as_ref() {
-                                    Config::set_option("api-server".to_owned(), api.clone());
-                                }
-                                if let Some(online) = resolved.online.as_ref() {
-                                    Config::set_option("online-server".to_owned(), online.clone());
-                                }
-                                let new_target = check_port(&resolved.host, RENDEZVOUS_PORT);
-                                if new_target != rz.host {
-                                    log::info!("TXT record for {} updated from {} to {}, restarting...", s, rz.host, new_target);
-                                    bail!("TXT record host updated to {}", new_target);
-                                }
+                        if let Some(resolved) = txt_resolver::resolve_server_config(&rz.ctx.host).await {
+                            if let Some(tcp) = resolved.tcp {
+                                rz.ctx.tcp_host = Some(tcp);
+                            }
+                            if let Some(relay) = resolved.relay {
+                                rz.ctx.relay = Some(relay);
+                            }
+                            if let Some(key) = resolved.key {
+                                rz.ctx.key = Some(key);
+                            }
+                            if let Some(api) = resolved.api {
+                                rz.ctx.api = Some(api);
+                            }
+                            if let Some(online) = resolved.online {
+                                rz.ctx.online = Some(online);
+                            }
+                            let new_target = check_port(&resolved.host, RENDEZVOUS_PORT);
+                            if new_target != rz.host {
+                                log::info!("TXT record for {} updated from {} to {}, restarting worker...", rz.ctx.name, rz.host, new_target);
+                                bail!("TXT record host updated to {}", new_target);
                             }
                         }
                     }
@@ -531,27 +589,31 @@ impl RendezvousMediator {
         Ok(())
     }
 
-    pub async fn start_tcp(server: ServerPtr, host: String) -> ResultType<()> {
-        let tcp_opt = Config::get_option("rendezvous-server-tcp");
-        let host = if !tcp_opt.is_empty() {
-            check_port(&tcp_opt, RENDEZVOUS_PORT)
-        } else {
-            check_port(&host, RENDEZVOUS_PORT)
-        };
-        log::info!("start tcp: {}", hbb_common::websocket::check_ws(&host));
+    pub async fn start_tcp_ctx(server: ServerPtr, mut ctx: ServerContext) -> ResultType<()> {
+        let host = ctx.tcp_host();
+        log::info!("start tcp: {} ({})", hbb_common::websocket::check_ws(&host), ctx.name);
         let mut conn = connect_tcp(host.clone(), CONNECT_TIMEOUT).await?;
-        let key = crate::get_key(true).await;
+        let key = {
+            let k = ctx.get_key();
+            if k.is_empty() {
+                crate::get_key(true).await
+            } else {
+                k
+            }
+        };
         crate::secure_tcp(&mut conn, &key).await?;
         let mut rz = Self {
             addr: conn.local_addr().into_target_addr()?,
             host: host.clone(),
             host_prefix: Self::get_host_prefix(&host),
             keep_alive: crate::DEFAULT_KEEP_ALIVE,
+            ctx: ctx.clone(),
         };
         let mut timer = crate::rustdesk_interval(interval(crate::TIMER_OUT));
         let mut last_register_sent: Option<Instant> = None;
         let mut last_recv_msg = Instant::now();
-        // we won't support connecting to multiple rendzvous servers any more, so we can use a global variable here.
+        let mut last_dns_check = Instant::now();
+        const DNS_INTERVAL: i64 = 60_000;
         Config::set_host_key_confirmed(&rz.host_prefix, false);
         loop {
             let mut update_latency = || {
@@ -578,6 +640,31 @@ impl RendezvousMediator {
                     if SHOULD_EXIT.load(Ordering::SeqCst) {
                         break;
                     }
+                    if last_dns_check.elapsed().as_millis() as i64 > DNS_INTERVAL {
+                        last_dns_check = Instant::now();
+                        if let Some(resolved) = txt_resolver::resolve_server_config(&rz.ctx.host).await {
+                            if let Some(tcp) = resolved.tcp {
+                                rz.ctx.tcp_host = Some(tcp);
+                            }
+                            if let Some(relay) = resolved.relay {
+                                rz.ctx.relay = Some(relay);
+                            }
+                            if let Some(key) = resolved.key {
+                                rz.ctx.key = Some(key);
+                            }
+                            if let Some(api) = resolved.api {
+                                rz.ctx.api = Some(api);
+                            }
+                            if let Some(online) = resolved.online {
+                                rz.ctx.online = Some(online);
+                            }
+                            let new_target = rz.ctx.tcp_host();
+                            if new_target != rz.host {
+                                log::info!("TXT record for {} updated from {} to {}, restarting tcp worker...", rz.ctx.name, rz.host, new_target);
+                                bail!("TXT record host updated to {}", new_target);
+                            }
+                        }
+                    }
                     // https://www.emqx.com/en/blog/mqtt-keep-alive
                     if last_recv_msg.elapsed().as_millis() as u64 > rz.keep_alive as u64 * 3 / 2 {
                         bail!("Rendezvous connection is timeout");
@@ -594,39 +681,77 @@ impl RendezvousMediator {
         Ok(())
     }
 
-    pub async fn start(server: ServerPtr, host: String) -> ResultType<()> {
-        let host = if let Some(resolved) = txt_resolver::resolve_server_config(&host).await {
-            log::info!("Resolved TXT server config for {}: {:?}", host, resolved);
+    pub async fn start_profile(server: ServerPtr, profile: ServerProfile) -> ResultType<()> {
+        let mut ctx = ServerContext {
+            profile_id: profile.id,
+            name: profile.name,
+            host: profile.host,
+            tcp_host: profile.tcp_host,
+            relay: profile.relay,
+            api: profile.api,
+            key: profile.key,
+            online: profile.online,
+        };
+        if let Some(resolved) = txt_resolver::resolve_server_config(&ctx.host).await {
+            log::info!("Resolved TXT server config for {}: {:?}", ctx.host, resolved);
             if let Some(tcp) = resolved.tcp {
-                Config::set_option("rendezvous-server-tcp".to_owned(), tcp);
+                ctx.tcp_host = Some(tcp);
             }
             if let Some(relay) = resolved.relay {
-                Config::set_option("relay-server".to_owned(), relay);
+                ctx.relay = Some(relay);
             }
             if let Some(key) = resolved.key {
-                Config::set_option("key".to_owned(), key);
+                ctx.key = Some(key);
             }
             if let Some(api) = resolved.api {
-                Config::set_option("api-server".to_owned(), api);
+                ctx.api = Some(api);
             }
             if let Some(online) = resolved.online {
-                Config::set_option("online-server".to_owned(), online);
+                ctx.online = Some(online);
             }
-            resolved.host
-        } else {
-            host
-        };
-        log::info!("start rendezvous mediator of {}", host);
-        //If the investment agent type is http or https, then tcp forwarding is enabled.
+            ctx.host = resolved.host;
+        }
+        log::info!("start rendezvous mediator for profile '{}' ({})", ctx.name, ctx.host);
         if (cfg!(debug_assertions) && option_env!("TEST_TCP").is_some())
             || Config::is_proxy()
             || use_ws()
             || crate::is_udp_disabled()
         {
-            Self::start_tcp(server, host).await
+            Self::start_tcp_ctx(server, ctx).await
         } else {
-            Self::start_udp(server, host).await
+            Self::start_udp_ctx(server, ctx).await
         }
+    }
+
+    pub async fn start(server: ServerPtr, host: String) -> ResultType<()> {
+        let profile = ServerProfile {
+            id: "default".to_owned(),
+            name: host.clone(),
+            host,
+            enabled: true,
+            ..Default::default()
+        };
+        Self::start_profile(server, profile).await
+    }
+
+    pub async fn start_udp(server: ServerPtr, host: String) -> ResultType<()> {
+        let ctx = ServerContext {
+            profile_id: "default".to_owned(),
+            name: host.clone(),
+            host,
+            ..Default::default()
+        };
+        Self::start_udp_ctx(server, ctx).await
+    }
+
+    pub async fn start_tcp(server: ServerPtr, host: String) -> ResultType<()> {
+        let ctx = ServerContext {
+            profile_id: "default".to_owned(),
+            name: host.clone(),
+            host,
+            ..Default::default()
+        };
+        Self::start_tcp_ctx(server, ctx).await
     }
 
     async fn handle_request_relay(&self, rr: RequestRelay, server: ServerPtr) -> ResultType<()> {
@@ -1173,23 +1298,11 @@ impl RendezvousMediator {
     }
 
     fn tcp_host(&self) -> String {
-        let tcp = Config::get_option("rendezvous-server-tcp");
-        if !tcp.is_empty() {
-            check_port(&tcp, RENDEZVOUS_PORT)
-        } else {
-            self.host.clone()
-        }
+        self.ctx.tcp_host()
     }
 
     fn get_relay_server(&self, provided_by_rendezvous_server: String) -> String {
-        let mut relay_server = Config::get_option("relay-server");
-        if relay_server.is_empty() {
-            relay_server = provided_by_rendezvous_server;
-        }
-        if relay_server.is_empty() {
-            relay_server = crate::increase_port(&self.host, 1);
-        }
-        relay_server
+        self.ctx.get_relay_server(provided_by_rendezvous_server)
     }
 }
 

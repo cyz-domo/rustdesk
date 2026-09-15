@@ -23,7 +23,7 @@ use hbb_common::{
     sodiumoxide::crypto::{box_, sign},
     timeout, tokio, ResultType, Stream,
 };
-use base::message_proto::*;
+use base::{message_proto::*, server_profile};
 use scrap::camera;
 #[cfg(not(any(target_os = "android", target_os = "ios")))]
 use service::ServiceTmpl;
@@ -339,7 +339,12 @@ async fn create_relay_connection_(
     )
     .await?;
     let mut msg_out = RendezvousMessage::new();
-    let licence_key = crate::get_key(true).await;
+    let k = server_profile::get_key_by_host(&relay_server);
+    let licence_key = if !k.is_empty() {
+        k
+    } else {
+        crate::get_key(true).await
+    };
     msg_out.set_request_relay(RequestRelay {
         licence_key,
         uuid,

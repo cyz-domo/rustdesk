@@ -8,7 +8,7 @@ use std::{
 
 use serde_json::{json, Map, Value};
 
-use base::{config::keys, message_proto::*, txt_resolver};
+use base::{config::keys, message_proto::*, server_profile, txt_resolver};
 #[cfg(not(target_os = "ios"))]
 use hbb_common::whoami;
 use hbb_common::{
@@ -755,10 +755,18 @@ async fn test_nat_type_() -> ResultType<bool> {
 }
 
 pub async fn get_rendezvous_server(ms_timeout: u64) -> (String, Vec<String>, bool) {
-    #[cfg(any(target_os = "android", target_os = "ios"))]
-    let (mut a, mut b) = get_rendezvous_server_(ms_timeout);
-    #[cfg(not(any(target_os = "android", target_os = "ios")))]
-    let (mut a, mut b) = get_rendezvous_server_(ms_timeout).await;
+    let active_profiles = server_profile::get_active_server_profiles();
+    let (mut a, mut b) = if !active_profiles.is_empty() {
+        let mut hosts: Vec<String> = active_profiles.into_iter().map(|p| p.host).collect();
+        let a = hosts.remove(0);
+        (a, hosts)
+    } else {
+        #[cfg(any(target_os = "android", target_os = "ios"))]
+        let (a, b) = get_rendezvous_server_(ms_timeout);
+        #[cfg(not(any(target_os = "android", target_os = "ios")))]
+        let (a, b) = get_rendezvous_server_(ms_timeout).await;
+        (a, b)
+    };
     #[cfg(windows)]
     if let Ok(lic) = crate::platform::get_license_from_exe_name() {
         if !lic.host.is_empty() {
