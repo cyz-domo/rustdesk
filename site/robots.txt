@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://cyz-domo.github.io/rustdesk/sitemap.xml
