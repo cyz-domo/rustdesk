@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use hbb_common::config::Config;
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ServerProfile {
     #[serde(default)]
     pub id: String,
@@ -28,15 +28,11 @@ fn default_true() -> bool {
 impl ServerProfile {
     pub fn new(name: String, host: String) -> Self {
         Self {
-            id: uuid::Uuid::new_v4().to_string(),
+            id: hbb_common::get_uuid(),
             name,
             host,
-            tcp_host: None,
-            relay: None,
-            api: None,
-            key: None,
-            online: None,
             enabled: true,
+            ..Default::default()
         }
     }
 }
@@ -76,6 +72,7 @@ pub fn get_server_profiles() -> Vec<ServerProfile> {
                     api: api_opt.clone(),
                     key: key_opt.clone(),
                     enabled: true,
+                    ..Default::default()
                 }
             }).collect();
         } else if let Some(&host) = parts.first() {
@@ -87,6 +84,7 @@ pub fn get_server_profiles() -> Vec<ServerProfile> {
                 api: api_opt,
                 key: key_opt,
                 enabled: true,
+                ..Default::default()
             }];
         }
     }
@@ -98,10 +96,8 @@ pub fn get_server_profiles() -> Vec<ServerProfile> {
             id: format!("default-{}", idx + 1),
             name: if idx == 0 { "公共主服务器".to_string() } else { format!("公共服务器 {}", idx + 1) },
             host,
-            relay: None,
-            api: None,
-            key: None,
             enabled: true,
+            ..Default::default()
         }
     }).collect()
 }
