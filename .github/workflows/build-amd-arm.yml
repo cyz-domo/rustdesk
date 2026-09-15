@@ -407,6 +407,7 @@ jobs:
             sed -i -e "s/MACOSX_DEPLOYMENT_TARGET = [0-9]*.[0-9]*;/MACOSX_DEPLOYMENT_TARGET = ${MIN_MACOS_VERSION};/" flutter/macos/Runner.xcodeproj/project.pbxproj || true
           fi
           ./build.py --flutter --hwcodec --unix-file-copy-paste ${{ matrix.job.extra-build-args }}
+          codesign --force --deep --sign - ./flutter/build/macos/Build/Products/Release/RustDesk.app || true
 
       - name: Create DMG
         if: steps.check_selection.outputs.run_job == 'true'
