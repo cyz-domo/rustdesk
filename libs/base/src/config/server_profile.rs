@@ -28,7 +28,7 @@ fn default_true() -> bool {
 impl ServerProfile {
     pub fn new(name: String, host: String) -> Self {
         Self {
-            id: hbb_common::get_uuid(),
+            id: hbb_common::uuid::Uuid::new_v4().to_string(),
             name,
             host,
             enabled: true,
