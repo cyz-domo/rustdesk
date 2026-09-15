@@ -304,7 +304,7 @@ jobs:
             }
           - {
               target: x86_64-apple-darwin,
-              os: macos-13,
+              os: macos-14,
               extra-build-args: "",
               arch: x86_64,
               vcpkg-triplet: x64-osx,
@@ -754,27 +754,62 @@ jobs:
   publish-release:
     name: Publish Release
     needs: [build-windows, build-macos, build-android, build-linux]
-    if: always() && inputs.create_release
+    if: always() && (inputs.create_release == true || inputs.create_release == 'true')
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
-      - name: Generate Tag and Release Title
+      - name: Checkout repository for changelog
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 20
+
+      - name: Generate Tag, Release Title, and Release Notes
         id: vars
         shell: bash
         run: |
+          NOW_UTC=$(date -u '+%Y-%m-%d %H:%M:%S UTC')
+          NOW_CST=$(TZ='Asia/Shanghai' date '+%Y-%m-%d %H:%M:%S CST')
+          
           if [ -n "${{ inputs.release_tag }}" ]; then
             TAG="${{ inputs.release_tag }}"
           else
             TAG="build-$(date +'%Y%m%d-%H%M')"
           fi
+          
           if [ -n "${{ inputs.release_title }}" ]; then
             TITLE="${{ inputs.release_title }}"
           else
-            TITLE="RustDesk 自定义构建 ($TAG)"
+            TITLE="RustDesk 动态 STUN 增强版 ($TAG)"
           fi
+          
           echo "tag=$TAG" >> $GITHUB_OUTPUT
           echo "title=$TITLE" >> $GITHUB_OUTPUT
+
+          CHANGELOG=$(git log -n 8 --pretty=format:"- %s (\`%h\` - %an)")
+
+          cat <<EOF > ./release_notes.md
+          ## 🚀 RustDesk 多平台发布 (${TAG})
+
+          - **构建时间**: ${NOW_CST} (${NOW_UTC})
+          - **Commit**: [\`${GITHUB_SHA:0:8}\`](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/commit/${GITHUB_SHA})
+          - **触发分支**: \`${GITHUB_REF_NAME}\`
+
+          ### 📝 最近变更记录 (Recent Changes)
+          ${CHANGELOG}
+
+          ### 📦 产物下载与使用说明
+          | 文件类型 | 平台 / 说明 | 使用方式 |
+          | :--- | :--- | :--- |
+          | \`rustdesk-*.exe\` | Windows (x64) 便携/安装一体化 | 直接双击运行即可使用（免安装便携版）；主界面可一键安装为系统服务 |
+          | \`rustdesk-*.zip\` | Windows (x64) 绿色免解压包 | 解压后直接运行内部的 \`rustdesk.exe\` |
+          | \`rustdesk-*.dmg\` | macOS (Apple Silicon / M系列) | 双击挂载，拖入 Applications 目录 |
+          | \`rustdesk-*.apk\` | Android (ARM64) 移动客户端 | 手机直接安装运行 |
+          | \`rustdesk-*.deb\` | Linux (x64 Debian/Ubuntu) | \`sudo dpkg -i rustdesk-*.deb\` |
+
+          ### 💡 Lucky STUN 动态 DNS TXT 快速配置
+          在客户端「ID/中继服务器」处，ID 服务器直接填写你的动态域名（如 \`rd.example.com\`），客户端将自动解析 TXT 记录中的 \`host\`(UDP)、\`tcp\`(TCP)、\`relay\`(中继) 与 \`key\`。
+          EOF
 
       - name: Download all artifacts
         uses: actions/download-artifact@v4
@@ -786,23 +821,17 @@ jobs:
         shell: bash
         run: |
           mkdir -p ./release_files
-          find ./dist -maxdepth 2 -type f \( -name "*.exe" -o -name "*.dmg" -o -name "*.deb" -o -name "*.zip" -o -name "*.apk" \) -exec cp -f {} ./release_files/ \;
+          find ./dist -maxdepth 2 -type f \( -name "*.exe" -o -name "*.dmg" -o -name "*.deb" -o -name "*.zip" -o -name "*.apk" \) ! -name "*bridge*" -exec cp -f {} ./release_files/ \;
+          echo "=== Release Files ==="
           ls -lh ./release_files/
 
-      - name: Create Release
+      - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.vars.outputs.tag }}
           name: ${{ steps.vars.outputs.title }}
           draft: false
-          prerelease: ${{ inputs.prerelease }}
+          prerelease: ${{ inputs.prerelease || false }}
+          body_path: ./release_notes.md
           files: |
             ./release_files/*
-          body: |
-            ## 🚀 RustDesk 多平台构建产物 (${{ steps.vars.outputs.tag }})
-            
-            - **Commit SHA**: `${{ github.sha }}`
-            - **构建时间**: $(date -u '+%Y-%m-%d %H:%M:%S UTC')
-            
-            ### 📦 包含产物：
-            请在下方 Assets 列表中按需下载对应平台的二进制文件（Windows `.exe` / `.zip`，macOS `.dmg`，Android `.apk`，Linux `.deb`）。
