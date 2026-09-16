@@ -687,8 +687,18 @@ async fn test_nat_type_() -> ResultType<bool> {
     log::info!("Testing nat ...");
     let start = std::time::Instant::now();
     let (server1, _, _) = crate::get_rendezvous_server(1_000).await;
-    let tcp_opt = Config::get_option("rendezvous-server-tcp");
-    let server1 = if !tcp_opt.is_empty() { tcp_opt } else { server1 };
+    let server1 = if let Some(tcp) = server_profile::get_tcp_host_by_host(&server1) {
+        tcp
+    } else {
+        let tcp_opt = Config::get_option("rendezvous-server-tcp");
+        let (tcp_h, _) = hbb_common::parse_as_ipv4_or_ipv6_or_domain(&tcp_opt);
+        let (s1_h, _) = hbb_common::parse_as_ipv4_or_ipv6_or_domain(&server1);
+        if !tcp_h.is_empty() && (tcp_h == s1_h || server1.starts_with(&tcp_h)) {
+            tcp_opt
+        } else {
+            server1
+        }
+    };
     let server2 = crate::increase_port(&server1, -1);
     let mut msg_out = RendezvousMessage::new();
     let serial = Config::get_serial();
@@ -756,6 +766,7 @@ async fn test_nat_type_() -> ResultType<bool> {
 
 pub async fn get_rendezvous_server(ms_timeout: u64) -> (String, Vec<String>, bool) {
     let active_profiles = server_profile::get_active_server_profiles();
+    let has_multi = active_profiles.len() > 1;
     let (mut a, mut b) = if !active_profiles.is_empty() {
         let mut hosts: Vec<String> = active_profiles.into_iter().map(|p| p.host).collect();
         let a = hosts.remove(0);
@@ -778,20 +789,22 @@ pub async fn get_rendezvous_server(ms_timeout: u64) -> (String, Vec<String>, boo
     if let Some(resolved) = txt_resolver::resolve_server_config(&a).await {
         a = resolved.host;
         resolved_from_txt = true;
-        if let Some(tcp) = resolved.tcp {
-            Config::set_option("rendezvous-server-tcp".to_owned(), tcp);
-        }
-        if let Some(relay) = resolved.relay {
-            Config::set_option("relay-server".to_owned(), relay);
-        }
-        if let Some(key) = resolved.key {
-            Config::set_option("key".to_owned(), key);
-        }
-        if let Some(api) = resolved.api {
-            Config::set_option("api-server".to_owned(), api);
-        }
-        if let Some(online) = resolved.online {
-            Config::set_option("online-server".to_owned(), online);
+        if !has_multi {
+            if let Some(tcp) = resolved.tcp {
+                Config::set_option("rendezvous-server-tcp".to_owned(), tcp);
+            }
+            if let Some(relay) = resolved.relay {
+                Config::set_option("relay-server".to_owned(), relay);
+            }
+            if let Some(key) = resolved.key {
+                Config::set_option("key".to_owned(), key);
+            }
+            if let Some(api) = resolved.api {
+                Config::set_option("api-server".to_owned(), api);
+            }
+            if let Some(online) = resolved.online {
+                Config::set_option("online-server".to_owned(), online);
+            }
         }
     }
     let mut b: Vec<String> = b
@@ -849,11 +862,17 @@ async fn test_rendezvous_server_() {
     for host in servers {
         futs.push(tokio::spawn(async move {
             let tm = std::time::Instant::now();
-            let tcp_opt = Config::get_option("rendezvous-server-tcp");
-            let target = if !tcp_opt.is_empty() {
-                crate::check_port(tcp_opt, RENDEZVOUS_PORT)
+            let target = if let Some(tcp) = server_profile::get_tcp_host_by_host(&host) {
+                crate::check_port(tcp, RENDEZVOUS_PORT)
             } else {
-                crate::check_port(&host, RENDEZVOUS_PORT)
+                let tcp_opt = Config::get_option("rendezvous-server-tcp");
+                let (tcp_h, _) = hbb_common::parse_as_ipv4_or_ipv6_or_domain(&tcp_opt);
+                let (h_h, _) = hbb_common::parse_as_ipv4_or_ipv6_or_domain(&host);
+                if !tcp_h.is_empty() && (tcp_h == h_h || host.starts_with(&tcp_h)) {
+                    crate::check_port(tcp_opt, RENDEZVOUS_PORT)
+                } else {
+                    crate::check_port(&host, RENDEZVOUS_PORT)
+                }
             };
             if socket_client::connect_tcp(
                 target,
@@ -1313,10 +1332,22 @@ fn tcp_proxy_log_target(url: &str) -> String {
 }
 
 #[inline]
-fn get_tcp_proxy_addr() -> String {
+fn get_tcp_proxy_addr(target_host: &str) -> String {
+    if !target_host.is_empty() {
+        if let Some(tcp) = server_profile::get_tcp_host_by_host(target_host) {
+            return check_port(tcp, RENDEZVOUS_PORT);
+        }
+        if let Some(p) = server_profile::get_profile_by_host(target_host) {
+            return check_port(p.host, RENDEZVOUS_PORT);
+        }
+    }
     let tcp = Config::get_option("rendezvous-server-tcp");
     if !tcp.is_empty() {
-        return check_port(tcp, RENDEZVOUS_PORT);
+        let (tcp_h, _) = hbb_common::parse_as_ipv4_or_ipv6_or_domain(&tcp);
+        let (targ_h, _) = hbb_common::parse_as_ipv4_or_ipv6_or_domain(target_host);
+        if target_host.is_empty() || (!tcp_h.is_empty() && (tcp_h == targ_h || target_host.starts_with(&tcp_h))) {
+            return check_port(tcp, RENDEZVOUS_PORT);
+        }
     }
     check_port(Config::get_rendezvous_server(), RENDEZVOUS_PORT)
 }
@@ -1334,12 +1365,13 @@ async fn tcp_proxy_request(
     body: &[u8],
     headers: Vec<HeaderEntry>,
 ) -> ResultType<HttpProxyResponse> {
-    let tcp_addr = get_tcp_proxy_addr();
+    let parsed = url::Url::parse(url)?;
+    let target_host = parsed.host_str().unwrap_or_default();
+    let tcp_addr = get_tcp_proxy_addr(target_host);
     if tcp_addr.is_empty() {
         bail!("No rendezvous server configured for TCP proxy");
     }
 
-    let parsed = url::Url::parse(url)?;
     let path = if let Some(query) = parsed.query() {
         format!("{}?{}", parsed.path(), query)
     } else {
@@ -1356,7 +1388,14 @@ async fn tcp_proxy_request(
     let overall_timeout = CONNECT_TIMEOUT + READ_TIMEOUT;
     timeout(overall_timeout, async {
         let mut conn = socket_client::connect_tcp(&*tcp_addr, CONNECT_TIMEOUT).await?;
-        let key = crate::get_key(true).await;
+        let k = server_profile::get_key_by_host(&tcp_addr);
+        let key = if server_profile::get_profile_by_host(&tcp_addr).is_some() {
+            k
+        } else if !k.is_empty() {
+            k
+        } else {
+            crate::get_key(true).await
+        };
         secure_tcp_silent(&mut conn, &key).await?;
 
         let mut req = HttpProxyRequest::new();

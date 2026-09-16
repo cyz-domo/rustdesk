@@ -340,7 +340,9 @@ async fn create_relay_connection_(
     )
     .await?;
     let mut msg_out = RendezvousMessage::new();
-    let licence_key = if !k.is_empty() {
+    let licence_key = if server_profile::get_profile_by_host(&relay_server).is_some() {
+        k
+    } else if !k.is_empty() {
         k
     } else {
         crate::get_key(true).await

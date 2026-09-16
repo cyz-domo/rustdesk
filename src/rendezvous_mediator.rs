@@ -183,9 +183,13 @@ impl ServerContext {
     pub fn tcp_host(&self) -> String {
         if let Some(tcp) = &self.tcp_host {
             check_port(tcp, RENDEZVOUS_PORT)
+        } else if let Some(tcp) = server_profile::get_tcp_host_by_host(&self.host) {
+            check_port(tcp, RENDEZVOUS_PORT)
         } else {
             let tcp_opt = Config::get_option("rendezvous-server-tcp");
-            if !tcp_opt.is_empty() {
+            let (tcp_h, _) = hbb_common::parse_as_ipv4_or_ipv6_or_domain(&tcp_opt);
+            let (self_h, _) = hbb_common::parse_as_ipv4_or_ipv6_or_domain(&self.host);
+            if !tcp_h.is_empty() && (tcp_h == self_h || self.host.starts_with(&tcp_h)) {
                 check_port(&tcp_opt, RENDEZVOUS_PORT)
             } else {
                 self.host.clone()
@@ -199,12 +203,7 @@ impl ServerContext {
                 return k.clone();
             }
         }
-        let k = server_profile::get_key_by_host(&self.host);
-        if !k.is_empty() {
-            k
-        } else {
-            Config::get_option("key")
-        }
+        server_profile::get_key_by_host(&self.host)
     }
 
     pub fn get_relay_server(&self, provided_by_rendezvous_server: String) -> String {
@@ -216,11 +215,19 @@ impl ServerContext {
                 return relay.clone();
             }
         }
-        let mut relay_server = Config::get_option("relay-server");
-        if relay_server.is_empty() {
-            relay_server = crate::increase_port(&self.host, 1);
+        if let Some(relay) = server_profile::get_relay_by_host(&self.host) {
+            if !relay.is_empty() {
+                return relay;
+            }
         }
-        relay_server
+        let relay_server = Config::get_option("relay-server");
+        let (relay_h, _) = hbb_common::parse_as_ipv4_or_ipv6_or_domain(&relay_server);
+        let (self_h, _) = hbb_common::parse_as_ipv4_or_ipv6_or_domain(&self.host);
+        if !relay_h.is_empty() && (relay_h == self_h || self.host.starts_with(&relay_h)) {
+            relay_server
+        } else {
+            crate::increase_port(&self.host, 1)
+        }
     }
 }
 
@@ -383,7 +390,7 @@ impl RendezvousMediator {
                     n = 3000;
                 }
                 if (latency - old_latency).abs() > n || old_latency <= 0 {
-                    server_profile::update_server_latency(&host, latency);
+                    server_profile::update_server_profile_latency(&rz.ctx.profile_id, &rz.ctx.host, &host, latency);
                     log::debug!("Latency of {}: {}ms", host, latency as f64 / 1000.);
                     old_latency = latency;
                 }
@@ -450,7 +457,7 @@ impl RendezvousMediator {
                         if timeout {
                             fails += 1;
                             if fails >= MAX_FAILS2 {
-                                server_profile::update_server_latency(&host, -1);
+                                server_profile::update_server_profile_latency(&rz.ctx.profile_id, &rz.ctx.host, &host, -1);
                                 old_latency = 0;
                                 if last_dns_check.elapsed().as_millis() as i64 > DNS_INTERVAL {
                                     // in some case of network reconnect (dial IP network),
@@ -463,7 +470,7 @@ impl RendezvousMediator {
                                     last_dns_check = Instant::now();
                                 }
                             } else if fails >= MAX_FAILS1 {
-                                server_profile::update_server_latency(&host, 0);
+                                server_profile::update_server_profile_latency(&rz.ctx.profile_id, &rz.ctx.host, &host, 0);
                                 old_latency = 0;
                             }
                         }
@@ -620,7 +627,7 @@ impl RendezvousMediator {
                 let latency = last_register_sent
                     .map(|x| x.elapsed().as_micros() as i64)
                     .unwrap_or(0);
-                server_profile::update_server_latency(&host, latency);
+                server_profile::update_server_profile_latency(&rz.ctx.profile_id, &rz.ctx.host, &host, latency);
                 log::debug!("Latency of {}: {}ms", host, latency as f64 / 1000.);
             };
             select! {

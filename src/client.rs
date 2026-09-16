@@ -526,9 +526,23 @@ impl Client {
             None
         };
         let has_webrtc_offerer = webrtc_offerer.is_some();
+        let profile_key = base::server_profile::get_key_by_host(&rendezvous_server);
+        let key = if other_server.is_empty() {
+            if base::server_profile::get_profile_by_host(&rendezvous_server).is_some() {
+                profile_key
+            } else if !key.is_empty() {
+                key.to_string()
+            } else {
+                profile_key
+            }
+        } else if !key.is_empty() {
+            key.to_string()
+        } else {
+            profile_key
+        };
         let fut = Self::_start_inner(
             peer.to_owned(),
-            key.to_owned(),
+            key.clone(),
             token.to_owned(),
             conn_type,
             interface.clone(),
@@ -808,10 +822,18 @@ impl Client {
         // the outer select_ok closes its pc instead of leaking it in SESSIONS. Disarmed via
         // into_inner() once the stream is adopted into a connection attempt.
         let mut webrtc_offerer = webrtc_offerer.map(OffererGuard::new);
-        let tcp_opt = Config::get_option("rendezvous-server-tcp");
         let orig_udp_server = rendezvous_server.clone();
-        if !tcp_opt.is_empty() {
-            rendezvous_server = tcp_opt;
+        if let Some(tcp) = base::server_profile::get_tcp_host_by_host(&orig_udp_server) {
+            rendezvous_server = tcp;
+        } else {
+            let tcp_opt = Config::get_option("rendezvous-server-tcp");
+            if !tcp_opt.is_empty() {
+                let (tcp_h, _) = hbb_common::parse_as_ipv4_or_ipv6_or_domain(&tcp_opt);
+                let (orig_h, _) = hbb_common::parse_as_ipv4_or_ipv6_or_domain(&orig_udp_server);
+                if !tcp_h.is_empty() && (tcp_h == orig_h || orig_udp_server.starts_with(&tcp_h)) {
+                    rendezvous_server = tcp_opt;
+                }
+            }
         }
         let mut start = Instant::now();
         let mut socket = connect_tcp(&*rendezvous_server, CONNECT_TIMEOUT).await;
@@ -5151,11 +5173,28 @@ async fn hc_connection_(
     let mut last_recv_msg = Instant::now();
     let mut keep_alive = crate::DEFAULT_KEEP_ALIVE;
 
-    let tcp_opt = Config::get_option("rendezvous-server-tcp");
-    let target_server = if !tcp_opt.is_empty() { tcp_opt } else { rendezvous_server };
+    let target_server = if let Some(tcp) = base::server_profile::get_tcp_host_by_host(&rendezvous_server) {
+        tcp
+    } else {
+        let tcp_opt = Config::get_option("rendezvous-server-tcp");
+        let (tcp_h, _) = hbb_common::parse_as_ipv4_or_ipv6_or_domain(&tcp_opt);
+        let (rs_h, _) = hbb_common::parse_as_ipv4_or_ipv6_or_domain(&rendezvous_server);
+        if !tcp_h.is_empty() && (tcp_h == rs_h || rendezvous_server.starts_with(&tcp_h)) {
+            tcp_opt
+        } else {
+            rendezvous_server
+        }
+    };
     let host = check_port(&target_server, RENDEZVOUS_PORT);
     let mut conn = connect_tcp(host.clone(), CONNECT_TIMEOUT).await?;
-    let key = crate::get_key(true).await;
+    let k = base::server_profile::get_key_by_host(&host);
+    let key = if base::server_profile::get_profile_by_host(&host).is_some() {
+        k
+    } else if !k.is_empty() {
+        k
+    } else {
+        crate::get_key(true).await
+    };
     crate::secure_tcp(&mut conn, &key).await?;
     let mut msg_out = RendezvousMessage::new();
     msg_out.set_hc(HealthCheck {
@@ -5238,8 +5277,18 @@ pub mod peer_online {
         } else {
             let (rendezvous_server, _servers, _contained) =
                 crate::get_rendezvous_server(READ_TIMEOUT).await;
-            let tcp_opt = Config::get_option("rendezvous-server-tcp");
-            let target_server = if !tcp_opt.is_empty() { tcp_opt } else { rendezvous_server };
+            let target_server = if let Some(tcp) = base::server_profile::get_tcp_host_by_host(&rendezvous_server) {
+                tcp
+            } else {
+                let tcp_opt = Config::get_option("rendezvous-server-tcp");
+                let (tcp_h, _) = hbb_common::parse_as_ipv4_or_ipv6_or_domain(&tcp_opt);
+                let (rs_h, _) = hbb_common::parse_as_ipv4_or_ipv6_or_domain(&rendezvous_server);
+                if !tcp_h.is_empty() && (tcp_h == rs_h || rendezvous_server.starts_with(&tcp_h)) {
+                    tcp_opt
+                } else {
+                    rendezvous_server
+                }
+            };
             crate::increase_port(&target_server, -1)
         };
         connect_tcp(online_server, CONNECT_TIMEOUT).await

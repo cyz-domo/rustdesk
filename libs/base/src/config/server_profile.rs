@@ -64,13 +64,17 @@ pub fn get_server_profiles() -> Vec<ServerProfile> {
         let parts: Vec<&str> = custom.split(&[';', ',', '\n'][..]).map(|s| s.trim()).filter(|s| !s.is_empty()).collect();
         if parts.len() > 1 {
             return parts.into_iter().enumerate().map(|(idx, host)| {
+                let (host_str, _) = hbb_common::parse_as_ipv4_or_ipv6_or_domain(host);
+                let my_api = api_opt.as_ref().filter(|a| is_host_match(&host_str, a)).cloned();
+                let my_relay = relay_opt.as_ref().filter(|r| is_host_match(&host_str, r)).cloned();
+                let my_key = if idx == 0 { key_opt.clone() } else { None };
                 ServerProfile {
                     id: format!("profile-{}", idx + 1),
                     name: format!("Server {}", idx + 1),
                     host: host.to_string(),
-                    relay: relay_opt.clone(),
-                    api: api_opt.clone(),
-                    key: key_opt.clone(),
+                    relay: my_relay,
+                    api: my_api,
+                    key: my_key,
                     enabled: true,
                     ..Default::default()
                 }
@@ -120,43 +124,135 @@ pub fn get_active_server_profiles() -> Vec<ServerProfile> {
     }
 }
 
-/// Get key associated with a specific host.
-pub fn get_key_by_host(host: &str) -> String {
-    for p in get_server_profiles() {
-        if p.host == host || host.starts_with(&p.host) || p.host.starts_with(host) {
-            if let Some(key) = &p.key {
-                if !key.is_empty() {
-                    return key.clone();
-                }
+/// Helper to match server hosts with or without ports
+pub fn is_host_match(h1: &str, h2: &str) -> bool {
+    let (h1_clean, _) = hbb_common::parse_as_ipv4_or_ipv6_or_domain(h1);
+    let (h2_clean, _) = hbb_common::parse_as_ipv4_or_ipv6_or_domain(h2);
+    if !h1_clean.is_empty() && !h2_clean.is_empty() && h1_clean == h2_clean {
+        return true;
+    }
+    if h1 == h2 || h1.starts_with(h2) || h2.starts_with(h1) {
+        return true;
+    }
+    let host_only = |s: &str| s.split(':').next().unwrap_or(s).trim();
+    host_only(h1) == host_only(h2)
+}
+
+/// Get a server profile by host.
+pub fn get_profile_by_host(host: &str) -> Option<ServerProfile> {
+    let profiles = get_server_profiles();
+    for p in profiles {
+        if is_host_match(&p.host, host) {
+            return Some(p);
+        }
+        if let Some(ref tcp) = p.tcp_host {
+            if is_host_match(tcp, host) {
+                return Some(p);
+            }
+        }
+        if let Some(ref relay) = p.relay {
+            if is_host_match(relay, host) {
+                return Some(p);
             }
         }
     }
+    None
+}
+
+/// Get key associated with a specific host.
+pub fn get_key_by_host(host: &str) -> String {
+    if let Some(p) = get_profile_by_host(host) {
+        if let Some(key) = p.key {
+            return key;
+        } else {
+            // Profile explicitly has no key; do not leak another server's global key!
+            return "".to_string();
+        }
+    }
     Config::get_option("key")
+}
+
+/// Get TCP host associated with a specific host.
+pub fn get_tcp_host_by_host(host: &str) -> Option<String> {
+    get_profile_by_host(host).and_then(|p| p.tcp_host)
+}
+
+/// Get relay associated with a specific host.
+pub fn get_relay_by_host(host: &str) -> Option<String> {
+    get_profile_by_host(host).and_then(|p| p.relay)
+}
+
+/// Get API associated with a specific host.
+pub fn get_api_by_host(host: &str) -> Option<String> {
+    get_profile_by_host(host).and_then(|p| p.api)
 }
 
 lazy_static::lazy_static! {
     static ref SERVER_LATENCIES: std::sync::Mutex<std::collections::HashMap<String, i64>> = Default::default();
 }
 
-pub fn update_server_latency(host: &str, latency: i64) {
+pub fn update_server_profile_latency(id: &str, configured_host: &str, resolved_host: &str, latency: i64) {
     if let Ok(mut map) = SERVER_LATENCIES.lock() {
-        map.insert(host.to_string(), latency);
+        if !id.is_empty() {
+            map.insert(id.to_string(), latency);
+        }
+        if !configured_host.is_empty() {
+            map.insert(configured_host.to_string(), latency);
+        }
+        if !resolved_host.is_empty() {
+            map.insert(resolved_host.to_string(), latency);
+        }
+        if let Ok(json) = serde_json::to_string(&*map) {
+            Config::set_option("server-latencies".to_owned(), json);
+        }
     }
-    Config::update_latency(host, latency);
+    Config::update_latency(resolved_host, latency);
 }
 
-pub fn get_server_latency(host: &str) -> i64 {
+pub fn update_server_latency(host: &str, latency: i64) {
+    update_server_profile_latency("", host, host, latency);
+}
+
+pub fn get_server_latency_by_profile(id: &str, host: &str) -> i64 {
     if let Ok(map) = SERVER_LATENCIES.lock() {
+        if !id.is_empty() {
+            if let Some(&lat) = map.get(id) {
+                return lat;
+            }
+        }
         if let Some(&lat) = map.get(host) {
             return lat;
         }
         for (k, v) in map.iter() {
-            if k == host || host.starts_with(k) || k.starts_with(host) {
+            if is_host_match(k, host) {
                 return *v;
             }
         }
     }
+    // Fallback: check synced "server-latencies" option (syncs over IPC to UI process)
+    let raw = Config::get_option("server-latencies");
+    if !raw.is_empty() {
+        if let Ok(map) = serde_json::from_str::<std::collections::HashMap<String, i64>>(&raw) {
+            if !id.is_empty() {
+                if let Some(&lat) = map.get(id) {
+                    return lat;
+                }
+            }
+            if let Some(&lat) = map.get(host) {
+                return lat;
+            }
+            for (k, v) in map.iter() {
+                if is_host_match(k, host) {
+                    return *v;
+                }
+            }
+        }
+    }
     -1
+}
+
+pub fn get_server_latency(host: &str) -> i64 {
+    get_server_latency_by_profile("", host)
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -174,7 +270,7 @@ pub fn get_server_profile_statuses() -> Vec<ServerProfileStatus> {
     profiles
         .into_iter()
         .map(|p| {
-            let lat_us = get_server_latency(&p.host);
+            let lat_us = get_server_latency_by_profile(&p.id, &p.host);
             let online = p.enabled && lat_us > 0;
             let latency_ms = if lat_us > 0 { (lat_us + 999) / 1000 } else { -1 };
             ServerProfileStatus {
