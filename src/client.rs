@@ -1052,7 +1052,7 @@ impl Client {
                         let target_relay = if let Some(ref r) = profile_relay {
                             r.clone()
                         } else if !rr.relay_server.is_empty() {
-                            rr.relay_server
+                            rr.relay_server.clone()
                         } else {
                             relay_server.clone()
                         };
