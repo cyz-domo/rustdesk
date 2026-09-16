@@ -163,10 +163,18 @@ class _OnlineStatusWidgetState extends State<OnlineStatusWidget> {
                 ? translate("not_ready_status")
                 : translate('Ready');
 
-    if (stateGlobal.svcStatus.value == SvcStatus.ready && stateGlobal.serverStatuses.length > 1) {
-      final onlineCount = stateGlobal.serverStatuses.where((s) => s.online).length;
-      final totalCount = stateGlobal.serverStatuses.where((s) => s.enabled).length;
-      text = '$text ($onlineCount/$totalCount)';
+    if (stateGlobal.svcStatus.value == SvcStatus.ready) {
+      if (stateGlobal.serverStatuses.length > 1) {
+        final onlineCount = stateGlobal.serverStatuses.where((s) => s.online).length;
+        final totalCount = stateGlobal.serverStatuses.where((s) => s.enabled).length;
+        text = '$text ($onlineCount/$totalCount)';
+      } else if (stateGlobal.serverStatuses.isNotEmpty) {
+        final s = stateGlobal.serverStatuses.first;
+        final addr = s.host.isNotEmpty ? s.host : s.name;
+        if (addr.isNotEmpty) {
+          text = '$text ($addr)';
+        }
+      }
     }
 
     String tooltip = '';
@@ -176,7 +184,9 @@ class _OnlineStatusWidgetState extends State<OnlineStatusWidget> {
         final lat = s.online
             ? '(${s.latencyMs}ms)'
             : (s.enabled ? '(${translate("offline")})' : '(${translate("disabled")})');
-        return '$icon ${s.name.isNotEmpty ? s.name : s.host} $lat';
+        final name = s.name.isNotEmpty ? s.name : s.host;
+        final hostPart = (s.host.isNotEmpty && s.name.isNotEmpty && s.host != s.name) ? ' (${s.host})' : '';
+        return '$icon $name$hostPart $lat';
       }).join('\n');
     }
 

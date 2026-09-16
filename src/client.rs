@@ -527,7 +527,9 @@ impl Client {
         };
         let has_webrtc_offerer = webrtc_offerer.is_some();
         let profile_key = base::server_profile::get_key_by_host(&rendezvous_server);
-        let key = if other_server.is_empty() {
+        let key = if other_server == PUBLIC_SERVER || base::server_profile::is_official_server(&rendezvous_server) {
+            hbb_common::config::RS_PUB_KEY.to_string()
+        } else if other_server.is_empty() {
             if base::server_profile::get_profile_by_host(&rendezvous_server).is_some() {
                 profile_key
             } else if !key.is_empty() {
@@ -823,7 +825,9 @@ impl Client {
         // into_inner() once the stream is adopted into a connection attempt.
         let mut webrtc_offerer = webrtc_offerer.map(OffererGuard::new);
         let orig_udp_server = rendezvous_server.clone();
-        if let Some(tcp) = base::server_profile::get_tcp_host_by_host(&orig_udp_server) {
+        if base::server_profile::is_official_server(&orig_udp_server) {
+            rendezvous_server = check_port(&orig_udp_server, RENDEZVOUS_PORT);
+        } else if let Some(tcp) = base::server_profile::get_tcp_host_by_host(&orig_udp_server) {
             rendezvous_server = tcp;
         } else {
             let tcp_opt = Config::get_option("rendezvous-server-tcp");

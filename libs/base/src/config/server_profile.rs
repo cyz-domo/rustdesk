@@ -94,11 +94,15 @@ pub fn get_server_profiles() -> Vec<ServerProfile> {
     }
 
     // Check rendezvous-servers or public servers
-    let servers = Config::get_rendezvous_servers();
+    let mut servers = Config::get_rendezvous_servers();
+    let cur = Config::get_rendezvous_server();
+    if !cur.is_empty() && !servers.iter().any(|s| is_host_match(s, &cur)) {
+        servers.insert(0, cur);
+    }
     servers.into_iter().enumerate().map(|(idx, host)| {
         ServerProfile {
             id: format!("default-{}", idx + 1),
-            name: if idx == 0 { "公共主服务器".to_string() } else { format!("公共服务器 {}", idx + 1) },
+            name: if idx == 0 { "官方服务器".to_string() } else { format!("官方服务器 {}", idx + 1) },
             host,
             enabled: true,
             ..Default::default()
@@ -122,6 +126,24 @@ pub fn get_active_server_profiles() -> Vec<ServerProfile> {
     } else {
         active
     }
+}
+
+/// Helper to check if a host is an official RustDesk server
+pub fn is_official_server(host: &str) -> bool {
+    let (h, _) = hbb_common::parse_as_ipv4_or_ipv6_or_domain(host);
+    if h.is_empty() {
+        return false;
+    }
+    if h == "public" || h == "rustdesk.com" || h.ends_with(".rustdesk.com") {
+        return true;
+    }
+    for &s in hbb_common::config::RENDEZVOUS_SERVERS {
+        let (sh, _) = hbb_common::parse_as_ipv4_or_ipv6_or_domain(s);
+        if !sh.is_empty() && (sh == h || is_host_match(&sh, &h)) {
+            return true;
+        }
+    }
+    false
 }
 
 /// Helper to match server hosts with or without ports
@@ -161,6 +183,9 @@ pub fn get_profile_by_host(host: &str) -> Option<ServerProfile> {
 
 /// Get key associated with a specific host.
 pub fn get_key_by_host(host: &str) -> String {
+    if is_official_server(host) {
+        return hbb_common::config::RS_PUB_KEY.to_string();
+    }
     if let Some(p) = get_profile_by_host(host) {
         if let Some(key) = p.key {
             return key;
@@ -174,11 +199,17 @@ pub fn get_key_by_host(host: &str) -> String {
 
 /// Get TCP host associated with a specific host.
 pub fn get_tcp_host_by_host(host: &str) -> Option<String> {
+    if is_official_server(host) {
+        return None;
+    }
     get_profile_by_host(host).and_then(|p| p.tcp_host)
 }
 
 /// Get relay associated with a specific host.
 pub fn get_relay_by_host(host: &str) -> Option<String> {
+    if is_official_server(host) {
+        return None;
+    }
     get_profile_by_host(host).and_then(|p| p.relay)
 }
 
@@ -247,6 +278,11 @@ pub fn get_server_latency_by_profile(id: &str, host: &str) -> i64 {
                 }
             }
         }
+    }
+    // Fallback: check hbb_common online state for official / global server
+    let online_state = hbb_common::config::get_online_state();
+    if online_state > 0 {
+        return online_state;
     }
     -1
 }
