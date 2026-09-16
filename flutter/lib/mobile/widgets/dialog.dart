@@ -201,18 +201,16 @@ void showServerSettingsWithOptions(
       await bind.mainSetOption(key: 'server-profiles', value: profilesJson);
 
       // Save primary active profile to traditional options for backward compatibility
-      final primary = profiles.firstWhereOrNull((p) => p.enabled && p.host.isNotEmpty) ??
-          profiles.firstWhereOrNull((p) => p.host.isNotEmpty) ??
-          profiles[0];
+      final primary = profiles.firstWhereOrNull((p) => p.enabled && p.host.isNotEmpty);
 
       bool ret = await setServerConfig(
           null,
           errMsgs,
           ServerConfig(
-              idServer: primary.host,
-              relayServer: primary.relay,
-              apiServer: primary.api,
-              key: primary.key));
+              idServer: primary?.host ?? '',
+              relayServer: primary?.relay ?? '',
+              apiServer: primary?.api ?? '',
+              key: primary?.key ?? ''));
 
       setState(() {
         isInProgress = false;

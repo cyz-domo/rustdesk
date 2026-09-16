@@ -129,12 +129,7 @@ pub fn set_server_profiles(profiles: &[ServerProfile]) {
 /// Get all currently enabled server profiles.
 pub fn get_active_server_profiles() -> Vec<ServerProfile> {
     let all = get_server_profiles();
-    let active: Vec<ServerProfile> = all.into_iter().filter(|p| p.enabled && !p.host.trim().is_empty()).collect();
-    if active.is_empty() {
-        get_server_profiles().into_iter().filter(|p| !p.host.trim().is_empty()).collect()
-    } else {
-        active
-    }
+    all.into_iter().filter(|p| p.enabled && !p.host.trim().is_empty()).collect()
 }
 
 /// Helper to extract host from host:port or [ipv6]:port
@@ -573,11 +568,33 @@ pub struct ServerProfileStatus {
 }
 
 pub fn get_server_profile_statuses() -> Vec<ServerProfileStatus> {
-    let profiles = get_server_profiles();
+    let mut profiles = get_server_profiles();
+    let has_official = profiles.iter().any(|p| is_official_server(&p.host));
+    if !has_official {
+        let active_profiles = get_active_server_profiles();
+        let enabled = active_profiles.is_empty() || active_profiles.iter().any(|p| is_official_server(&p.host));
+        let lat_us = hbb_common::config::get_online_state();
+        let cur_server = Config::get_rendezvous_server();
+        let is_cur_official = cur_server.is_empty() || is_official_server(&cur_server);
+        let online = enabled && is_cur_official && lat_us > 0;
+        let latency_ms = if online { (lat_us + 999) / 1000 } else { -1 };
+        profiles.push(ServerProfile {
+            id: "official".to_string(),
+            name: "官方服务器".to_string(),
+            host: if is_cur_official && !cur_server.is_empty() { cur_server } else { "public".to_string() },
+            enabled,
+            ..Default::default()
+        });
+    }
     profiles
         .into_iter()
         .map(|p| {
-            let lat_us = get_server_latency_by_profile(&p.id, &p.host);
+            let is_off = is_official_server(&p.host);
+            let lat_us = if is_off {
+                hbb_common::config::get_online_state()
+            } else {
+                get_server_latency_by_profile(&p.id, &p.host)
+            };
             let online = p.enabled && lat_us > 0;
             let latency_ms = if lat_us > 0 { (lat_us + 999) / 1000 } else { -1 };
             ServerProfileStatus {
