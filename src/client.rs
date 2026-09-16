@@ -530,17 +530,26 @@ impl Client {
         let key = if other_server == PUBLIC_SERVER || base::server_profile::is_official_server(&rendezvous_server) {
             hbb_common::config::RS_PUB_KEY.to_string()
         } else if other_server.is_empty() {
-            if base::server_profile::get_profile_by_host(&rendezvous_server).is_some() {
+            if !profile_key.is_empty() {
                 profile_key
+            } else if !key.is_empty() && key != hbb_common::config::RS_PUB_KEY {
+                key.to_string()
+            } else {
+                profile_key
+            }
+        } else if !key.is_empty() && key != hbb_common::config::RS_PUB_KEY {
+            key.to_string()
+        } else if !profile_key.is_empty() {
+            profile_key
+        } else {
+            let other_key = base::server_profile::get_key_by_host(other_server);
+            if !other_key.is_empty() {
+                other_key
             } else if !key.is_empty() {
                 key.to_string()
             } else {
                 profile_key
             }
-        } else if !key.is_empty() {
-            key.to_string()
-        } else {
-            profile_key
         };
         let fut = Self::_start_inner(
             peer.to_owned(),
@@ -2939,7 +2948,10 @@ impl LoginConfigHandler {
         self.policy_relay = self.peer_relay || Config::is_proxy();
         self.force_relay = self.policy_relay || use_ws();
         if let Some((real_id, server, key)) = &self.other_server {
-            let other_server_key = self.get_option("other-server-key");
+            let mut other_server_key = self.get_option("other-server-key");
+            if other_server_key.is_empty() && key.is_empty() {
+                other_server_key = base::server_profile::get_key_by_host(server);
+            }
             if !other_server_key.is_empty() && key.is_empty() {
                 self.other_server = Some((real_id.to_owned(), server.to_owned(), other_server_key));
             }
@@ -5275,6 +5287,9 @@ pub mod peer_online {
         } else {
             let (rendezvous_server, _servers, _contained) =
                 crate::get_rendezvous_server(READ_TIMEOUT).await;
+            if rendezvous_server.trim().is_empty() || base::server_profile::parse_host(&rendezvous_server).is_empty() {
+                bail!("no rendezvous server");
+            }
             let target_server = if let Some(tcp) = base::server_profile::get_tcp_host_by_host(&rendezvous_server) {
                 tcp
             } else {

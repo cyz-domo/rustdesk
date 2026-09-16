@@ -44,8 +44,12 @@ pub fn get_server_profiles() -> Vec<ServerProfile> {
     let raw = Config::get_option("server-profiles");
     if !raw.is_empty() {
         if let Ok(list) = serde_json::from_str::<Vec<ServerProfile>>(&raw) {
-            if !list.is_empty() {
-                return list;
+            let filtered: Vec<ServerProfile> = list
+                .into_iter()
+                .filter(|p| !p.host.trim().is_empty())
+                .collect();
+            if !filtered.is_empty() {
+                return filtered;
             }
         }
     }
@@ -99,15 +103,20 @@ pub fn get_server_profiles() -> Vec<ServerProfile> {
     if !cur.is_empty() && !servers.iter().any(|s| is_host_match(s, &cur)) {
         servers.insert(0, cur);
     }
-    servers.into_iter().enumerate().map(|(idx, host)| {
-        ServerProfile {
-            id: format!("default-{}", idx + 1),
-            name: if idx == 0 { "官方服务器".to_string() } else { format!("官方服务器 {}", idx + 1) },
-            host,
-            enabled: true,
-            ..Default::default()
-        }
-    }).collect()
+    servers
+        .into_iter()
+        .filter(|s| !s.trim().is_empty())
+        .enumerate()
+        .map(|(idx, host)| {
+            ServerProfile {
+                id: format!("default-{}", idx + 1),
+                name: if idx == 0 { "官方服务器".to_string() } else { format!("官方服务器 {}", idx + 1) },
+                host,
+                enabled: true,
+                ..Default::default()
+            }
+        })
+        .collect()
 }
 
 /// Save the server profiles list to options.
@@ -120,9 +129,9 @@ pub fn set_server_profiles(profiles: &[ServerProfile]) {
 /// Get all currently enabled server profiles.
 pub fn get_active_server_profiles() -> Vec<ServerProfile> {
     let all = get_server_profiles();
-    let active: Vec<ServerProfile> = all.into_iter().filter(|p| p.enabled).collect();
+    let active: Vec<ServerProfile> = all.into_iter().filter(|p| p.enabled && !p.host.trim().is_empty()).collect();
     if active.is_empty() {
-        get_server_profiles()
+        get_server_profiles().into_iter().filter(|p| !p.host.trim().is_empty()).collect()
     } else {
         active
     }
@@ -165,8 +174,173 @@ pub fn is_official_server(host: &str) -> bool {
     false
 }
 
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ResolvedProfileData {
+    pub profile_id: String,
+    pub original_host: String,
+    pub resolved_host: String,
+    pub tcp_host: Option<String>,
+    pub relay: Option<String>,
+    pub api: Option<String>,
+    pub key: Option<String>,
+    pub online: Option<String>,
+}
+
+lazy_static::lazy_static! {
+    static ref SERVER_LATENCIES: std::sync::Mutex<std::collections::HashMap<String, i64>> = Default::default();
+    static ref RESOLVED_PROFILES: std::sync::RwLock<std::collections::HashMap<String, ResolvedProfileData>> = Default::default();
+}
+
+pub fn update_resolved_profile_data(
+    profile_id: &str,
+    original_host: &str,
+    resolved_host: &str,
+    tcp_host: Option<&str>,
+    relay: Option<&str>,
+    api: Option<&str>,
+    key: Option<&str>,
+    online: Option<&str>,
+) {
+    let data = ResolvedProfileData {
+        profile_id: profile_id.to_string(),
+        original_host: original_host.to_string(),
+        resolved_host: resolved_host.to_string(),
+        tcp_host: tcp_host.filter(|s| !s.is_empty()).map(|s| s.to_string()),
+        relay: relay.filter(|s| !s.is_empty()).map(|s| s.to_string()),
+        api: api.filter(|s| !s.is_empty()).map(|s| s.to_string()),
+        key: key.filter(|s| !s.is_empty()).map(|s| s.to_string()),
+        online: online.filter(|s| !s.is_empty()).map(|s| s.to_string()),
+    };
+
+    if let Ok(mut map) = RESOLVED_PROFILES.write() {
+        if !profile_id.is_empty() {
+            map.insert(profile_id.to_string(), data.clone());
+        }
+        if !original_host.is_empty() {
+            map.insert(original_host.to_string(), data.clone());
+            let orig_parsed = parse_host(original_host);
+            if !orig_parsed.is_empty() && orig_parsed != original_host {
+                map.insert(orig_parsed.to_string(), data.clone());
+            }
+        }
+        if !resolved_host.is_empty() {
+            map.insert(resolved_host.to_string(), data.clone());
+            let res_parsed = parse_host(resolved_host);
+            if !res_parsed.is_empty() && res_parsed != resolved_host {
+                map.insert(res_parsed.to_string(), data.clone());
+            }
+        }
+        if let Some(ref tcp) = data.tcp_host {
+            map.insert(tcp.clone(), data.clone());
+            let tcp_parsed = parse_host(tcp);
+            if !tcp_parsed.is_empty() && tcp_parsed != tcp {
+                map.insert(tcp_parsed.to_string(), data.clone());
+            }
+        }
+        if let Some(ref relay) = data.relay {
+            map.insert(relay.clone(), data.clone());
+            let relay_parsed = parse_host(relay);
+            if !relay_parsed.is_empty() && relay_parsed != relay {
+                map.insert(relay_parsed.to_string(), data.clone());
+            }
+        }
+
+        if let Ok(json) = serde_json::to_string(&*map) {
+            Config::set_option("resolved-server-profiles".to_owned(), json);
+        }
+    }
+}
+
+pub fn get_resolved_profile_data(host: &str) -> Option<ResolvedProfileData> {
+    let host = host.trim();
+    if host.is_empty() {
+        return None;
+    }
+    let p_host = parse_host(host);
+    if let Ok(map) = RESOLVED_PROFILES.read() {
+        if let Some(data) = map.get(host) {
+            return Some(data.clone());
+        }
+        if !p_host.is_empty() {
+            if let Some(data) = map.get(p_host) {
+                return Some(data.clone());
+            }
+        }
+        for data in map.values() {
+            if is_host_match_resolved(data, host) {
+                return Some(data.clone());
+            }
+        }
+    }
+    let raw = Config::get_option("resolved-server-profiles");
+    if !raw.is_empty() {
+        if let Ok(map) = serde_json::from_str::<std::collections::HashMap<String, ResolvedProfileData>>(&raw) {
+            if let Some(data) = map.get(host) {
+                return Some(data.clone());
+            }
+            if !p_host.is_empty() {
+                if let Some(data) = map.get(p_host) {
+                    return Some(data.clone());
+                }
+            }
+            for data in map.values() {
+                if is_host_match_resolved(data, host) {
+                    return Some(data.clone());
+                }
+            }
+        }
+    }
+    None
+}
+
+fn is_host_match_resolved(r: &ResolvedProfileData, h: &str) -> bool {
+    let p = parse_host(h);
+    if is_host_match_str(&r.original_host, h, p)
+        || is_host_match_str(&r.resolved_host, h, p)
+        || r.tcp_host.as_deref().map(|s| is_host_match_str(s, h, p)).unwrap_or(false)
+        || r.relay.as_deref().map(|s| is_host_match_str(s, h, p)).unwrap_or(false)
+    {
+        return true;
+    }
+    false
+}
+
+fn is_host_match_str(target: &str, h: &str, p: &str) -> bool {
+    if target.eq_ignore_ascii_case(h) {
+        return true;
+    }
+    let tp = parse_host(target);
+    !tp.is_empty() && !p.is_empty() && tp.eq_ignore_ascii_case(p)
+}
+
+fn merge_resolved_into_profile(p: &mut ServerProfile, r: &ResolvedProfileData) {
+    if !r.resolved_host.is_empty() {
+        p.host = r.resolved_host.clone();
+    }
+    if let Some(ref tcp) = r.tcp_host {
+        p.tcp_host = Some(tcp.clone());
+    }
+    if let Some(ref relay) = r.relay {
+        p.relay = Some(relay.clone());
+    }
+    if let Some(ref key) = r.key {
+        p.key = Some(key.clone());
+    }
+    if let Some(ref api) = r.api {
+        p.api = Some(api.clone());
+    }
+    if let Some(ref online) = r.online {
+        p.online = Some(online.clone());
+    }
+}
+
 /// Helper to match server hosts with or without ports
 pub fn is_host_match(h1: &str, h2: &str) -> bool {
+    let h1 = h1.trim();
+    let h2 = h2.trim();
+    if h1.is_empty() || h2.is_empty() {
+        return false;
+    }
     let p1 = parse_host(h1);
     let p2 = parse_host(h2);
     if !p1.is_empty() && !p2.is_empty() {
@@ -177,41 +351,95 @@ pub fn is_host_match(h1: &str, h2: &str) -> bool {
     if h1.eq_ignore_ascii_case(h2) {
         return true;
     }
+    if let Some(r1) = get_resolved_profile_data(h1) {
+        if is_host_match_resolved(&r1, h2) {
+            return true;
+        }
+    }
+    if let Some(r2) = get_resolved_profile_data(h2) {
+        if is_host_match_resolved(&r2, h1) {
+            return true;
+        }
+    }
     false
 }
 
 /// Get a server profile by host.
 pub fn get_profile_by_host(host: &str) -> Option<ServerProfile> {
+    let host = host.trim();
+    if host.is_empty() {
+        return None;
+    }
     let profiles = get_server_profiles();
-    for p in profiles {
+    for p in &profiles {
+        if p.host.trim().is_empty() {
+            continue;
+        }
         if is_host_match(&p.host, host) {
-            return Some(p);
+            let mut res = p.clone();
+            if let Some(resolved) = get_resolved_profile_data(host) {
+                merge_resolved_into_profile(&mut res, &resolved);
+            }
+            return Some(res);
         }
         if let Some(ref tcp) = p.tcp_host {
             if is_host_match(tcp, host) {
-                return Some(p);
+                let mut res = p.clone();
+                if let Some(resolved) = get_resolved_profile_data(host) {
+                    merge_resolved_into_profile(&mut res, &resolved);
+                }
+                return Some(res);
             }
         }
         if let Some(ref relay) = p.relay {
             if is_host_match(relay, host) {
-                return Some(p);
+                let mut res = p.clone();
+                if let Some(resolved) = get_resolved_profile_data(host) {
+                    merge_resolved_into_profile(&mut res, &resolved);
+                }
+                return Some(res);
             }
         }
+    }
+    if let Some(resolved) = get_resolved_profile_data(host) {
+        let base = profiles.into_iter().find(|p| {
+            (!resolved.profile_id.is_empty() && p.id == resolved.profile_id)
+                || is_host_match(&p.host, &resolved.original_host)
+        });
+        let mut p = base.unwrap_or_else(|| ServerProfile {
+            id: if !resolved.profile_id.is_empty() { resolved.profile_id.clone() } else { "resolved".to_string() },
+            name: resolved.original_host.clone(),
+            host: resolved.resolved_host.clone(),
+            enabled: true,
+            ..Default::default()
+        });
+        merge_resolved_into_profile(&mut p, &resolved);
+        return Some(p);
     }
     None
 }
 
 /// Get key associated with a specific host.
 pub fn get_key_by_host(host: &str) -> String {
+    let host = host.trim();
+    if host.is_empty() {
+        return Config::get_option("key");
+    }
     if is_official_server(host) {
         return hbb_common::config::RS_PUB_KEY.to_string();
     }
     if let Some(p) = get_profile_by_host(host) {
-        if let Some(key) = p.key {
-            return key;
-        } else {
-            // Profile explicitly has no key; do not leak another server's global key!
-            return "".to_string();
+        if let Some(ref key) = p.key {
+            if !key.is_empty() {
+                return key.clone();
+            }
+        }
+    }
+    if let Some(resolved) = get_resolved_profile_data(host) {
+        if let Some(ref key) = resolved.key {
+            if !key.is_empty() {
+                return key.clone();
+            }
         }
     }
     Config::get_option("key")
@@ -219,27 +447,50 @@ pub fn get_key_by_host(host: &str) -> String {
 
 /// Get TCP host associated with a specific host.
 pub fn get_tcp_host_by_host(host: &str) -> Option<String> {
-    if is_official_server(host) {
+    let host = host.trim();
+    if host.is_empty() || is_official_server(host) {
         return None;
+    }
+    if let Some(resolved) = get_resolved_profile_data(host) {
+        if let Some(ref tcp) = resolved.tcp_host {
+            if !tcp.is_empty() {
+                return Some(tcp.clone());
+            }
+        }
     }
     get_profile_by_host(host).and_then(|p| p.tcp_host)
 }
 
 /// Get relay associated with a specific host.
 pub fn get_relay_by_host(host: &str) -> Option<String> {
-    if is_official_server(host) {
+    let host = host.trim();
+    if host.is_empty() || is_official_server(host) {
         return None;
+    }
+    if let Some(resolved) = get_resolved_profile_data(host) {
+        if let Some(ref relay) = resolved.relay {
+            if !relay.is_empty() {
+                return Some(relay.clone());
+            }
+        }
     }
     get_profile_by_host(host).and_then(|p| p.relay)
 }
 
 /// Get API associated with a specific host.
 pub fn get_api_by_host(host: &str) -> Option<String> {
+    let host = host.trim();
+    if host.is_empty() {
+        return None;
+    }
+    if let Some(resolved) = get_resolved_profile_data(host) {
+        if let Some(ref api) = resolved.api {
+            if !api.is_empty() {
+                return Some(api.clone());
+            }
+        }
+    }
     get_profile_by_host(host).and_then(|p| p.api)
-}
-
-lazy_static::lazy_static! {
-    static ref SERVER_LATENCIES: std::sync::Mutex<std::collections::HashMap<String, i64>> = Default::default();
 }
 
 pub fn update_server_profile_latency(id: &str, configured_host: &str, resolved_host: &str, latency: i64) {

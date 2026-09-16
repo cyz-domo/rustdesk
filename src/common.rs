@@ -687,6 +687,9 @@ async fn test_nat_type_() -> ResultType<bool> {
     log::info!("Testing nat ...");
     let start = std::time::Instant::now();
     let (server1, _, _) = crate::get_rendezvous_server(1_000).await;
+    if server1.trim().is_empty() || server_profile::parse_host(&server1).is_empty() {
+        return Ok(false);
+    }
     let server1 = if let Some(tcp) = server_profile::get_tcp_host_by_host(&server1) {
         tcp
     } else {
@@ -766,9 +769,32 @@ pub async fn get_rendezvous_server(ms_timeout: u64) -> (String, Vec<String>, boo
     let active_profiles = server_profile::get_active_server_profiles();
     let has_multi = active_profiles.len() > 1;
     let (mut a, mut b) = if !active_profiles.is_empty() {
-        let mut hosts: Vec<String> = active_profiles.into_iter().map(|p| p.host).collect();
-        let a = hosts.remove(0);
-        (a, hosts)
+        let mut hosts: Vec<String> = active_profiles
+            .into_iter()
+            .map(|p| p.host)
+            .filter(|h| !h.trim().is_empty())
+            .collect();
+        let cur = Config::get_rendezvous_server();
+        if !cur.is_empty() {
+            if let Some(pos) = hosts.iter().position(|h| server_profile::is_host_match(h, &cur)) {
+                let a = hosts.remove(pos);
+                (a, hosts)
+            } else if !hosts.is_empty() {
+                let a = hosts.remove(0);
+                (a, hosts)
+            } else {
+                (cur, hosts)
+            }
+        } else if !hosts.is_empty() {
+            let a = hosts.remove(0);
+            (a, hosts)
+        } else {
+            #[cfg(any(target_os = "android", target_os = "ios"))]
+            let (a, b) = get_rendezvous_server_(ms_timeout);
+            #[cfg(not(any(target_os = "android", target_os = "ios")))]
+            let (a, b) = get_rendezvous_server_(ms_timeout).await;
+            (a, b)
+        }
     } else {
         #[cfg(any(target_os = "android", target_os = "ios"))]
         let (a, b) = get_rendezvous_server_(ms_timeout);
@@ -785,6 +811,16 @@ pub async fn get_rendezvous_server(ms_timeout: u64) -> (String, Vec<String>, boo
     let orig_a = a.clone();
     let mut resolved_from_txt = false;
     if let Some(resolved) = txt_resolver::resolve_server_config(&a).await {
+        server_profile::update_resolved_profile_data(
+            "",
+            &orig_a,
+            &resolved.host,
+            resolved.tcp.as_deref(),
+            resolved.relay.as_deref(),
+            resolved.api.as_deref(),
+            resolved.key.as_deref(),
+            resolved.online.as_deref(),
+        );
         a = resolved.host;
         resolved_from_txt = true;
         if !has_multi {
@@ -1334,6 +1370,9 @@ fn get_tcp_proxy_addr(target_host: &str) -> String {
             return check_port(tcp, RENDEZVOUS_PORT);
         }
         if let Some(p) = server_profile::get_profile_by_host(target_host) {
+            if let Some(tcp) = p.tcp_host {
+                return check_port(tcp, RENDEZVOUS_PORT);
+            }
             return check_port(p.host, RENDEZVOUS_PORT);
         }
     }
@@ -1380,10 +1419,11 @@ async fn tcp_proxy_request(
     let overall_timeout = CONNECT_TIMEOUT + READ_TIMEOUT;
     timeout(overall_timeout, async {
         let mut conn = socket_client::connect_tcp(&*tcp_addr, CONNECT_TIMEOUT).await?;
-        let k = server_profile::get_key_by_host(&tcp_addr);
-        let key = if server_profile::get_profile_by_host(&tcp_addr).is_some() {
-            k
-        } else if !k.is_empty() {
+        let mut k = server_profile::get_key_by_host(&tcp_addr);
+        if k.is_empty() && !target_host.is_empty() {
+            k = server_profile::get_key_by_host(target_host);
+        }
+        let key = if !k.is_empty() {
             k
         } else {
             crate::get_key(true).await

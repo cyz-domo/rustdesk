@@ -172,6 +172,7 @@ pub struct ServerContext {
     pub profile_id: String,
     pub name: String,
     pub host: String,
+    pub original_host: String,
     pub tcp_host: Option<String>,
     pub relay: Option<String>,
     pub api: Option<String>,
@@ -287,6 +288,9 @@ impl RendezvousMediator {
                 SHOULD_EXIT.store(false, Ordering::SeqCst);
                 MANUAL_RESTARTED.store(false, Ordering::SeqCst);
                 for profile in profiles {
+                    if profile.host.trim().is_empty() {
+                        continue;
+                    }
                     let server = server.clone();
                     let timeout = timeout.clone();
                     futs.push(tokio::spawn(async move {
@@ -418,7 +422,12 @@ impl RendezvousMediator {
                     }
                     if last_dns_check.elapsed().as_millis() as i64 > DNS_INTERVAL {
                         last_dns_check = Instant::now();
-                        if let Some(resolved) = txt_resolver::resolve_server_config(&rz.ctx.host).await {
+                        let query_host = if !rz.ctx.original_host.is_empty() {
+                            &rz.ctx.original_host
+                        } else {
+                            &rz.ctx.host
+                        };
+                        if let Some(resolved) = txt_resolver::resolve_server_config(query_host).await {
                             if let Some(tcp) = resolved.tcp {
                                 rz.ctx.tcp_host = Some(tcp);
                             }
@@ -434,6 +443,16 @@ impl RendezvousMediator {
                             if let Some(online) = resolved.online {
                                 rz.ctx.online = Some(online);
                             }
+                            server_profile::update_resolved_profile_data(
+                                &rz.ctx.profile_id,
+                                query_host,
+                                &resolved.host,
+                                rz.ctx.tcp_host.as_deref(),
+                                rz.ctx.relay.as_deref(),
+                                rz.ctx.api.as_deref(),
+                                rz.ctx.key.as_deref(),
+                                rz.ctx.online.as_deref(),
+                            );
                             let new_target = check_port(&resolved.host, RENDEZVOUS_PORT);
                             if new_target != rz.host {
                                 log::info!("TXT record for {} updated from {} to {}, restarting worker...", rz.ctx.name, rz.host, new_target);
@@ -649,7 +668,12 @@ impl RendezvousMediator {
                     }
                     if last_dns_check.elapsed().as_millis() as i64 > DNS_INTERVAL {
                         last_dns_check = Instant::now();
-                        if let Some(resolved) = txt_resolver::resolve_server_config(&rz.ctx.host).await {
+                        let query_host = if !rz.ctx.original_host.is_empty() {
+                            &rz.ctx.original_host
+                        } else {
+                            &rz.ctx.host
+                        };
+                        if let Some(resolved) = txt_resolver::resolve_server_config(query_host).await {
                             if let Some(tcp) = resolved.tcp {
                                 rz.ctx.tcp_host = Some(tcp);
                             }
@@ -665,6 +689,16 @@ impl RendezvousMediator {
                             if let Some(online) = resolved.online {
                                 rz.ctx.online = Some(online);
                             }
+                            server_profile::update_resolved_profile_data(
+                                &rz.ctx.profile_id,
+                                query_host,
+                                &resolved.host,
+                                rz.ctx.tcp_host.as_deref(),
+                                rz.ctx.relay.as_deref(),
+                                rz.ctx.api.as_deref(),
+                                rz.ctx.key.as_deref(),
+                                rz.ctx.online.as_deref(),
+                            );
                             let new_target = rz.ctx.tcp_host();
                             if new_target != rz.host {
                                 log::info!("TXT record for {} updated from {} to {}, restarting tcp worker...", rz.ctx.name, rz.host, new_target);
@@ -692,15 +726,16 @@ impl RendezvousMediator {
         let mut ctx = ServerContext {
             profile_id: profile.id,
             name: profile.name,
-            host: profile.host,
+            host: profile.host.clone(),
+            original_host: profile.host.clone(),
             tcp_host: profile.tcp_host,
             relay: profile.relay,
             api: profile.api,
             key: profile.key,
             online: profile.online,
         };
-        if let Some(resolved) = txt_resolver::resolve_server_config(&ctx.host).await {
-            log::info!("Resolved TXT server config for {}: {:?}", ctx.host, resolved);
+        if let Some(resolved) = txt_resolver::resolve_server_config(&ctx.original_host).await {
+            log::info!("Resolved TXT server config for {}: {:?}", ctx.original_host, resolved);
             if let Some(tcp) = resolved.tcp {
                 ctx.tcp_host = Some(tcp);
             }
@@ -717,6 +752,16 @@ impl RendezvousMediator {
                 ctx.online = Some(online);
             }
             ctx.host = resolved.host;
+            server_profile::update_resolved_profile_data(
+                &ctx.profile_id,
+                &ctx.original_host,
+                &ctx.host,
+                ctx.tcp_host.as_deref(),
+                ctx.relay.as_deref(),
+                ctx.api.as_deref(),
+                ctx.key.as_deref(),
+                ctx.online.as_deref(),
+            );
         }
         log::info!("start rendezvous mediator for profile '{}' ({})", ctx.name, ctx.host);
         if (cfg!(debug_assertions) && option_env!("TEST_TCP").is_some())
@@ -745,7 +790,8 @@ impl RendezvousMediator {
         let ctx = ServerContext {
             profile_id: "default".to_owned(),
             name: host.clone(),
-            host,
+            host: host.clone(),
+            original_host: host,
             ..Default::default()
         };
         Self::start_udp_ctx(server, ctx).await
@@ -755,7 +801,8 @@ impl RendezvousMediator {
         let ctx = ServerContext {
             profile_id: "default".to_owned(),
             name: host.clone(),
-            host,
+            host: host.clone(),
+            original_host: host,
             ..Default::default()
         };
         Self::start_tcp_ctx(server, ctx).await
