@@ -64,9 +64,9 @@ pub fn get_server_profiles() -> Vec<ServerProfile> {
         let parts: Vec<&str> = custom.split(&[';', ',', '\n'][..]).map(|s| s.trim()).filter(|s| !s.is_empty()).collect();
         if parts.len() > 1 {
             return parts.into_iter().enumerate().map(|(idx, host)| {
-                let (host_str, _) = hbb_common::parse_as_ipv4_or_ipv6_or_domain(host);
-                let my_api = api_opt.as_ref().filter(|a| is_host_match(&host_str, a)).cloned();
-                let my_relay = relay_opt.as_ref().filter(|r| is_host_match(&host_str, r)).cloned();
+                let host_str = parse_host(host);
+                let my_api = api_opt.as_ref().filter(|a| is_host_match(host_str, a)).cloned();
+                let my_relay = relay_opt.as_ref().filter(|r| is_host_match(host_str, r)).cloned();
                 let my_key = if idx == 0 { key_opt.clone() } else { None };
                 ServerProfile {
                     id: format!("profile-{}", idx + 1),
@@ -128,18 +128,37 @@ pub fn get_active_server_profiles() -> Vec<ServerProfile> {
     }
 }
 
+/// Helper to extract host from host:port or [ipv6]:port
+pub fn parse_host(s: &str) -> &str {
+    let s = s.trim();
+    if s.starts_with('[') {
+        if let Some(end) = s.find(']') {
+            return &s[1..end];
+        }
+    }
+    if let Some(colon) = s.rfind(':') {
+        if s.matches(':').count() == 1 {
+            return &s[..colon];
+        }
+    }
+    s
+}
+
 /// Helper to check if a host is an official RustDesk server
 pub fn is_official_server(host: &str) -> bool {
-    let (h, _) = hbb_common::parse_as_ipv4_or_ipv6_or_domain(host);
+    let h = parse_host(host);
     if h.is_empty() {
         return false;
     }
-    if h == "public" || h == "rustdesk.com" || h.ends_with(".rustdesk.com") {
+    if h.eq_ignore_ascii_case("public")
+        || h.eq_ignore_ascii_case("rustdesk.com")
+        || h.to_ascii_lowercase().ends_with(".rustdesk.com")
+    {
         return true;
     }
     for &s in hbb_common::config::RENDEZVOUS_SERVERS {
-        let (sh, _) = hbb_common::parse_as_ipv4_or_ipv6_or_domain(s);
-        if !sh.is_empty() && (sh == h || is_host_match(&sh, &h)) {
+        let sh = parse_host(s);
+        if !sh.is_empty() && is_host_match(sh, h) {
             return true;
         }
     }
@@ -148,16 +167,17 @@ pub fn is_official_server(host: &str) -> bool {
 
 /// Helper to match server hosts with or without ports
 pub fn is_host_match(h1: &str, h2: &str) -> bool {
-    let (h1_clean, _) = hbb_common::parse_as_ipv4_or_ipv6_or_domain(h1);
-    let (h2_clean, _) = hbb_common::parse_as_ipv4_or_ipv6_or_domain(h2);
-    if !h1_clean.is_empty() && !h2_clean.is_empty() && h1_clean == h2_clean {
+    let p1 = parse_host(h1);
+    let p2 = parse_host(h2);
+    if !p1.is_empty() && !p2.is_empty() {
+        if p1.eq_ignore_ascii_case(p2) {
+            return true;
+        }
+    }
+    if h1.eq_ignore_ascii_case(h2) {
         return true;
     }
-    if h1 == h2 || h1.starts_with(h2) || h2.starts_with(h1) {
-        return true;
-    }
-    let host_only = |s: &str| s.split(':').next().unwrap_or(s).trim();
-    host_only(h1) == host_only(h2)
+    false
 }
 
 /// Get a server profile by host.

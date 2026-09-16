@@ -691,9 +691,7 @@ async fn test_nat_type_() -> ResultType<bool> {
         tcp
     } else {
         let tcp_opt = Config::get_option("rendezvous-server-tcp");
-        let (tcp_h, _) = hbb_common::parse_as_ipv4_or_ipv6_or_domain(&tcp_opt);
-        let (s1_h, _) = hbb_common::parse_as_ipv4_or_ipv6_or_domain(&server1);
-        if !tcp_h.is_empty() && (tcp_h == s1_h || server1.starts_with(&tcp_h)) {
+        if !tcp_opt.is_empty() && server_profile::is_host_match(&tcp_opt, &server1) {
             tcp_opt
         } else {
             server1
@@ -866,9 +864,7 @@ async fn test_rendezvous_server_() {
                 crate::check_port(tcp, RENDEZVOUS_PORT)
             } else {
                 let tcp_opt = Config::get_option("rendezvous-server-tcp");
-                let (tcp_h, _) = hbb_common::parse_as_ipv4_or_ipv6_or_domain(&tcp_opt);
-                let (h_h, _) = hbb_common::parse_as_ipv4_or_ipv6_or_domain(&host);
-                if !tcp_h.is_empty() && (tcp_h == h_h || host.starts_with(&tcp_h)) {
+                if !tcp_opt.is_empty() && server_profile::is_host_match(&tcp_opt, &host) {
                     crate::check_port(tcp_opt, RENDEZVOUS_PORT)
                 } else {
                     crate::check_port(&host, RENDEZVOUS_PORT)
@@ -1342,12 +1338,8 @@ fn get_tcp_proxy_addr(target_host: &str) -> String {
         }
     }
     let tcp = Config::get_option("rendezvous-server-tcp");
-    if !tcp.is_empty() {
-        let (tcp_h, _) = hbb_common::parse_as_ipv4_or_ipv6_or_domain(&tcp);
-        let (targ_h, _) = hbb_common::parse_as_ipv4_or_ipv6_or_domain(target_host);
-        if target_host.is_empty() || (!tcp_h.is_empty() && (tcp_h == targ_h || target_host.starts_with(&tcp_h))) {
-            return check_port(tcp, RENDEZVOUS_PORT);
-        }
+    if !tcp.is_empty() && (target_host.is_empty() || server_profile::is_host_match(&tcp, target_host)) {
+        return check_port(tcp, RENDEZVOUS_PORT);
     }
     check_port(Config::get_rendezvous_server(), RENDEZVOUS_PORT)
 }

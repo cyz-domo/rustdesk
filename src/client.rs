@@ -831,12 +831,8 @@ impl Client {
             rendezvous_server = tcp;
         } else {
             let tcp_opt = Config::get_option("rendezvous-server-tcp");
-            if !tcp_opt.is_empty() {
-                let (tcp_h, _) = hbb_common::parse_as_ipv4_or_ipv6_or_domain(&tcp_opt);
-                let (orig_h, _) = hbb_common::parse_as_ipv4_or_ipv6_or_domain(&orig_udp_server);
-                if !tcp_h.is_empty() && (tcp_h == orig_h || orig_udp_server.starts_with(&tcp_h)) {
-                    rendezvous_server = tcp_opt;
-                }
+            if !tcp_opt.is_empty() && base::server_profile::is_host_match(&tcp_opt, &orig_udp_server) {
+                rendezvous_server = tcp_opt;
             }
         }
         let mut start = Instant::now();
@@ -5181,9 +5177,7 @@ async fn hc_connection_(
         tcp
     } else {
         let tcp_opt = Config::get_option("rendezvous-server-tcp");
-        let (tcp_h, _) = hbb_common::parse_as_ipv4_or_ipv6_or_domain(&tcp_opt);
-        let (rs_h, _) = hbb_common::parse_as_ipv4_or_ipv6_or_domain(&rendezvous_server);
-        if !tcp_h.is_empty() && (tcp_h == rs_h || rendezvous_server.starts_with(&tcp_h)) {
+        if !tcp_opt.is_empty() && base::server_profile::is_host_match(&tcp_opt, &rendezvous_server) {
             tcp_opt
         } else {
             rendezvous_server
@@ -5285,9 +5279,7 @@ pub mod peer_online {
                 tcp
             } else {
                 let tcp_opt = Config::get_option("rendezvous-server-tcp");
-                let (tcp_h, _) = hbb_common::parse_as_ipv4_or_ipv6_or_domain(&tcp_opt);
-                let (rs_h, _) = hbb_common::parse_as_ipv4_or_ipv6_or_domain(&rendezvous_server);
-                if !tcp_h.is_empty() && (tcp_h == rs_h || rendezvous_server.starts_with(&tcp_h)) {
+                if !tcp_opt.is_empty() && base::server_profile::is_host_match(&tcp_opt, &rendezvous_server) {
                     tcp_opt
                 } else {
                     rendezvous_server

@@ -187,9 +187,7 @@ impl ServerContext {
             check_port(tcp, RENDEZVOUS_PORT)
         } else {
             let tcp_opt = Config::get_option("rendezvous-server-tcp");
-            let (tcp_h, _) = hbb_common::parse_as_ipv4_or_ipv6_or_domain(&tcp_opt);
-            let (self_h, _) = hbb_common::parse_as_ipv4_or_ipv6_or_domain(&self.host);
-            if !tcp_h.is_empty() && (tcp_h == self_h || self.host.starts_with(&tcp_h)) {
+            if !tcp_opt.is_empty() && server_profile::is_host_match(&tcp_opt, &self.host) {
                 check_port(&tcp_opt, RENDEZVOUS_PORT)
             } else {
                 self.host.clone()
@@ -221,9 +219,7 @@ impl ServerContext {
             }
         }
         let relay_server = Config::get_option("relay-server");
-        let (relay_h, _) = hbb_common::parse_as_ipv4_or_ipv6_or_domain(&relay_server);
-        let (self_h, _) = hbb_common::parse_as_ipv4_or_ipv6_or_domain(&self.host);
-        if !relay_h.is_empty() && (relay_h == self_h || self.host.starts_with(&relay_h)) {
+        if !relay_server.is_empty() && server_profile::is_host_match(&relay_server, &self.host) {
             relay_server
         } else {
             crate::increase_port(&self.host, 1)
