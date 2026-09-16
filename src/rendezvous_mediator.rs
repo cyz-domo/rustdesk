@@ -340,6 +340,8 @@ impl RendezvousMediator {
 
     pub async fn start_udp_ctx(server: ServerPtr, ctx: ServerContext) -> ResultType<()> {
         let host = check_port(&ctx.host, RENDEZVOUS_PORT);
+        let profile_id = ctx.profile_id.clone();
+        let ctx_host = ctx.host.clone();
         log::info!("start udp: {host} ({})", ctx.name);
         let (mut socket, mut addr) = new_udp_for(&host, CONNECT_TIMEOUT).await?;
         let mut rz = Self {
@@ -386,7 +388,7 @@ impl RendezvousMediator {
                     n = 3000;
                 }
                 if (latency - old_latency).abs() > n || old_latency <= 0 {
-                    server_profile::update_server_profile_latency(&rz.ctx.profile_id, &rz.ctx.host, &host, latency);
+                    server_profile::update_server_profile_latency(&profile_id, &ctx_host, &host, latency);
                     log::debug!("Latency of {}: {}ms", host, latency as f64 / 1000.);
                     old_latency = latency;
                 }
@@ -453,7 +455,7 @@ impl RendezvousMediator {
                         if timeout {
                             fails += 1;
                             if fails >= MAX_FAILS2 {
-                                server_profile::update_server_profile_latency(&rz.ctx.profile_id, &rz.ctx.host, &host, -1);
+                                server_profile::update_server_profile_latency(&profile_id, &ctx_host, &host, -1);
                                 old_latency = 0;
                                 if last_dns_check.elapsed().as_millis() as i64 > DNS_INTERVAL {
                                     // in some case of network reconnect (dial IP network),
@@ -466,7 +468,7 @@ impl RendezvousMediator {
                                     last_dns_check = Instant::now();
                                 }
                             } else if fails >= MAX_FAILS1 {
-                                server_profile::update_server_profile_latency(&rz.ctx.profile_id, &rz.ctx.host, &host, 0);
+                                server_profile::update_server_profile_latency(&profile_id, &ctx_host, &host, 0);
                                 old_latency = 0;
                             }
                         }
@@ -594,6 +596,8 @@ impl RendezvousMediator {
 
     pub async fn start_tcp_ctx(server: ServerPtr, ctx: ServerContext) -> ResultType<()> {
         let host = ctx.tcp_host();
+        let profile_id = ctx.profile_id.clone();
+        let ctx_host = ctx.host.clone();
         log::info!("start tcp: {} ({})", hbb_common::websocket::check_ws(&host), ctx.name);
         let mut conn = connect_tcp(host.clone(), CONNECT_TIMEOUT).await?;
         let key = {
@@ -623,7 +627,7 @@ impl RendezvousMediator {
                 let latency = last_register_sent
                     .map(|x| x.elapsed().as_micros() as i64)
                     .unwrap_or(0);
-                server_profile::update_server_profile_latency(&rz.ctx.profile_id, &rz.ctx.host, &host, latency);
+                server_profile::update_server_profile_latency(&profile_id, &ctx_host, &host, latency);
                 log::debug!("Latency of {}: {}ms", host, latency as f64 / 1000.);
             };
             select! {
