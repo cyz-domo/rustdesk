@@ -206,9 +206,6 @@ impl ServerContext {
     }
 
     pub fn get_relay_server(&self, provided_by_rendezvous_server: String) -> String {
-        if !provided_by_rendezvous_server.is_empty() {
-            return provided_by_rendezvous_server;
-        }
         if let Some(relay) = &self.relay {
             if !relay.is_empty() {
                 return relay.clone();
@@ -218,6 +215,9 @@ impl ServerContext {
             if !relay.is_empty() {
                 return relay;
             }
+        }
+        if !provided_by_rendezvous_server.is_empty() {
+            return provided_by_rendezvous_server;
         }
         let relay_server = Config::get_option("relay-server");
         if !relay_server.is_empty() && server_profile::is_host_match(&relay_server, &self.host) {
@@ -848,6 +848,7 @@ impl RendezvousMediator {
         meta: ConnectionMeta,
     ) -> ResultType<()> {
         let peer_addr = AddrMangle::decode(&socket_addr);
+        let relay_server = self.get_relay_server(relay_server);
         log::info!(
             "create_relay requested from {:?}, relay_server: {}, uuid: {}, secure: {}",
             peer_addr,

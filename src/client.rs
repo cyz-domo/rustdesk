@@ -867,7 +867,11 @@ impl Client {
         let mut socket = socket?;
         let my_addr = socket.local_addr();
         let mut signed_id_pk = Vec::new();
-        let mut relay_server = "".to_owned();
+        let profile_relay = base::server_profile::get_relay_by_host(&rendezvous_server)
+            .or_else(|| base::server_profile::get_relay_by_host(&orig_udp_server));
+        let mut relay_server = profile_relay
+            .clone()
+            .unwrap_or_else(|| Config::get_option("relay-server"));
         let mut peer_addr = Config::get_any_listen_addr(true);
         let mut peer_nat_type = NatType::UNKNOWN_NAT;
         let my_nat_type = crate::get_nat_type(100).await;
@@ -1015,7 +1019,11 @@ impl Client {
                             peer_nat_type = ph.nat_type();
                             is_local = ph.is_local();
                             signed_id_pk = ph.pk.into();
-                            relay_server = ph.relay_server;
+                            if let Some(ref r) = profile_relay {
+                                relay_server = r.clone();
+                            } else if !ph.relay_server.is_empty() {
+                                relay_server = ph.relay_server;
+                            }
                             peer_addr = AddrMangle::decode(&ph.socket_addr);
                             feedback = ph.feedback;
                             webrtc_sdp_answer = ph.webrtc_sdp_answer;
@@ -1041,10 +1049,17 @@ impl Client {
                         }
                     }
                     Some(rendezvous_message::Union::RelayResponse(rr)) => {
+                        let target_relay = if let Some(ref r) = profile_relay {
+                            r.clone()
+                        } else if !rr.relay_server.is_empty() {
+                            rr.relay_server
+                        } else {
+                            relay_server.clone()
+                        };
                         log::info!(
                             "relay requested from peer, time used: {:?}, relay_server: {}",
                             start.elapsed(),
-                            rr.relay_server
+                            target_relay
                         );
                         start = Instant::now();
                         let mut connect_futures = Vec::new();
@@ -1115,11 +1130,11 @@ impl Client {
                         // Keep relay_server for a WebRTC secure-failure fallback: request_relay
                         // coordinates a FRESH uuid via the rendezvous server, so it works even if
                         // the raced create_relay already consumed the original uuid pairing.
-                        let relay_server_rr = rr.relay_server.clone();
+                        let relay_server_rr = target_relay.clone();
                         let fut = Self::create_relay(
                             &peer,
                             rr.uuid,
-                            rr.relay_server,
+                            target_relay,
                             &key,
                             conn_type,
                             my_addr.is_ipv4(),
@@ -1540,11 +1555,13 @@ impl Client {
         // the relay requirement, and under ws-forced relay a direct full-ICE connection is the
         // preferred outcome, not a violation.
         if (interface.is_force_relay() && typ != "WebRTC") || conn.is_err() {
-            if !relay_server.is_empty() {
+            let target_relay = base::server_profile::get_relay_by_host(rendezvous_server)
+                .unwrap_or_else(|| relay_server.to_owned());
+            if !target_relay.is_empty() {
                 let switch_code = interface.get_switch_code();
                 conn = Self::request_relay(
                     peer_id,
-                    relay_server.to_owned(),
+                    target_relay,
                     rendezvous_server,
                     !signed_id_pk.is_empty(),
                     key,
