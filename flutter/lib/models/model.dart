@@ -65,6 +65,7 @@ class CachedPeerData {
   bool secure = false;
   bool direct = false;
   String streamType = '';
+  String serverName = '';
 
   CachedPeerData();
 
@@ -79,6 +80,7 @@ class CachedPeerData {
       'secure': secure,
       'direct': direct,
       'streamType': streamType,
+      'serverName': serverName,
     });
   }
 
@@ -98,6 +100,7 @@ class CachedPeerData {
       data.secure = map['secure'];
       data.direct = map['direct'];
       data.streamType = map['streamType'];
+      data.serverName = map['serverName'] ?? '';
       return data;
     } catch (e) {
       debugPrint('Failed to parse CachedPeerData: $e');
@@ -282,6 +285,16 @@ class FfiModel with ChangeNotifier {
     }
   }
 
+  setConnectionServer(String peerId, String server) {
+    cachedPeerData.serverName = server;
+    try {
+      var connectionType = ConnectionTypeState.find(peerId);
+      connectionType.setServerName(server);
+    } catch (e) {
+      //
+    }
+  }
+
   Widget? getConnectionImageText() {
     if (secure == null || direct == null) {
       return null;
@@ -292,6 +305,10 @@ class FfiModel with ChangeNotifier {
           SvgPicture.asset('assets/$icon.svg', width: 48, height: 48);
       String connectionText =
           getConnectionText(secure!, direct!, cachedPeerData.streamType);
+      final serverName = cachedPeerData.serverName;
+      if (serverName.isNotEmpty) {
+        connectionText = '$connectionText\n${translate('Server')}: $serverName';
+      }
       return Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -321,6 +338,9 @@ class FfiModel with ChangeNotifier {
     }, sessionId, peerId);
     updatePrivacyMode(data.updatePrivacyMode, sessionId, peerId);
     setConnectionType(peerId, data.secure, data.direct, data.streamType);
+    if (data.serverName.isNotEmpty) {
+      setConnectionServer(peerId, data.serverName);
+    }
     await handlePeerInfo(data.peerInfo, peerId, true);
     for (final element in data.cursorDataList) {
       updateLastCursorId(element);
@@ -352,6 +372,10 @@ class FfiModel with ChangeNotifier {
         setConnectionType(peerId, evt['secure'] == 'true',
             evt['direct'] == 'true', evt['stream_type'] ?? '');
         resetRestartReconnectState();
+      } else if (name == 'connection_server') {
+        final server = evt['server'] ?? '';
+        setConnectionServer(peerId, server);
+      }
       } else if (name == 'switch_display') {
         // switch display is kept for backward compatibility
         handleSwitchDisplay(evt, sessionId, peerId);

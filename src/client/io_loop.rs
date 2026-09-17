@@ -208,6 +208,25 @@ impl<T: InvokeUiSession> Remote<T> {
                 };
                 self.handler
                     .set_connection_type(is_secured, direct, stream_type); // flutter -> connection_ready
+                let server_display = {
+                    let host = &rendezvous_server;
+                    if host.is_empty() {
+                        "".to_string()
+                    } else if base::server_profile::is_official_server(host) {
+                        "Official".to_string()
+                    } else if let Some(p) = base::server_profile::get_profile_by_host(host) {
+                        if p.name.is_empty() {
+                            host.clone()
+                        } else {
+                            format!("{} ({})", p.name, host)
+                        }
+                    } else {
+                        host.clone()
+                    }
+                };
+                if !server_display.is_empty() {
+                    self.handler.set_connection_server(&server_display);
+                }
                 if !is_secured
                     && !crate::common::is_direct_ip_access(&self.handler.get_id())
                     && !client::confirm_insecure_connection(&self.handler, &mut self.receiver).await

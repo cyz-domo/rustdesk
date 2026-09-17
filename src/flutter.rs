@@ -727,6 +727,10 @@ impl InvokeUiSession for FlutterHandler {
         self.push_event("fingerprint", &[("fingerprint", &fingerprint)], &[]);
     }
 
+    fn set_connection_server(&self, server: &str) {
+        self.push_event("connection_server", &[("server", server)], &[]);
+    }
+
     fn job_error(&self, id: i32, err: String, file_num: i32) {
         self.push_event(
             "job_error",

@@ -1692,6 +1692,7 @@ pub trait InvokeUiSession: Send + Sync + Clone + 'static + Sized + Default {
     fn update_quality_status(&self, qs: QualityStatus);
     fn set_connection_type(&self, is_secured: bool, direct: bool, stream_type: &str);
     fn set_fingerprint(&self, fingerprint: String);
+    fn set_connection_server(&self, _server: &str) {}
     fn job_error(&self, id: i32, err: String, file_num: i32);
     fn job_done(&self, id: i32, file_num: i32);
     fn clear_all_jobs(&self);

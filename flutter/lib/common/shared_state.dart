@@ -78,10 +78,12 @@ class ConnectionType {
   final Rx<String> _secure = kInvalidValueStr.obs;
   final Rx<String> _direct = kInvalidValueStr.obs;
   final Rx<String> _stream_type = kInvalidValueStr.obs;
+  final Rx<String> _server_name = ''.obs;
 
   Rx<String> get secure => _secure;
   Rx<String> get direct => _direct;
   Rx<String> get stream_type => _stream_type;
+  Rx<String> get server_name => _server_name;
 
   static String get strSecure => 'secure';
   static String get strInsecure => 'insecure';
@@ -98,6 +100,10 @@ class ConnectionType {
 
   void setStreamType(String v) {
     _stream_type.value = v;
+  }
+
+  void setServerName(String v) {
+    _server_name.value = v;
   }
 
   bool isValid() {

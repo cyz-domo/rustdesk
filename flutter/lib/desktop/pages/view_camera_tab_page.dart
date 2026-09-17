@@ -156,6 +156,8 @@ class _ViewCameraTabPageState extends State<ViewCameraTabPage> {
                 connectionType.direct.value == ConnectionType.strDirect;
             String msgConn = getConnectionText(
                 secure, direct, connectionType.stream_type.value);
+            String serverName = connectionType.server_name.value;
+            String msgServer = serverName.isNotEmpty ? '\n${translate('Server')}: $serverName' : '';
             var msgFingerprint = '${translate('Fingerprint')}:\n';
             var fingerprint = FingerprintState.find(key).value;
             if (fingerprint.isEmpty) {
@@ -174,7 +176,7 @@ class _ViewCameraTabPageState extends State<ViewCameraTabPage> {
               children: [
                 icon,
                 Tooltip(
-                  message: '$msgConn\n$msgFingerprint',
+                  message: '$msgConn$msgServer\n$msgFingerprint',
                   child: SvgPicture.asset(
                     'assets/${connectionType.secure.value}${connectionType.direct.value}.svg',
                     width: themeConf.iconSize,
