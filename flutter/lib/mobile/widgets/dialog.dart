@@ -383,7 +383,7 @@ void showServerSettingsWithOptions(
                                                 : Colors.grey.withOpacity(0.3),
                                           ),
                                           borderRadius:
-                                              Border.circular(8),
+                                              BorderRadius.circular(8),
                                         ),
                                         child: Row(
                                           mainAxisSize: MainAxisSize.min,
