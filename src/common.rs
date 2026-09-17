@@ -1222,17 +1222,65 @@ pub fn get_api_server(api: String, custom: String) -> String {
     res
 }
 
+fn ensure_url_scheme(url: &str) -> String {
+    let url = url.trim();
+    if url.starts_with("http://") || url.starts_with("https://") {
+        url.to_string()
+    } else {
+        format!("http://{}", url)
+    }
+}
+
 fn get_api_server_(api: String, custom: String) -> String {
     #[cfg(windows)]
     if let Ok(lic) = crate::platform::windows::get_license_from_exe_name() {
         if !lic.api.is_empty() {
-            return lic.api.clone();
+            return ensure_url_scheme(&lic.api);
         }
     }
+    let s0 = get_custom_rendezvous_server(custom.clone());
     if !api.is_empty() {
-        return api.to_owned();
+        let is_default_derived = !s0.is_empty()
+            && (api == format!("http://{}:21114", s0) || api == format!("{}:21114", s0));
+        if is_default_derived {
+            if let Some(profile_api) = server_profile::get_api_by_host(&s0) {
+                if !profile_api.is_empty() {
+                    return ensure_url_scheme(&profile_api);
+                }
+            }
+        }
+        return ensure_url_scheme(&api);
     }
-    let s0 = get_custom_rendezvous_server(custom);
+    if !s0.is_empty() {
+        if let Some(profile_api) = server_profile::get_api_by_host(&s0) {
+            if !profile_api.is_empty() {
+                return ensure_url_scheme(&profile_api);
+            }
+        }
+    }
+    if !custom.is_empty() && custom != s0 {
+        if let Some(profile_api) = server_profile::get_api_by_host(&custom) {
+            if !profile_api.is_empty() {
+                return ensure_url_scheme(&profile_api);
+            }
+        }
+    }
+    let cur_server = Config::get_rendezvous_server();
+    if !cur_server.is_empty() && cur_server != s0 && cur_server != custom {
+        if let Some(profile_api) = server_profile::get_api_by_host(&cur_server) {
+            if !profile_api.is_empty() {
+                return ensure_url_scheme(&profile_api);
+            }
+        }
+    }
+    let active_profiles = server_profile::get_active_server_profiles();
+    for p in &active_profiles {
+        if let Some(profile_api) = server_profile::get_api_by_host(&p.host) {
+            if !profile_api.is_empty() {
+                return ensure_url_scheme(&profile_api);
+            }
+        }
+    }
     if !s0.is_empty() {
         let s = crate::increase_port(&s0, -2);
         if s == s0 {

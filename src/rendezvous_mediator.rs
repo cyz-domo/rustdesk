@@ -453,6 +453,11 @@ impl RendezvousMediator {
                                 rz.ctx.key.as_deref(),
                                 rz.ctx.online.as_deref(),
                             );
+                            if server_profile::get_active_server_profiles().len() <= 1 {
+                                if let Some(ref api) = rz.ctx.api {
+                                    Config::set_option("api-server".to_owned(), api.clone());
+                                }
+                            }
                             let new_target = check_port(&resolved.host, RENDEZVOUS_PORT);
                             if new_target != rz.host {
                                 log::info!("TXT record for {} updated from {} to {}, restarting worker...", rz.ctx.name, rz.host, new_target);
@@ -699,6 +704,11 @@ impl RendezvousMediator {
                                 rz.ctx.key.as_deref(),
                                 rz.ctx.online.as_deref(),
                             );
+                            if server_profile::get_active_server_profiles().len() <= 1 {
+                                if let Some(ref api) = rz.ctx.api {
+                                    Config::set_option("api-server".to_owned(), api.clone());
+                                }
+                            }
                             let new_target = rz.ctx.tcp_host();
                             if new_target != rz.host {
                                 log::info!("TXT record for {} updated from {} to {}, restarting tcp worker...", rz.ctx.name, rz.host, new_target);
@@ -762,6 +772,11 @@ impl RendezvousMediator {
                 ctx.key.as_deref(),
                 ctx.online.as_deref(),
             );
+            if server_profile::get_active_server_profiles().len() <= 1 {
+                if let Some(ref api) = ctx.api {
+                    Config::set_option("api-server".to_owned(), api.clone());
+                }
+            }
         }
         log::info!("start rendezvous mediator for profile '{}' ({})", ctx.name, ctx.host);
         if (cfg!(debug_assertions) && option_env!("TEST_TCP").is_some())
