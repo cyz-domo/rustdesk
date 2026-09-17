@@ -837,11 +837,13 @@ impl Client {
         if base::server_profile::is_official_server(&orig_udp_server) {
             rendezvous_server = check_port(&orig_udp_server, RENDEZVOUS_PORT);
         } else if let Some(tcp) = base::server_profile::get_tcp_host_by_host(&orig_udp_server) {
-            rendezvous_server = tcp;
+            rendezvous_server = check_port(tcp, RENDEZVOUS_PORT);
         } else {
             let tcp_opt = Config::get_option("rendezvous-server-tcp");
             if !tcp_opt.is_empty() && base::server_profile::is_host_match(&tcp_opt, &orig_udp_server) {
-                rendezvous_server = tcp_opt;
+                rendezvous_server = check_port(tcp_opt, RENDEZVOUS_PORT);
+            } else {
+                rendezvous_server = check_port(&rendezvous_server, RENDEZVOUS_PORT);
             }
         }
         let mut start = Instant::now();
@@ -5300,7 +5302,7 @@ pub mod peer_online {
     async fn create_online_stream() -> ResultType<Stream> {
         let online_opt = Config::get_option("online-server");
         let online_server = if !online_opt.is_empty() {
-            online_opt
+            check_port(online_opt, RENDEZVOUS_PORT - 1)
         } else {
             let (rendezvous_server, _servers, _contained) =
                 crate::get_rendezvous_server(READ_TIMEOUT).await;
@@ -5308,13 +5310,13 @@ pub mod peer_online {
                 bail!("no rendezvous server");
             }
             let target_server = if let Some(tcp) = base::server_profile::get_tcp_host_by_host(&rendezvous_server) {
-                tcp
+                check_port(tcp, RENDEZVOUS_PORT)
             } else {
                 let tcp_opt = Config::get_option("rendezvous-server-tcp");
                 if !tcp_opt.is_empty() && base::server_profile::is_host_match(&tcp_opt, &rendezvous_server) {
-                    tcp_opt
+                    check_port(tcp_opt, RENDEZVOUS_PORT)
                 } else {
-                    rendezvous_server
+                    check_port(rendezvous_server, RENDEZVOUS_PORT)
                 }
             };
             crate::increase_port(&target_server, -1)

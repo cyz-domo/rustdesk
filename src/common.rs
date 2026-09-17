@@ -771,7 +771,7 @@ pub async fn get_rendezvous_server(ms_timeout: u64) -> (String, Vec<String>, boo
     let (mut a, mut b) = if !active_profiles.is_empty() {
         let mut hosts: Vec<String> = active_profiles
             .into_iter()
-            .map(|p| p.host)
+            .map(|p| socket_client::check_port(p.host, config::RENDEZVOUS_PORT))
             .filter(|h| !h.trim().is_empty())
             .collect();
         let cur = Config::get_rendezvous_server();

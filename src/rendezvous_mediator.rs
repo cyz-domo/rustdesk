@@ -191,7 +191,7 @@ impl ServerContext {
             if !tcp_opt.is_empty() && server_profile::is_host_match(&tcp_opt, &self.host) {
                 check_port(&tcp_opt, RENDEZVOUS_PORT)
             } else {
-                self.host.clone()
+                check_port(&self.host, RENDEZVOUS_PORT)
             }
         }
     }
@@ -221,9 +221,9 @@ impl ServerContext {
         }
         let relay_server = Config::get_option("relay-server");
         if !relay_server.is_empty() && server_profile::is_host_match(&relay_server, &self.host) {
-            relay_server
+            check_port(&relay_server, RENDEZVOUS_PORT + 1)
         } else {
-            crate::increase_port(&self.host, 1)
+            crate::increase_port(&check_port(&self.host, RENDEZVOUS_PORT), 1)
         }
     }
 }
