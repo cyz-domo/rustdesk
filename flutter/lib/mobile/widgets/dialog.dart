@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_hbb/common/widgets/setting_widgets.dart';
@@ -151,6 +152,7 @@ void showServerSettingsWithOptions(
   }
 
   int selectedIndex = 0;
+  final tabScrollController = ScrollController();
 
   final nameCtrl = TextEditingController(text: profiles[0].name);
   final idCtrl = TextEditingController(text: profiles[0].host);
@@ -311,119 +313,311 @@ void showServerSettingsWithOptions(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Server Profile Tabs / Selector
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 6),
                     child: Row(
                       children: [
-                        for (int i = 0; i < profiles.length; i++) ...[
+                        if (profiles.length > 2)
                           InkWell(
                             onTap: () {
-                              setState(() {
-                                syncCurrentProfileFromControllers();
-                                selectedIndex = i;
-                                loadControllersFromProfile(i);
-                              });
+                              if (tabScrollController.hasClients) {
+                                tabScrollController.animateTo(
+                                  (tabScrollController.offset - 130)
+                                      .clamp(0.0, tabScrollController.position.maxScrollExtent),
+                                  duration: const Duration(milliseconds: 200),
+                                  curve: Curves.easeOut,
+                                );
+                              }
                             },
-                            borderRadius: BorderRadius.circular(8),
-                            child: Container(
-                              padding: EdgeInsets.symmetric(
-                                  horizontal: 10, vertical: 6),
-                              margin: EdgeInsets.only(right: 6, bottom: 8),
-                              decoration: BoxDecoration(
-                                color: selectedIndex == i
-                                    ? Theme.of(context).colorScheme.primary.withOpacity(0.15)
-                                    : Theme.of(context).cardColor,
-                                border: Border.all(
-                                  color: selectedIndex == i
-                                      ? Theme.of(context).colorScheme.primary
-                                      : Colors.grey.withOpacity(0.3),
-                                ),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
+                            borderRadius: BorderRadius.circular(4),
+                            child: const Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 2, vertical: 6),
+                              child: Icon(Icons.chevron_left, size: 20, color: Colors.grey),
+                            ),
+                          ),
+                        Expanded(
+                          child: Listener(
+                            onPointerSignal: (pointerSignal) {
+                              if (pointerSignal is PointerScrollEvent &&
+                                  tabScrollController.hasClients) {
+                                final newOffset = (tabScrollController.offset +
+                                        pointerSignal.scrollDelta.dy)
+                                    .clamp(
+                                        0.0,
+                                        tabScrollController
+                                            .position.maxScrollExtent);
+                                tabScrollController.jumpTo(newOffset);
+                              }
+                            },
+                            child: SingleChildScrollView(
+                              controller: tabScrollController,
+                              scrollDirection: Axis.horizontal,
                               child: Row(
-                                mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Checkbox(
-                                    value: profiles[i].enabled,
-                                    materialTapTargetSize:
-                                        MaterialTapTargetSize.shrinkWrap,
-                                    visualDensity: VisualDensity.compact,
-                                    onChanged: (val) {
-                                      setState(() {
-                                        profiles[i].enabled = val ?? true;
-                                      });
-                                    },
-                                  ),
-                                  Builder(builder: (context) {
-                                    final stat = stateGlobal.serverStatuses.firstWhereOrNull(
-                                        (s) => s.id == profiles[i].id || (profiles[i].host.isNotEmpty && s.host == profiles[i].host));
-                                    final isOnline = stat?.online ?? false;
-                                    final latStr = (stat != null && stat.latencyMs > 0) ? '${stat.latencyMs}ms' : '';
-                                    return Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Text(
-                                          profiles[i].name.isNotEmpty
-                                              ? profiles[i].name
-                                              : 'Server ${i + 1}',
-                                          style: TextStyle(
-                                            fontWeight: selectedIndex == i
-                                                ? FontWeight.bold
-                                                : FontWeight.normal,
-                                            fontSize: 13,
-                                          ),
-                                        ),
-                                        if (profiles[i].enabled && stat != null) ...[
-                                          SizedBox(width: 5),
-                                          Container(
-                                            width: 7,
-                                            height: 7,
-                                            decoration: BoxDecoration(
-                                              shape: BoxShape.circle,
-                                              color: isOnline
-                                                  ? Color.fromARGB(255, 50, 190, 166)
-                                                  : Color.fromARGB(255, 224, 79, 95),
-                                            ),
-                                          ),
-                                          if (latStr.isNotEmpty) ...[
-                                            SizedBox(width: 3),
-                                            Text(
-                                              latStr,
-                                              style: TextStyle(
-                                                fontSize: 10,
-                                                color: isOnline
-                                                    ? Color.fromARGB(255, 50, 190, 166)
-                                                    : Colors.grey,
-                                              ),
-                                            ),
-                                          ],
-                                        ],
-                                      ],
-                                    );
-                                  }),
-                                  if (profiles.length > 1) ...[
-                                    SizedBox(width: 4),
+                                  for (int i = 0; i < profiles.length; i++) ...[
                                     InkWell(
                                       onTap: () {
                                         setState(() {
-                                          profiles.removeAt(i);
-                                          if (selectedIndex >= profiles.length) {
-                                            selectedIndex = profiles.length - 1;
-                                          }
-                                          loadControllersFromProfile(selectedIndex);
+                                          syncCurrentProfileFromControllers();
+                                          selectedIndex = i;
+                                          loadControllersFromProfile(i);
                                         });
                                       },
-                                      child: Icon(Icons.close, size: 14, color: Colors.grey),
+                                      borderRadius: BorderRadius.circular(8),
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 8, vertical: 5),
+                                        margin: const EdgeInsets.only(right: 6),
+                                        decoration: BoxDecoration(
+                                          color: selectedIndex == i
+                                              ? Theme.of(context)
+                                                  .colorScheme
+                                                  .primary
+                                                  .withOpacity(0.15)
+                                              : Theme.of(context).cardColor,
+                                          border: Border.all(
+                                            color: selectedIndex == i
+                                                ? Theme.of(context)
+                                                    .colorScheme
+                                                    .primary
+                                                : Colors.grey.withOpacity(0.3),
+                                          ),
+                                          borderRadius:
+                                              Border.circular(8),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Checkbox(
+                                              value: profiles[i].enabled,
+                                              materialTapTargetSize:
+                                                  MaterialTapTargetSize
+                                                      .shrinkWrap,
+                                              visualDensity:
+                                                  VisualDensity.compact,
+                                              onChanged: (val) {
+                                                setState(() {
+                                                  profiles[i].enabled =
+                                                      val ?? true;
+                                                });
+                                              },
+                                            ),
+                                            Builder(builder: (context) {
+                                              final stat = stateGlobal
+                                                  .serverStatuses
+                                                  .firstWhereOrNull((s) =>
+                                                      s.id == profiles[i].id ||
+                                                      (profiles[i]
+                                                              .host
+                                                              .isNotEmpty &&
+                                                          s.host ==
+                                                              profiles[i].host));
+                                              final isOnline =
+                                                  stat?.online ?? false;
+                                              final latStr = (stat != null &&
+                                                      stat.latencyMs > 0)
+                                                  ? '${stat.latencyMs}ms'
+                                                  : '';
+                                              final title = profiles[i]
+                                                      .name
+                                                      .isNotEmpty
+                                                  ? profiles[i].name
+                                                  : 'Server ${i + 1}';
+                                              return Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  ConstrainedBox(
+                                                    constraints:
+                                                        const BoxConstraints(
+                                                            maxWidth: 100),
+                                                    child: Tooltip(
+                                                      message: title,
+                                                      child: Text(
+                                                        title,
+                                                        maxLines: 1,
+                                                        overflow: TextOverflow
+                                                            .ellipsis,
+                                                        style: TextStyle(
+                                                          fontWeight:
+                                                              selectedIndex == i
+                                                                  ? FontWeight
+                                                                      .bold
+                                                                  : FontWeight
+                                                                      .normal,
+                                                          fontSize: 13,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  if (profiles[i].enabled &&
+                                                      stat != null) ...[
+                                                    const SizedBox(width: 5),
+                                                    Container(
+                                                      width: 7,
+                                                      height: 7,
+                                                      decoration: BoxDecoration(
+                                                        shape: BoxShape.circle,
+                                                        color: isOnline
+                                                            ? const Color
+                                                                .fromARGB(255,
+                                                                50, 190, 166)
+                                                            : const Color
+                                                                .fromARGB(255,
+                                                                224, 79, 95),
+                                                      ),
+                                                    ),
+                                                    if (latStr.isNotEmpty) ...[
+                                                      const SizedBox(width: 3),
+                                                      Text(
+                                                        latStr,
+                                                        style: TextStyle(
+                                                          fontSize: 10,
+                                                          color: isOnline
+                                                              ? const Color
+                                                                  .fromARGB(255,
+                                                                  50, 190, 166)
+                                                              : Colors.grey,
+                                                        ),
+                                                      ),
+                                                    ],
+                                                  ],
+                                                ],
+                                              );
+                                            }),
+                                            if (profiles.length > 1) ...[
+                                              const SizedBox(width: 4),
+                                              InkWell(
+                                                onTap: () {
+                                                  setState(() {
+                                                    profiles.removeAt(i);
+                                                    if (selectedIndex >=
+                                                        profiles.length) {
+                                                      selectedIndex =
+                                                          profiles.length - 1;
+                                                    }
+                                                    loadControllersFromProfile(
+                                                        selectedIndex);
+                                                  });
+                                                },
+                                                child: const Icon(Icons.close,
+                                                    size: 14,
+                                                    color: Colors.grey),
+                                              ),
+                                            ],
+                                          ],
+                                        ),
+                                      ),
                                     ),
                                   ],
                                 ],
                               ),
                             ),
                           ),
-                        ],
+                        ),
+                        if (profiles.length > 2)
+                          InkWell(
+                            onTap: () {
+                              if (tabScrollController.hasClients) {
+                                tabScrollController.animateTo(
+                                  (tabScrollController.offset + 130)
+                                      .clamp(0.0, tabScrollController.position.maxScrollExtent),
+                                  duration: const Duration(milliseconds: 200),
+                                  curve: Curves.easeOut,
+                                );
+                              }
+                            },
+                            borderRadius: BorderRadius.circular(4),
+                            child: const Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 2, vertical: 6),
+                              child: Icon(Icons.chevron_right, size: 20, color: Colors.grey),
+                            ),
+                          ),
+                        // Quick switch dropdown menu
+                        PopupMenuButton<int>(
+                          icon: const Icon(Icons.arrow_drop_down_circle_outlined,
+                              size: 20, color: Colors.grey),
+                          tooltip: translate('More'),
+                          onSelected: (int idx) {
+                            setState(() {
+                              syncCurrentProfileFromControllers();
+                              selectedIndex = idx;
+                              loadControllersFromProfile(idx);
+                            });
+                            WidgetsBinding.instance.addPostFrameCallback((_) {
+                              if (tabScrollController.hasClients) {
+                                final targetOffset = (idx * 110.0).clamp(
+                                    0.0,
+                                    tabScrollController
+                                        .position.maxScrollExtent);
+                                tabScrollController.animateTo(
+                                  targetOffset,
+                                  duration: const Duration(milliseconds: 200),
+                                  curve: Curves.easeOut,
+                                );
+                              }
+                            });
+                          },
+                          itemBuilder: (context) => [
+                            for (int i = 0; i < profiles.length; i++)
+                              PopupMenuItem<int>(
+                                value: i,
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      selectedIndex == i
+                                          ? Icons.check
+                                          : Icons.circle_outlined,
+                                      size: 14,
+                                      color: selectedIndex == i
+                                          ? Theme.of(context).colorScheme.primary
+                                          : Colors.transparent,
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      profiles[i].name.isNotEmpty
+                                          ? profiles[i].name
+                                          : 'Server ${i + 1}',
+                                      style: TextStyle(
+                                        fontWeight: selectedIndex == i
+                                            ? FontWeight.bold
+                                            : FontWeight.normal,
+                                      ),
+                                    ),
+                                    const Spacer(),
+                                    Builder(builder: (context) {
+                                      final stat = stateGlobal.serverStatuses
+                                          .firstWhereOrNull((s) =>
+                                              s.id == profiles[i].id ||
+                                              (profiles[i].host.isNotEmpty &&
+                                                  s.host == profiles[i].host));
+                                      if (stat == null) return const Offstage();
+                                      final isOnline = stat.online;
+                                      return Container(
+                                        width: 7,
+                                        height: 7,
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          color: isOnline
+                                              ? const Color.fromARGB(
+                                                  255, 50, 190, 166)
+                                              : const Color.fromARGB(
+                                                  255, 224, 79, 95),
+                                        ),
+                                      );
+                                    }),
+                                  ],
+                                ),
+                              ),
+                          ],
+                        ),
+                        // Fixed Add Button
                         IconButton(
-                          icon: Icon(Icons.add_circle_outline, size: 20),
+                          icon: Icon(Icons.add_circle,
+                              size: 22,
+                              color: Theme.of(context).colorScheme.primary),
                           tooltip: translate('Add'),
+                          padding: const EdgeInsets.all(4),
+                          constraints: const BoxConstraints(),
                           onPressed: () {
                             setState(() {
                               syncCurrentProfileFromControllers();
@@ -439,6 +633,15 @@ void showServerSettingsWithOptions(
                               ));
                               selectedIndex = profiles.length - 1;
                               loadControllersFromProfile(selectedIndex);
+                            });
+                            WidgetsBinding.instance.addPostFrameCallback((_) {
+                              if (tabScrollController.hasClients) {
+                                tabScrollController.animateTo(
+                                  tabScrollController.position.maxScrollExtent,
+                                  duration: const Duration(milliseconds: 250),
+                                  curve: Curves.easeOut,
+                                );
+                              }
                             });
                           },
                         ),
