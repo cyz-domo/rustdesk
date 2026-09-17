@@ -375,7 +375,6 @@ class FfiModel with ChangeNotifier {
       } else if (name == 'connection_server') {
         final server = evt['server'] ?? '';
         setConnectionServer(peerId, server);
-      }
       } else if (name == 'switch_display') {
         // switch display is kept for backward compatibility
         handleSwitchDisplay(evt, sessionId, peerId);
