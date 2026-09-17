@@ -1052,11 +1052,11 @@ impl Client {
                     }
                     Some(rendezvous_message::Union::RelayResponse(rr)) => {
                         let target_relay = if let Some(ref r) = profile_relay {
-                            r.clone()
+                            check_port(r, RELAY_PORT)
                         } else if !rr.relay_server.is_empty() {
-                            rr.relay_server.clone()
+                            check_port(rr.relay_server.clone(), RELAY_PORT)
                         } else {
-                            relay_server.clone()
+                            check_port(relay_server.clone(), RELAY_PORT)
                         };
                         log::info!(
                             "relay requested from peer, time used: {:?}, relay_server: {}",
@@ -1563,7 +1563,7 @@ impl Client {
                 let switch_code = interface.get_switch_code();
                 conn = Self::request_relay(
                     peer_id,
-                    target_relay,
+                    check_port(target_relay, RELAY_PORT),
                     rendezvous_server,
                     !signed_id_pk.is_empty(),
                     key,
@@ -1600,7 +1600,7 @@ impl Client {
                 drop(webrtc_guard.take());
                 match Self::request_relay(
                     peer_id,
-                    relay_server.to_owned(),
+                    check_port(relay_server.to_owned(), RELAY_PORT),
                     rendezvous_server,
                     !signed_id_pk.is_empty(),
                     key,
@@ -5269,9 +5269,10 @@ async fn hc_connection_(
 }
 
 pub mod peer_online {
+    use crate::check_port;
     use hbb_common::{
         anyhow::bail,
-        config::{Config, CONNECT_TIMEOUT, READ_TIMEOUT},
+        config::{Config, CONNECT_TIMEOUT, READ_TIMEOUT, RENDEZVOUS_PORT},
         log,
         rendezvous_proto::*,
         sleep,
@@ -5300,27 +5301,40 @@ pub mod peer_online {
     }
 
     async fn create_online_stream() -> ResultType<Stream> {
-        let online_opt = Config::get_option("online-server");
-        let online_server = if !online_opt.is_empty() {
-            check_port(online_opt, RENDEZVOUS_PORT - 1)
-        } else {
-            let (rendezvous_server, _servers, _contained) =
-                crate::get_rendezvous_server(READ_TIMEOUT).await;
-            if rendezvous_server.trim().is_empty() || base::server_profile::parse_host(&rendezvous_server).is_empty() {
-                bail!("no rendezvous server");
-            }
-            let target_server = if let Some(tcp) = base::server_profile::get_tcp_host_by_host(&rendezvous_server) {
-                check_port(tcp, RENDEZVOUS_PORT)
+        let (rendezvous_server, _servers, _contained) =
+            crate::get_rendezvous_server(READ_TIMEOUT).await;
+        if rendezvous_server.trim().is_empty()
+            || base::server_profile::parse_host(&rendezvous_server).is_empty()
+        {
+            bail!("no rendezvous server");
+        }
+        let online_server =
+            if let Some(online) = base::server_profile::get_online_by_host(&rendezvous_server) {
+                check_port(online, RENDEZVOUS_PORT - 1)
             } else {
-                let tcp_opt = Config::get_option("rendezvous-server-tcp");
-                if !tcp_opt.is_empty() && base::server_profile::is_host_match(&tcp_opt, &rendezvous_server) {
-                    check_port(tcp_opt, RENDEZVOUS_PORT)
+                let online_opt = Config::get_option("online-server");
+                if !online_opt.is_empty()
+                    && base::server_profile::is_host_match(&online_opt, &rendezvous_server)
+                {
+                    check_port(online_opt, RENDEZVOUS_PORT - 1)
                 } else {
-                    check_port(rendezvous_server, RENDEZVOUS_PORT)
+                    let target_server = if let Some(tcp) =
+                        base::server_profile::get_tcp_host_by_host(&rendezvous_server)
+                    {
+                        check_port(tcp, RENDEZVOUS_PORT)
+                    } else {
+                        let tcp_opt = Config::get_option("rendezvous-server-tcp");
+                        if !tcp_opt.is_empty()
+                            && base::server_profile::is_host_match(&tcp_opt, &rendezvous_server)
+                        {
+                            check_port(tcp_opt, RENDEZVOUS_PORT)
+                        } else {
+                            check_port(rendezvous_server, RENDEZVOUS_PORT)
+                        }
+                    };
+                    crate::increase_port(&target_server, -1)
                 }
             };
-            crate::increase_port(&target_server, -1)
-        };
         connect_tcp(online_server, CONNECT_TIMEOUT).await
     }
 

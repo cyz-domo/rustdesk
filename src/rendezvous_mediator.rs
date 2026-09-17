@@ -208,16 +208,16 @@ impl ServerContext {
     pub fn get_relay_server(&self, provided_by_rendezvous_server: String) -> String {
         if let Some(relay) = &self.relay {
             if !relay.is_empty() {
-                return relay.clone();
+                return check_port(relay, RENDEZVOUS_PORT + 1);
             }
         }
         if let Some(relay) = server_profile::get_relay_by_host(&self.host) {
             if !relay.is_empty() {
-                return relay;
+                return check_port(relay, RENDEZVOUS_PORT + 1);
             }
         }
         if !provided_by_rendezvous_server.is_empty() {
-            return provided_by_rendezvous_server;
+            return check_port(provided_by_rendezvous_server, RENDEZVOUS_PORT + 1);
         }
         let relay_server = Config::get_option("relay-server");
         if !relay_server.is_empty() && server_profile::is_host_match(&relay_server, &self.host) {

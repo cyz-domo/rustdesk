@@ -488,6 +488,22 @@ pub fn get_api_by_host(host: &str) -> Option<String> {
     get_profile_by_host(host).and_then(|p| p.api)
 }
 
+/// Get Online/Status server associated with a specific host.
+pub fn get_online_by_host(host: &str) -> Option<String> {
+    let host = host.trim();
+    if host.is_empty() || is_official_server(host) {
+        return None;
+    }
+    if let Some(resolved) = get_resolved_profile_data(host) {
+        if let Some(ref online) = resolved.online {
+            if !online.is_empty() {
+                return Some(online.clone());
+            }
+        }
+    }
+    get_profile_by_host(host).and_then(|p| p.online)
+}
+
 pub fn update_server_profile_latency(id: &str, configured_host: &str, resolved_host: &str, latency: i64) {
     if let Ok(mut map) = SERVER_LATENCIES.lock() {
         if !id.is_empty() {
