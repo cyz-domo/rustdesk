@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RustDesk 动态 STUN 增强版 - 免公网 IP 自建远程桌面 | Lucky NAT1 穿透</title>
-    <meta name="description" content="基于 Lucky NAT1 STUN 穿透与动态 DNS TXT 解析的 RustDesk 增强版，支持 TCP/UDP 独立端口分流、P2P 满速直连、120 FPS 高帧率与家庭宽带重拨无感热重载。提供 Windows/macOS/Android/Linux 客户端下载。">
-    <meta name="keywords" content="RustDesk, Lucky, STUN, NAT1, 远程桌面, DNS TXT, P2P直连, 自建RustDesk, 家宽打洞, 免公网IP, 120FPS, IPv6, 远程控制">
+    <title>RustDesk 动态 STUN 与多配置云节点增强版 - 免公网 IP 自建远程桌面 | Lucky NAT1 穿透 / 阿里云 / 腾讯云混合组网</title>
+    <meta name="description" content="基于 Lucky NAT1 STUN 穿透与多服务器 Profile 智能管理的 RustDesk 增强版。支持 TCP/UDP 独立分流、云主机与 STUN 双模端口自适应、会话线路透传显示与 120 FPS 电竞级 P2P 直连。提供 Windows/macOS/Android/Linux 客户端下载。">
+    <meta name="keywords" content="RustDesk, Lucky, STUN, NAT1, 远程桌面, 多服务器配置, 线路显示, DNS TXT, P2P直连, 自建RustDesk, 阿里云, 腾讯云, 家宽打洞, 免公网IP, 120FPS, IPv6, 远程控制">
     <meta name="author" content="cyz-domo">
     <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
     <link rel="canonical" href="https://cyz-domo.github.io/rustdesk/">
@@ -14,17 +14,17 @@
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://cyz-domo.github.io/rustdesk/">
-    <meta property="og:title" content="RustDesk 动态 STUN 增强版 - 免公网 IP 自建远程桌面">
-    <meta property="og:description" content="针对家庭宽带 NAT1 打洞量身打造。独创 TCP/UDP 独立端口分流架构，搭配 DNS TXT 动态寻址引擎，实现宽带重拨无感自愈与电竞级 120 FPS P2P 直连。">
-    <meta property="og:site_name" content="RustDesk STUN Enhanced">
+    <meta property="og:title" content="RustDesk 动态 STUN 与多配置云节点增强版 - 免公网 IP 自建远程桌面">
+    <meta property="og:description" content="针对家庭宽带 NAT1 打洞与云主机混合部署量身打造。独创多 Profile 线路管理、TCP/UDP 独立分流及会话路由透传显示，实现电竞级 120 FPS P2P 直连与无感故障切换。">
+    <meta property="og:site_name" content="RustDesk STUN & Cloud Enhanced">
     <meta property="og:locale" content="zh_CN">
     <meta property="og:image" content="https://raw.githubusercontent.com/rustdesk/rustdesk/master/res/128x128@2x.png">
 
     <!-- Twitter Card -->
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:url" content="https://cyz-domo.github.io/rustdesk/">
-    <meta name="twitter:title" content="RustDesk 动态 STUN 增强版 - 免公网 IP 自建远程桌面">
-    <meta name="twitter:description" content="基于 Lucky NAT1 STUN 穿透与动态 DNS TXT 解析的 RustDesk 增强版，支持 TCP/UDP 独立分流与 120 FPS P2P 直连。">
+    <meta name="twitter:title" content="RustDesk 动态 STUN 与多配置云节点增强版 - 免公网 IP 自建远程桌面">
+    <meta name="twitter:description" content="基于 Lucky NAT1 STUN 穿透与多服务器 Profile 智能管理的 RustDesk 增强版，支持 TCP/UDP 独立分流、云主机/STUN 双模自适应与 120 FPS P2P 直连。">
     <meta name="twitter:image" content="https://raw.githubusercontent.com/rustdesk/rustdesk/master/res/128x128@2x.png">
 
     <!-- JSON-LD Structured Data for Google/Bing SEO -->
@@ -139,13 +139,14 @@
                 </div>
                 <div>
                     <span class="font-bold text-lg text-white">RustDesk</span>
-                    <span class="text-xs bg-brand-500/20 text-brand-400 px-2 py-0.5 rounded-full ml-1 font-semibold border border-brand-500/30">STUN Edition</span>
+                    <span class="text-xs bg-brand-500/20 text-brand-400 px-2 py-0.5 rounded-full ml-1 font-semibold border border-brand-500/30">STUN & Cloud Pro</span>
                 </div>
             </div>
-            <nav class="hidden md:flex items-center space-x-8 text-sm font-medium text-slate-300">
+            <nav class="hidden md:flex items-center space-x-7 text-sm font-medium text-slate-300">
                 <a href="#features" class="hover:text-brand-400 transition-colors">核心特性</a>
                 <a href="#architecture" class="hover:text-brand-400 transition-colors">网络架构</a>
-                <a href="#guide" class="hover:text-brand-400 transition-colors">Lucky 配置教程</a>
+                <a href="#guide" class="hover:text-brand-400 transition-colors">配置教程</a>
+                <a href="#changelog" class="hover:text-brand-400 transition-colors">最新动态</a>
                 <a href="#download" class="hover:text-brand-400 transition-colors">下载客户端</a>
                 <a href="#faq" class="hover:text-brand-400 transition-colors">常见问题</a>
             </nav>
@@ -178,16 +179,16 @@
 
             <div class="inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-full bg-slate-900/90 border border-slate-700/80 text-xs font-medium text-slate-300 mb-8 shadow-inner">
                 <span class="w-2 h-2 rounded-full bg-brand-400 animate-pulse"></span>
-                <span>Lucky (大吉) NAT1 穿透专属定制 · 完美兼容官方标准</span>
+                <span>Lucky STUN 动态穿透 + 多服务器 Profile 调度 · 兼容全系标准云节点</span>
             </div>
 
             <h1 class="text-4xl sm:text-6xl font-extrabold tracking-tight text-white mb-6 leading-tight">
                 免公网 IPv4 的极速远程桌面<br>
-                <span class="gradient-text">Lucky STUN + 动态 DNS TXT 解析</span>
+                <span class="gradient-text">Lucky STUN + 云主机混合自适应</span>
             </h1>
 
             <p class="text-lg sm:text-xl text-slate-400 max-w-3xl mx-auto mb-10 leading-relaxed font-light">
-                针对家庭宽带 NAT1 打洞量身打造。独创 TCP/UDP 独立端口分流架构，搭配 DNS TXT 动态寻址引擎，实现宽带重拨无感自愈与电竞级 120 FPS P2P 直连。
+                针对家庭宽带 NAT1 打洞与云主机混合部署量身打造。独创多 Profile 线路管理、TCP/UDP 独立端口分流及会话路由透传显示，实现电竞级 120 FPS P2P 直连与智能无感故障切换。
             </p>
 
             <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -198,8 +199,8 @@
                 <a href="#guide" class="w-full sm:w-auto px-8 py-3.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-200 font-semibold text-base border border-slate-700 transition-all flex items-center justify-center space-x-2">
                     <span>📖 查看配置教程</span>
                 </a>
-                <a href="https://github.com/cyz-domo/rustdesk/releases" target="_blank" class="w-full sm:w-auto px-6 py-3.5 rounded-xl bg-slate-900/50 hover:bg-slate-800/80 text-slate-300 font-medium text-base border border-slate-800 transition-all">
-                    <span>📦 全部 Releases</span>
+                <a href="#changelog" class="w-full sm:w-auto px-6 py-3.5 rounded-xl bg-slate-900/50 hover:bg-slate-800/80 text-slate-300 font-medium text-base border border-slate-800 transition-all flex items-center justify-center space-x-2">
+                    <span>⚡ 查看最新动态</span>
                 </a>
             </div>
 
@@ -230,75 +231,113 @@
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="text-center max-w-3xl mx-auto mb-16">
                 <h2 class="text-xs uppercase tracking-widest text-brand-400 font-bold mb-3 font-mono">CORE ADVANTAGES</h2>
-                <p class="text-3xl sm:text-4xl font-extrabold text-white">为什么需要 Lucky 定制增强版？</p>
-                <p class="text-slate-400 mt-4 text-base">突破官方单端口同协议假设，为 STUN 动态 NAT 穿透提供全链路深度适配</p>
+                <p class="text-3xl sm:text-4xl font-extrabold text-white">为什么选择定制增强版？</p>
+                <p class="text-slate-400 mt-4 text-base">突破官方单服务器单端口假设，为家庭 Lucky STUN 穿透与多节点混合组网提供全链路深度适配</p>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-                <!-- 特性 1 -->
-                <div class="glow-card rounded-2xl p-8">
-                    <div class="w-12 h-12 rounded-xl bg-brand-500/10 border border-brand-500/20 flex items-center justify-center text-brand-400 text-2xl mb-6">
-                        🔀
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <!-- 特性 1: 多服务器配置 -->
+                <div class="glow-card rounded-2xl p-7 flex flex-col justify-between">
+                    <div>
+                        <div class="w-12 h-12 rounded-xl bg-brand-500/10 border border-brand-500/20 flex items-center justify-center text-brand-400 text-2xl mb-5">
+                            🎛️
+                        </div>
+                        <h3 class="text-lg font-bold text-white mb-2.5">多服务器 Profile 管理</h3>
+                        <p class="text-slate-400 text-xs leading-relaxed">
+                            支持同时添加家庭 Lucky STUN、公司阿里云/腾讯云、个人 VPS 及官方节点。支持节点独立延迟测速、一键启用/禁用切换，所有节点关闭时自动平滑回退官方兜底。
+                        </p>
                     </div>
-                    <h3 class="text-xl font-bold text-white mb-3">TCP / UDP 独立端口分流</h3>
-                    <p class="text-slate-400 text-sm leading-relaxed">
-                        Lucky 单协议打洞导致 hbbs 的 UDP（心跳注册）与 TCP（打洞信令）分配为不同公网端口。增强版实现了底层套接字精准分流，从根源解决打洞超时与连接阻塞。
-                    </p>
                 </div>
 
-                <!-- 特性 2 -->
-                <div class="glow-card rounded-2xl p-8">
-                    <div class="w-12 h-12 rounded-xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-400 text-2xl mb-6">
-                        🌐
+                <!-- 特性 2: 线路透明展示 -->
+                <div class="glow-card rounded-2xl p-7 flex flex-col justify-between">
+                    <div>
+                        <div class="w-12 h-12 rounded-xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-400 text-2xl mb-5">
+                            🧭
+                        </div>
+                        <h3 class="text-lg font-bold text-white mb-2.5">线路透传与状态感知</h3>
+                        <p class="text-slate-400 text-xs leading-relaxed">
+                            远程会话建立后，状态栏与信息面板实时展示当前连接生效的服务器名称（如“家庭 NAS 节点”）、连接模式（🟢 P2P 直连 / 🟣 hbbr 中继 / ⚡ WebRTC）及双向 RTT 延迟。
+                        </p>
                     </div>
-                    <h3 class="text-xl font-bold text-white mb-3">动态 DNS TXT 自动寻址</h3>
-                    <p class="text-slate-400 text-sm leading-relaxed">
-                        Lucky WebHook 自动推送最新端口至 DNS TXT。客户端原生支持 UDP 53 毫秒级多源 DNS 解析，宽带重拨或重启后被控端自动后台热重载，无需人工维护。
-                    </p>
                 </div>
 
-                <!-- 特性 3 -->
-                <div class="glow-card rounded-2xl p-8">
-                    <div class="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 text-2xl mb-6">
-                        ⚡
+                <!-- 特性 3: 双模端口自适应 -->
+                <div class="glow-card rounded-2xl p-7 flex flex-col justify-between">
+                    <div>
+                        <div class="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 text-2xl mb-5">
+                            🌐
+                        </div>
+                        <h3 class="text-lg font-bold text-white mb-2.5">双模端口智能自适应</h3>
+                        <p class="text-slate-400 text-xs leading-relaxed">
+                            自建云服务器只需填写纯域名（如 <code class="text-xs bg-slate-800 px-1 py-0.5 rounded text-slate-300">desk.domain.com</code>），自动补齐 21115 在线/21116 信令/21117 中继；同时对 STUN 动态非连续端口 100% 精确保留，杜绝套接字错误。
+                        </p>
                     </div>
-                    <h3 class="text-xl font-bold text-white mb-3">P2P 直连与 120 FPS 高帧</h3>
-                    <p class="text-slate-400 text-sm leading-relaxed">
-                        优先局域网直连与公网 STUN / WebRTC P2P 打洞。打洞成功直接点对点传输，零服务器带宽消耗；支持 5~120 FPS 自由调节与 NVENC/AMF/QSV 显卡硬解。
-                    </p>
                 </div>
 
-                <!-- 特性 4 -->
-                <div class="glow-card rounded-2xl p-8">
-                    <div class="w-12 h-12 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400 text-2xl mb-6">
-                        🛡️
+                <!-- 特性 4: TCP/UDP 分流 -->
+                <div class="glow-card rounded-2xl p-7 flex flex-col justify-between">
+                    <div>
+                        <div class="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 text-2xl mb-5">
+                            🔀
+                        </div>
+                        <h3 class="text-lg font-bold text-white mb-2.5">TCP / UDP 独立端口分流</h3>
+                        <p class="text-slate-400 text-xs leading-relaxed">
+                            Lucky 单协议穿透会导致 UDP（心跳注册）与 TCP（信令协商）分配为不同外部公网端口。增强版实现了底层套接字精准分流，从根源解决信令握手超时与假死问题。
+                        </p>
                     </div>
-                    <h3 class="text-xl font-bold text-white mb-3">端到端 Ed25519 安全加密</h3>
-                    <p class="text-slate-400 text-sm leading-relaxed">
-                        完全继承 RustDesk 军工级安全架构。TXT 自动注入服务端公钥 Key，支持非对称握手与端到端 ChaCha20/AES 流加密，杜绝中间人劫持。
-                    </p>
                 </div>
 
-                <!-- 特性 5 -->
-                <div class="glow-card rounded-2xl p-8">
-                    <div class="w-12 h-12 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400 text-2xl mb-6">
-                        🔄
+                <!-- 特性 5: 120 FPS 直连 -->
+                <div class="glow-card rounded-2xl p-7 flex flex-col justify-between">
+                    <div>
+                        <div class="w-12 h-12 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 text-2xl mb-5">
+                            ⚡
+                        </div>
+                        <h3 class="text-lg font-bold text-white mb-2.5">P2P 直连与 120 FPS 高帧</h3>
+                        <p class="text-slate-400 text-xs leading-relaxed">
+                            优先局域网直连与公网 STUN / WebRTC P2P 端到端打洞，零服务器带宽开销；支持 5~120 FPS 自由拖动调节，全面支持 NVENC / AMF / QSV 显卡硬件编解码加速。
+                        </p>
                     </div>
-                    <h3 class="text-xl font-bold text-white mb-3">hbbr 中继自动降级兜底</h3>
-                    <p class="text-slate-400 text-sm leading-relaxed">
-                        在极端对称型 NAT 或企业级严格防火墙环境下，若 P2P 打洞失败，客户端自动无缝降级切换至 hbbr 中继隧道传输，确保 100% 随时随地可连。
-                    </p>
                 </div>
 
-                <!-- 特性 6 -->
-                <div class="glow-card rounded-2xl p-8">
-                    <div class="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 text-2xl mb-6">
-                        👌
+                <!-- 特性 6: 动态 DNS TXT 寻址 -->
+                <div class="glow-card rounded-2xl p-7 flex flex-col justify-between">
+                    <div>
+                        <div class="w-12 h-12 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400 text-2xl mb-5">
+                            📡
+                        </div>
+                        <h3 class="text-lg font-bold text-white mb-2.5">动态 DNS TXT 自动寻址</h3>
+                        <p class="text-slate-400 text-xs leading-relaxed">
+                            Lucky WebHook 联动自动推送最新端口至 DNS TXT。客户端原生支持 UDP 53 毫秒级多源 DNS 解析；家庭宽带重新拨号导致公网端口变动后，被控端后台无感热重载。
+                        </p>
                     </div>
-                    <h3 class="text-xl font-bold text-white mb-3">全量平台与官方架构兼容</h3>
-                    <p class="text-slate-400 text-sm leading-relaxed">
-                        支持 Windows、macOS (Apple Silicon)、Android、Linux。对未包含 <code class="text-xs bg-slate-800 px-1 py-0.5 rounded">tcp=</code> 的传统单端口官方服务器 100% 向后兼容。
-                    </p>
+                </div>
+
+                <!-- 特性 7: 端到端加密 -->
+                <div class="glow-card rounded-2xl p-7 flex flex-col justify-between">
+                    <div>
+                        <div class="w-12 h-12 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400 text-2xl mb-5">
+                            🛡️
+                        </div>
+                        <h3 class="text-lg font-bold text-white mb-2.5">端到端 Ed25519 加密</h3>
+                        <p class="text-slate-400 text-xs leading-relaxed">
+                            完全继承 RustDesk 军工级安全架构。TXT 自动安全注入服务端公钥 Key，支持非对称密钥交换握手与端到端 ChaCha20/AES 流加密传输，彻底阻断中间人窃听。
+                        </p>
+                    </div>
+                </div>
+
+                <!-- 特性 8: 智能多级降级 -->
+                <div class="glow-card rounded-2xl p-7 flex flex-col justify-between">
+                    <div>
+                        <div class="w-12 h-12 rounded-xl bg-teal-500/10 border border-teal-500/20 flex items-center justify-center text-teal-400 text-2xl mb-5">
+                            🔄
+                        </div>
+                        <h3 class="text-lg font-bold text-white mb-2.5">智能多级降级保活</h3>
+                        <p class="text-slate-400 text-xs leading-relaxed">
+                            在严格对称型 NAT 防火墙下打洞失败时，自动秒级无缝降级切换至 hbbr 中继隧道；HTTP 心跳探测受阻时自动切至 TCP 代理保活，确保 100% 随时可用。
+                        </p>
+                    </div>
                 </div>
             </div>
         </div>
@@ -484,22 +523,107 @@
                             4
                         </div>
                         <div class="flex-1">
-                            <h3 class="text-lg font-bold text-white">客户端极简填入（一键完成）</h3>
-                            <p class="text-sm text-slate-400 mt-1 mb-3">打开 RustDesk 客户端 -> 点击「网络设置（ID/中继服务器）」：</p>
-                            <div class="p-4 rounded-xl bg-slate-900 border border-slate-800 text-xs space-y-2">
-                                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                                    <span class="text-slate-400">ID 服务器 (ID Server)：</span>
-                                    <span class="font-mono bg-slate-950 px-3 py-1.5 rounded border border-slate-700 text-brand-400 font-semibold">你的域名 (如 rustdesk.example.com)</span>
+                            <h3 class="text-lg font-bold text-white">客户端极简填入与多配置管理</h3>
+                            <p class="text-sm text-slate-400 mt-1 mb-4">打开 RustDesk 客户端 -> 点击「网络设置（ID/中继服务器）」：</p>
+                            
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs mb-4">
+                                <div class="p-3.5 rounded-xl bg-slate-900 border border-slate-800">
+                                    <div class="font-bold text-brand-400 mb-1 flex items-center space-x-1">
+                                        <span>模式 A：Lucky STUN 动态穿透</span>
+                                    </div>
+                                    <div class="text-slate-400 mb-2">只需在「ID 服务器」填入你的域名：</div>
+                                    <div class="font-mono bg-slate-950 px-2.5 py-1.5 rounded border border-slate-800 text-brand-300">rustdesk.example.com</div>
+                                    <div class="text-slate-500 mt-2">其他项留空，客户端自动通过 DNS TXT 秒级提取各端口与 Key。</div>
                                 </div>
-                                <div class="text-slate-500">中继服务器 / API / Key：<span class="text-slate-400">留空即可（客户端自动从 TXT 提取）</span></div>
+
+                                <div class="p-3.5 rounded-xl bg-slate-900 border border-slate-800">
+                                    <div class="font-bold text-sky-400 mb-1 flex items-center space-x-1">
+                                        <span>模式 B：标准云服务器 (阿里云/腾讯云)</span>
+                                    </div>
+                                    <div class="text-slate-400 mb-2">直接填入纯公网域名或 IP（无需端口）：</div>
+                                    <div class="font-mono bg-slate-950 px-2.5 py-1.5 rounded border border-slate-800 text-sky-300">desk.yourdomain.com</div>
+                                    <div class="text-slate-500 mt-2">增强版全自动智能补齐 21115 在线/21116 信令/21117 中继。</div>
+                                </div>
                             </div>
+
+                            <div class="p-3.5 rounded-xl bg-slate-900/60 border border-slate-800 text-xs text-slate-300">
+                                <span class="text-brand-400 font-bold">✨ 多服务器配置 (Multi-Profile)：</span>
+                                可以在设置页面点击「+ 添加配置」，将家庭 STUN 与云服务器同时保存为不同 Profile，随时一键测速与无缝切换生效。
+                            </div>
+
                             <p class="text-xs text-emerald-400 font-medium mt-3">
-                                🟢 保存后客户端左下角显示「就绪 (Ready)」，即可随时开始高速远程桌面！
+                                🟢 保存后客户端左下角显示「就绪 (Ready)」，即可随时开始电竞级极速远程！
                             </p>
                         </div>
                     </div>
                 </div>
 
+            </div>
+        </div>
+    </section>
+
+    <!-- 最新动态与版本更新记录 -->
+    <section id="changelog" class="py-20 bg-slate-900/40 border-b border-slate-800/80">
+        <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center max-w-3xl mx-auto mb-16">
+                <h2 class="text-xs uppercase tracking-widest text-brand-400 font-bold mb-3 font-mono">RELEASE HIGHLIGHTS</h2>
+                <p class="text-3xl sm:text-4xl font-extrabold text-white">最新版本功能动态</p>
+                <p class="text-slate-400 mt-4 text-base">持续迭代演进，打造免公网 IP 与云主机混合部署的最佳体验</p>
+            </div>
+
+            <!-- 时间轴卡片 -->
+            <div class="space-y-6">
+                <div class="glow-card rounded-2xl p-7 border-l-4 border-l-brand-400">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-5 pb-3.5 border-b border-slate-800">
+                        <div class="flex items-center space-x-3">
+                            <span class="px-3 py-1 rounded-full text-xs font-mono font-bold bg-brand-500/20 text-brand-400 border border-brand-500/30">v1.4.x-enhanced</span>
+                            <h3 class="text-lg font-bold text-white">多 Profile 调度、线路透传与全链路端口自适应</h3>
+                        </div>
+                        <span class="text-xs text-slate-400 font-mono">生产发布 · 持续维护</span>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-slate-300">
+                        <div class="p-4 rounded-xl bg-slate-900/70 border border-slate-800">
+                            <div class="font-bold text-white mb-2 flex items-center space-x-2">
+                                <span class="text-base">🎛️</span>
+                                <span class="text-brand-300 font-semibold">多服务器 Profile 智能管理系统</span>
+                            </div>
+                            <p class="text-slate-400 leading-relaxed">
+                                支持在客户端配置并维护多套服务器 Profile（家庭 STUN、公司云节点、个人 VPS 等）。具备延迟横向探测对比、一键开关及全禁用状态下自动平滑回退官方公共节点保底。
+                            </p>
+                        </div>
+
+                        <div class="p-4 rounded-xl bg-slate-900/70 border border-slate-800">
+                            <div class="font-bold text-white mb-2 flex items-center space-x-2">
+                                <span class="text-base">🧭</span>
+                                <span class="text-sky-300 font-semibold">连接线路与打洞模式实时透传</span>
+                            </div>
+                            <p class="text-slate-400 leading-relaxed">
+                                远程连接建立后，状态栏与会话信息面板实时展示当前生效的服务器节点名称、链路传输类型（🟢 P2P 端到端直连 / 🟣 hbbr 中继隧道 / ⚡ WebRTC）及毫秒级 RTT 延迟。
+                            </p>
+                        </div>
+
+                        <div class="p-4 rounded-xl bg-slate-900/70 border border-slate-800">
+                            <div class="font-bold text-white mb-2 flex items-center space-x-2">
+                                <span class="text-base">🛠️</span>
+                                <span class="text-emerald-300 font-semibold">标准云服务器全链路端口智能自适应</span>
+                            </div>
+                            <p class="text-slate-400 leading-relaxed">
+                                彻底解决输入纯域名自建服务器时出现的 <code class="text-brand-300">invalid socket address</code> 异常；在信令、中继、在线探测各阶段全自动补齐缺省端口，并对 STUN 动态多端口完整保护。
+                            </p>
+                        </div>
+
+                        <div class="p-4 rounded-xl bg-slate-900/70 border border-slate-800">
+                            <div class="font-bold text-white mb-2 flex items-center space-x-2">
+                                <span class="text-base">💓</span>
+                                <span class="text-amber-300 font-semibold">独立在线流与 TCP 代理心跳容错</span>
+                            </div>
+                            <p class="text-slate-400 leading-relaxed">
+                                完善独立在线状态查询流通道；当 HTTP POST 心跳超时或被拦截时，自动无感启用 TCP 代理保活与探测降级通道，确保对端在线状态感知始终稳定。
+                            </p>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </section>
@@ -662,6 +786,27 @@
                     <h3 class="font-bold text-base text-white mb-2">Q4: 为什么默认是 30 帧，如何开启 60 FPS 或 120 FPS？</h3>
                     <p class="text-sm text-slate-400 leading-relaxed">
                         进入客户端「设置」->「显示」-> 勾选「自定义画质与帧率」，将滑块拖动到 60 或 120 即可。同时在「硬件加速」中开启 NVENC / AMF / QSV 显卡硬编解码，在 P2P 直连下体验电竞级丝滑控制。
+                    </p>
+                </div>
+
+                <div class="glow-card rounded-2xl p-6">
+                    <h3 class="font-bold text-base text-white mb-2">Q5: 如何使用多服务器配置 (Multi-Profile) 功能？</h3>
+                    <p class="text-sm text-slate-400 leading-relaxed">
+                        进入客户端「设置」->「网络（ID/中继服务器）」，点击「添加配置」按钮，可分别添加不同网络环境的节点（如“家庭 NAS - Lucky STUN”、“阿里云专线中继”）。可在配置列表中一键切换启用或禁用特定节点，并实时查看节点网络延迟。当取消勾选所有自建节点时，客户端会自动无感切换回退到官方公共服务器保障连通。
+                    </p>
+                </div>
+
+                <div class="glow-card rounded-2xl p-6">
+                    <h3 class="font-bold text-base text-white mb-2">Q6: 连接成功后如何查看当前走的是哪条线路？</h3>
+                    <p class="text-sm text-slate-400 leading-relaxed">
+                        在远程控制窗口顶部的状态栏或控制菜单中，会直观显示当前会话匹配生效的服务器节点名称（如 <code class="text-xs font-mono bg-slate-950 px-1.5 py-0.5 rounded text-brand-300 border border-slate-800">aliyun</code> 或 <code class="text-xs font-mono bg-slate-950 px-1.5 py-0.5 rounded text-brand-300 border border-slate-800">home-stun</code>）、实际连接协议模式（🟢 P2P 端到端直连 / 🟣 Relay 中继 / ⚡ WebRTC）及毫秒级 RTT 延迟。
+                    </p>
+                </div>
+
+                <div class="glow-card rounded-2xl p-6">
+                    <h3 class="font-bold text-base text-white mb-2">Q7: 自建云服务器（如阿里云、腾讯云）只填域名不加端口能直接连接吗？</h3>
+                    <p class="text-sm text-slate-400 leading-relaxed">
+                        完全可以！增强版已实现全链路端口智能自适应。对于标准云主机，在 ID 服务器中直接输入纯域名（如 <code class="text-xs font-mono bg-slate-950 px-1.5 py-0.5 rounded text-sky-300 border border-slate-800">desk.yourdomain.com</code>），客户端会自动智能为信令分配 21116、中继分配 21117、在线探测分配 21115，无需手动拼接任何端口号，杜绝套接字错误。
                     </p>
                 </div>
             </div>
