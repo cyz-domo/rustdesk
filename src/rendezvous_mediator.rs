@@ -434,9 +434,6 @@ impl RendezvousMediator {
                             if let Some(relay) = resolved.relay {
                                 rz.ctx.relay = Some(relay);
                             }
-                            if let Some(key) = resolved.key {
-                                rz.ctx.key = Some(key);
-                            }
                             if let Some(api) = resolved.api {
                                 rz.ctx.api = Some(api);
                             }
@@ -685,9 +682,6 @@ impl RendezvousMediator {
                             if let Some(relay) = resolved.relay {
                                 rz.ctx.relay = Some(relay);
                             }
-                            if let Some(key) = resolved.key {
-                                rz.ctx.key = Some(key);
-                            }
                             if let Some(api) = resolved.api {
                                 rz.ctx.api = Some(api);
                             }
@@ -751,9 +745,6 @@ impl RendezvousMediator {
             }
             if let Some(relay) = resolved.relay {
                 ctx.relay = Some(relay);
-            }
-            if let Some(key) = resolved.key {
-                ctx.key = Some(key);
             }
             if let Some(api) = resolved.api {
                 ctx.api = Some(api);

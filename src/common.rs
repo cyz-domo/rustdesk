@@ -818,26 +818,25 @@ pub async fn get_rendezvous_server(ms_timeout: u64) -> (String, Vec<String>, boo
             resolved.tcp.as_deref(),
             resolved.relay.as_deref(),
             resolved.api.as_deref(),
-            resolved.key.as_deref(),
+            // The TXT channel is unsigned; never let it supply or replace the
+            // verification key. Keys stay manual (profile / global option).
+            None,
             resolved.online.as_deref(),
         );
         a = resolved.host;
         resolved_from_txt = true;
+        if let Some(api) = resolved.api {
+            Config::set_option("api-server".to_owned(), api);
+        }
+        if let Some(online) = resolved.online {
+            Config::set_option("online-server".to_owned(), online);
+        }
         if !has_multi {
             if let Some(tcp) = resolved.tcp {
                 Config::set_option("rendezvous-server-tcp".to_owned(), tcp);
             }
             if let Some(relay) = resolved.relay {
                 Config::set_option("relay-server".to_owned(), relay);
-            }
-            if let Some(key) = resolved.key {
-                Config::set_option("key".to_owned(), key);
-            }
-            if let Some(api) = resolved.api {
-                Config::set_option("api-server".to_owned(), api);
-            }
-            if let Some(online) = resolved.online {
-                Config::set_option("online-server".to_owned(), online);
             }
         }
     }

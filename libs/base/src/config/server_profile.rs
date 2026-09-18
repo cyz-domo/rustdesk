@@ -208,36 +208,23 @@ pub fn update_resolved_profile_data(
     };
 
     if let Ok(mut map) = RESOLVED_PROFILES.write() {
+        // Keys stay full ("host:port" / profile id): a bare-IP alias would let
+        // profiles sharing one public IP overwrite each other. Bare-IP queries
+        // are served by the scan fallback in get_resolved_profile_data.
         if !profile_id.is_empty() {
             map.insert(profile_id.to_string(), data.clone());
         }
         if !original_host.is_empty() {
             map.insert(original_host.to_string(), data.clone());
-            let orig_parsed = parse_host(original_host);
-            if !orig_parsed.is_empty() && orig_parsed != original_host {
-                map.insert(orig_parsed.to_string(), data.clone());
-            }
         }
         if !resolved_host.is_empty() {
             map.insert(resolved_host.to_string(), data.clone());
-            let res_parsed = parse_host(resolved_host);
-            if !res_parsed.is_empty() && res_parsed != resolved_host {
-                map.insert(res_parsed.to_string(), data.clone());
-            }
         }
         if let Some(ref tcp) = data.tcp_host {
             map.insert(tcp.clone(), data.clone());
-            let tcp_parsed = parse_host(tcp);
-            if !tcp_parsed.is_empty() && tcp_parsed != tcp {
-                map.insert(tcp_parsed.to_string(), data.clone());
-            }
         }
         if let Some(ref relay) = data.relay {
             map.insert(relay.clone(), data.clone());
-            let relay_parsed = parse_host(relay);
-            if !relay_parsed.is_empty() && relay_parsed != relay {
-                map.insert(relay_parsed.to_string(), data.clone());
-            }
         }
 
         if let Ok(json) = serde_json::to_string(&*map) {
@@ -301,11 +288,22 @@ fn is_host_match_resolved(r: &ResolvedProfileData, h: &str) -> bool {
 }
 
 fn is_host_match_str(target: &str, h: &str, p: &str) -> bool {
+    let target = target.trim();
+    let h = h.trim();
     if target.eq_ignore_ascii_case(h) {
         return true;
     }
+    // Two entries that both spell out a port must agree on it: several profiles
+    // can share one public IP behind different STUN-mapped ports.
+    if has_explicit_port(target) && has_explicit_port(h) {
+        return false;
+    }
     let tp = parse_host(target);
     !tp.is_empty() && !p.is_empty() && tp.eq_ignore_ascii_case(p)
+}
+
+fn has_explicit_port(s: &str) -> bool {
+    parse_host(s) != s
 }
 
 fn merge_resolved_into_profile(p: &mut ServerProfile, r: &ResolvedProfileData) {
@@ -623,5 +621,31 @@ pub fn get_server_profile_statuses() -> Vec<ServerProfileStatus> {
             }
         })
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn ported_entries_only_match_the_same_port() {
+        // Same public IP, different STUN-mapped ports must not cross-match.
+        assert!(!is_host_match_str("1.2.3.4:24439", "1.2.3.4:24869", "1.2.3.4"));
+        assert!(is_host_match_str("1.2.3.4:24439", "1.2.3.4:24439", "1.2.3.4"));
+    }
+
+    #[test]
+    fn bare_queries_still_match_by_host() {
+        assert!(is_host_match_str("1.2.3.4:24439", "1.2.3.4", "1.2.3.4"));
+        assert!(is_host_match_str("rd.example.com", "rd.example.com:21116", "rd.example.com"));
+    }
+
+    #[test]
+    fn ipv6_without_port_is_not_treated_as_ported() {
+        assert!(!has_explicit_port("2408::1"));
+        assert!(has_explicit_port("[2408::1]:21116"));
+        assert!(!is_host_match_str("[2408::1]:21116", "[2408::1]:22222", "2408::1"));
+        assert!(is_host_match_str("[2408::1]:21116", "2408::1", "2408::1"));
+    }
 }
 
