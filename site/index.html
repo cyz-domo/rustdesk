@@ -666,6 +666,16 @@
                                 TXT 通道不再下发或覆盖服务端公钥 Key（改为客户端手动填写一次）；DNS 应答校验事务 ID 与记录归属，拒绝 SPF/DKIM 等无关 TXT 记录误解析；解析引擎改为多源并发竞速并加入 30 秒结果缓存，同时支持可选的 online/api 字段自动填充。
                             </p>
                         </div>
+
+                        <div class="p-4 rounded-xl bg-slate-900/70 border border-slate-800">
+                            <div class="font-bold text-white mb-2 flex items-center space-x-2">
+                                <span class="text-base">📡</span>
+                                <span class="text-emerald-300 font-semibold">中继会话自动升级直连</span>
+                            </div>
+                            <p class="text-slate-400 leading-relaxed">
+                                连接落到中继后，客户端会在后台周期性重新竞速打洞（默认首次 30 秒，间隔指数退避、封顶 5 分钟，持续 2 小时后停止探测）。一旦探测到可用直连路径，即自动重连并切换为直连（约 1-2 秒黑屏，无需手动操作，每会话至多重连 2 次）。服务端策略强制中继的会话不参与升级；可通过 <code class="text-brand-300">enable-upgrade-to-direct</code> 选项关闭，或用 <code class="text-brand-300">upgrade-probe-interval</code> 调整探测间隔。
+                            </p>
+                        </div>
                     </div>
                 </div>
             </div>
