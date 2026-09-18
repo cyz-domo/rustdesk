@@ -50,7 +50,7 @@
 ┌────────────────────────────────────────────────────────────────────────┐
 │                   DNS 服务商 (Cloudflare / 腾讯云 / 阿里云)            │
 │  Lucky WebHook 自动更新 TXT 记录：                                      │
-│  "host=171.x.x.x:24869,tcp=171.x.x.x:24439,relay=171.x.x.x:24867,key=.."│
+│  "host=171.x.x.x:24869,tcp=171.x.x.x:24439,relay=171.x.x.x:24867"      │
 └─────────────────────────────────┬──────────────────────────────────────┘
                                   │ 极速 UDP 53 解析
                                   ▼
@@ -75,7 +75,8 @@ hbbr -k _
 ```
 > [!NOTE]
 > `-k _` 参数会自动在当前目录下生成一对密钥文件（`id_ed25519` 和 `id_ed25519.pub`）。
-> 将 `id_ed25519.pub` 中的字符串复制出来，作为后文的 `key=` 参数。
+> 将 `id_ed25519.pub` 中的字符串复制出来，在后文客户端配置的 **Key（安全验证）** 输入框中手动填写。
+> 出于安全考虑，TXT 记录已不再分发 key（TXT 是无签名通道，客户端不采用其中的 key 值）。若服务端未开启强制验证（不带 `-k _`），可跳过此步。
 
 ---
 
@@ -109,7 +110,7 @@ hbbr -k _
 
 ### 4.1 TXT 记录格式规范
 ```text
-host=公网IP:UDP端口,tcp=公网IP:TCP信令端口,relay=公网IP:中继端口,key=公钥字符串
+host=公网IP:UDP端口,tcp=公网IP:TCP信令端口,relay=公网IP:中继端口
 ```
 
 | 参数 | 说明 | 示例 |
@@ -117,13 +118,13 @@ host=公网IP:UDP端口,tcp=公网IP:TCP信令端口,relay=公网IP:中继端口
 | `host` | **必须**。`hbbs` UDP 注册端口（STUN 规则 1） | `198.51.100.123:24869` |
 | `tcp` | **必须 (STUN 场景)**。`hbbs` TCP 控制端口（STUN 规则 2） | `198.51.100.123:24439` |
 | `relay` | **必须**。`hbbr` TCP 中继端口（STUN 规则 3） | `198.51.100.123:24867` |
-| `key` | **可选**。服务端的验证 Key（`id_ed25519.pub`） | `uSmsZQFJuhdstRBFhF...` |
 | `online`| **可选**。`21115` 在线状态查询端口（若未映射可不填） | `198.51.100.123:24438` |
 | `api` | **可选**。`21114` Web 控制台/API 端口 | `http://198.51.100.123:21114` |
+| `key` | **已废弃**。客户端可解析但不再采用，公钥请在客户端手动填写 | — |
 
 #### 实际 DNS TXT 记录样例：
 ```text
-host=198.51.100.123:24869,tcp=198.51.100.123:24439,relay=198.51.100.123:24867,key=uSmsZQFJuhdstRBFhFXYaO0yprAr5wVy1rI+iuzNKEo=
+host=198.51.100.123:24869,tcp=198.51.100.123:24439,relay=198.51.100.123:24867,online=198.51.100.123:24438,api=https://rustdesk-api.yourdomain.com
 ```
 
 ### 4.2 WebHook 脚本推送示例 (以 Cloudflare / 腾讯云为例)
@@ -134,7 +135,7 @@ host=198.51.100.123:24869,tcp=198.51.100.123:24439,relay=198.51.100.123:24867,ke
 
 通过 API 将 TXT 内容更新为：
 ```text
-host=#{RustDesk-UDP.ip}:#{RustDesk-UDP.port},tcp=#{RustDesk-TCP.ip}:#{RustDesk-TCP.port},relay=#{RustDesk-Relay.ip}:#{RustDesk-Relay.port},key=你的公钥
+host=#{RustDesk-UDP.ip}:#{RustDesk-UDP.port},tcp=#{RustDesk-TCP.ip}:#{RustDesk-TCP.port},relay=#{RustDesk-Relay.ip}:#{RustDesk-Relay.port}
 ```
 
 ---
@@ -147,8 +148,9 @@ host=#{RustDesk-UDP.ip}:#{RustDesk-UDP.port},tcp=#{RustDesk-TCP.ip}:#{RustDesk-T
 1. 打开 RustDesk 客户端，点击 **ID/中继服务器**（网络设置）；
 2. 在 **ID 服务器（ID Server）** 输入框中，直接填入配置了 TXT 记录的**域名**（例如 `rustdesk.yourdomain.com`）：
    - 不需要手动指定端口；
-   - 不需要分别填写中继服务器和 Key（解析器会自动提取填入）；
-3. 点击 **确定** 即可。
+   - 不需要分别填写中继服务器 / API / 在线状态端口（解析器会自动提取填入）；
+3. 若服务端使用了 `-k _` 强制验证，在 **Key** 输入框手动填入 `id_ed25519.pub` 的公钥（仅需一次，不会随 TXT 变化，也不会被解析覆盖）；
+4. 点击 **确定** 即可。
 
 ```
 ┌──────────────────────────────────────────────┐
@@ -157,7 +159,8 @@ host=#{RustDesk-UDP.ip}:#{RustDesk-UDP.port},tcp=#{RustDesk-TCP.ip}:#{RustDesk-T
 │ ID 服务器 (ID Server):                        │
 │ [ rustdesk.yourdomain.com                  ] │
 │                                              │
-│ 中继服务器 / API / Key: 留空 (自动从 TXT 提取)  │
+│ 中继服务器 / API: 留空 (自动从 TXT 提取)       │
+│ Key: [ id_ed25519.pub 公钥，手动填写一次 ]    │
 └──────────────────────────────────────────────┘
 ```
 
@@ -171,7 +174,7 @@ host=#{RustDesk-UDP.ip}:#{RustDesk-UDP.port},tcp=#{RustDesk-TCP.ip}:#{RustDesk-T
 
 #### 如何提升画面流畅度 (60 FPS / 120 FPS)：
 - 进入 `设置` -> `显示` -> 勾选 `自定义画质与帧率`，将 FPS 滑块拖动至 **60** 或 **120**。
-- 开启 `硬件加速 (NVENC / AMF / QSV)`，体验电竞级流畅控制。
+- 开启 `硬件加速 (NVENC / AMF / QSV)`，获得更流畅的高帧率控制体验。
 
 ---
 

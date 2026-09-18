@@ -62,17 +62,18 @@ flowchart TD
 | `host` | 是 | `hbbs` 的公网地址（在 STUN 模式下对应 **UDP 端口**） | `198.51.100.123:24869` |
 | `tcp` | 否 | `hbbs` 的公网信令 **TCP 端口**（未配置时自动回退为 `host`） | `198.51.100.123:24439` |
 | `relay` | 否 | `hbbr` 的公网中继 **TCP 端口** | `198.51.100.123:24867` |
-| `api` | 否 | Web/Api 服务地址 | `http://198.51.100.123:21114` |
-| `key` | 否 | 服务端强制验证密钥公钥 (`-k _` 生成的 `.pub` 字符串) | `uSmsZQFJuhdstRBF...` |
+| `api` | 否 | Web/Api 服务地址（解析后自动写入 `api-server` 选项） | `http://198.51.100.123:21114` |
+| `online` | 否 | 在线状态查询端口（解析后自动写入 `online-server` 选项） | `198.51.100.123:24438` |
+| `key` | 已废弃 | 服务端强制验证公钥（`-k _` 生成的 `.pub`）。**客户端可解析但不再采用**：TXT 是无签名通道，采用 TXT 下发的 key 会使 DNS 欺骗可直接注入伪造公钥实施中间人。公钥请在客户端"安全/Key"或 profile 的 key 字段**手动填写**（手动配置后不会再被任何解析覆盖） | — |
 
 #### 标准 Lucky STUN 穿透 TXT 示例：
 ```text
-host=198.51.100.123:24869,tcp=198.51.100.123:24439,relay=198.51.100.123:24867,key=uSmsZQFJuhdstRBFhFXYaO0yprAr5wVy1rI+iuzNKEo=
+host=198.51.100.123:24869,tcp=198.51.100.123:24439,relay=198.51.100.123:24867,online=198.51.100.123:24438,api=https://rustdesk-api.yourdomain.com
 ```
 
 #### 标准官方自建服务器（同一端口）TXT 示例：
 ```text
-host=rd.yourdomain.com:21116,relay=rd.yourdomain.com:21117,key=uSmsZQFJ...
+host=rd.yourdomain.com:21116,relay=rd.yourdomain.com:21117
 ```
 
 ---
@@ -89,14 +90,18 @@ pub struct ResolvedServerConfig {
     pub tcp: Option<String>, // TCP 信令独立端口 (STUN 场景专用)
     pub relay: Option<String>,
     pub api: Option<String>,
-    pub key: Option<String>,
+    pub key: Option<String>,   // 仅为兼容旧 TXT 格式保留解析，调用方一律不采用
+    pub online: Option<String>,
 }
 ```
 
 #### 2. 原生 UDP 53 端口 DNS 解析与 DoH 回退
-实现了 `query_dns_txt_udp`，构造原生标准 DNS 查询报文，并发向公共 DNS 服务器（`223.5.5.5`、`119.29.29.29`、`180.76.76.76`、`1.1.1.1`、`8.8.8.8`）发送，约 10ms 即可完成解析，彻底规避 DoH TLS 握手 reset。
+实现了 `query_dns_txt_udp`，构造原生标准 DNS 查询报文（事务 ID 每次随机），**并发**向公共 DNS 服务器（`223.5.5.5`、`119.29.29.29`、`180.76.76.76`、`1.1.1.1`、`8.8.8.8`）发送、先到先得，通常数百毫秒内即可完成解析，规避 DoH TLS 握手 reset；全部 UDP 失败时再并发回退 4 个 DoH 端点。响应必须通过事务 ID 回显、RCODE、问题区域名与答案 owner name 校验，防止把 SPF/DKIM 等无关 TXT 记录或伪造响应误当作服务器配置。官方服务器域名（`*.rustdesk.com` 及内置列表）无条件跳过 TXT 解析。
 
-#### 3. 兼容带端口输入的域名剥离
+#### 3. 结果缓存
+`resolve_server_config` 带 30 秒 TTL 的进程内缓存（含负缓存），热点调用路径（`get_rendezvous_server`、被控端 60 秒周期检查）不会重复发起网络查询，也不阻塞心跳主循环。
+
+#### 4. 兼容带端口输入的域名剥离
 ```rust
 pub async fn resolve_server_config(input: &str) -> Option<ResolvedServerConfig> {
     ...
@@ -118,20 +123,25 @@ pub async fn resolve_server_config(input: &str) -> Option<ResolvedServerConfig> 
 ### 4.2 `src/common.rs`：锁定动态解析端口与 TCP 映射配置
 
 #### 1. 防止覆盖动态端口 (`resolved_from_txt`)
-在 `get_rendezvous_server` 中，检测到 TXT 动态解析成功后，更新本地 `rendezvous-server-tcp`、`relay-server` 与 `key` 运行时配置，并从备选列表中剔除原始静态域名，防止 `b.pop()` 覆盖动态端口。
+在 `get_rendezvous_server` 中，检测到 TXT 动态解析成功后，更新本地 `rendezvous-server-tcp`、`relay-server`、`api-server` 与 `online-server` 运行时配置，并从备选列表中剔除原始静态域名，防止 `b.pop()` 覆盖动态端口。**TXT 中的 `key` 一律不写入任何配置**，验证公钥只能由用户手动设置（手动值不会被解析覆盖）；多 profile 模式下 `tcp`/`relay` 走 per-profile 数据隔离，`api`/`online` 始终按当前活动服务器刷新全局选项。
 
 ```rust
     if let Some(resolved) = txt_resolver::resolve_server_config(&a).await {
         a = resolved.host;
         resolved_from_txt = true;
-        if let Some(tcp) = resolved.tcp {
-            Config::set_option("rendezvous-server-tcp".to_owned(), tcp);
+        if let Some(api) = resolved.api {
+            Config::set_option("api-server".to_owned(), api);
         }
-        if let Some(relay) = resolved.relay {
-            Config::set_option("relay-server".to_owned(), relay);
+        if let Some(online) = resolved.online {
+            Config::set_option("online-server".to_owned(), online);
         }
-        if let Some(key) = resolved.key {
-            Config::set_option("key".to_owned(), key);
+        if !has_multi {
+            if let Some(tcp) = resolved.tcp {
+                Config::set_option("rendezvous-server-tcp".to_owned(), tcp);
+            }
+            if let Some(relay) = resolved.relay {
+                Config::set_option("relay-server".to_owned(), relay);
+            }
         }
     }
 ```
@@ -194,8 +204,9 @@ pub async fn resolve_server_config(input: &str) -> Option<ResolvedServerConfig> 
 ### 5.2 Lucky WebHook 动态推送到 DNS TXT
 在 Lucky 的 WebHook 回调配置中，将各条 STUN 规则获取到的外部 IP 和端口拼接为如下内容并更新到域名 TXT 记录：
 ```text
-host=#{规则1公网IP}:#{规则1公网端口},tcp=#{规则2公网IP}:#{规则2公网端口},relay=#{规则3公网IP}:#{规则3公网端口},key=你的Key
+host=#{规则1公网IP}:#{规则1公网端口},tcp=#{规则2公网IP}:#{规则2公网端口},relay=#{规则3公网IP}:#{规则3公网端口}
 ```
+> 旧格式中的 `,key=...` 字段可以保留（不影响解析），但客户端已不再采用 TXT 下发的 key，公钥需在客户端手动配置一次。
 
 ---
 
@@ -205,3 +216,7 @@ host=#{规则1公网IP}:#{规则1公网端口},tcp=#{规则2公网IP}:#{规则2�
    - 若 TXT 记录中未声明 `tcp=`（如仅有 `host=rd.domain.com:21116`），系统自动将 TCP 信令回退到与 `host` 相同的端口，完全保持与官方行为一致。
 2. **直连 IP/域名连接**：
    - 若用户直接输入 `1.2.3.4:21116` 或 `rd.domain.com:21116`，代码能够正常直连，互不影响。
+3. **验证 Key**：
+   - 服务器开启 `-k _` 强制验证时，公钥需在客户端"安全/Key"（或 profile 的 key 字段）手动填写一次；TXT 通道不再分发 key，填写后不会被任何动态解析覆盖。官方服务器与无验证（`-k n` 或默认）场景无需任何操作。
+4. **无关 TXT 记录**：
+   - 域名上存在的 SPF/DKIM/站点验证等 TXT 记录会被格式校验与 owner 校验拒绝，不会被误认作服务器地址；官方 RustDesk 域名完全跳过 TXT 解析。

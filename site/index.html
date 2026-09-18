@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RustDesk 动态 STUN 与多配置云节点增强版 - 免公网 IP 自建远程桌面 | Lucky NAT1 穿透 / 阿里云 / 腾讯云混合组网</title>
-    <meta name="description" content="基于 Lucky NAT1 STUN 穿透与多服务器 Profile 智能管理的 RustDesk 增强版。支持 TCP/UDP 独立分流、云主机与 STUN 双模端口自适应、会话线路透传显示与 120 FPS 电竞级 P2P 直连。提供 Windows/macOS/Android/Linux 客户端下载。">
+    <meta name="description" content="基于 Lucky NAT1 STUN 穿透与多服务器 Profile 管理的 RustDesk 增强版。支持 TCP/UDP 独立分流、云主机与 STUN 双模端口自适应、会话线路显示与最高 120 FPS 的 P2P 直连。提供 Windows/macOS/Android/Linux 客户端下载。">
     <meta name="keywords" content="RustDesk, Lucky, STUN, NAT1, 远程桌面, 多服务器配置, 线路显示, DNS TXT, P2P直连, 自建RustDesk, 阿里云, 腾讯云, 家宽打洞, 免公网IP, 120FPS, IPv6, 远程控制">
     <meta name="author" content="cyz-domo">
     <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
@@ -15,7 +15,7 @@
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://cyz-domo.github.io/rustdesk/">
     <meta property="og:title" content="RustDesk 动态 STUN 与多配置云节点增强版 - 免公网 IP 自建远程桌面">
-    <meta property="og:description" content="针对家庭宽带 NAT1 打洞与云主机混合部署量身打造。独创多 Profile 线路管理、TCP/UDP 独立分流及会话路由透传显示，实现电竞级 120 FPS P2P 直连与无感故障切换。">
+    <meta property="og:description" content="针对家庭宽带 NAT1 打洞与云主机混合部署量身打造。内置多 Profile 线路管理、TCP/UDP 独立分流及会话路由显示，支持最高 120 FPS P2P 直连与自动故障切换。">
     <meta property="og:site_name" content="RustDesk STUN & Cloud Enhanced">
     <meta property="og:locale" content="zh_CN">
     <meta property="og:image" content="https://raw.githubusercontent.com/rustdesk/rustdesk/master/res/128x128@2x.png">
@@ -24,7 +24,7 @@
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:url" content="https://cyz-domo.github.io/rustdesk/">
     <meta name="twitter:title" content="RustDesk 动态 STUN 与多配置云节点增强版 - 免公网 IP 自建远程桌面">
-    <meta name="twitter:description" content="基于 Lucky NAT1 STUN 穿透与多服务器 Profile 智能管理的 RustDesk 增强版，支持 TCP/UDP 独立分流、云主机/STUN 双模自适应与 120 FPS P2P 直连。">
+    <meta name="twitter:description" content="基于 Lucky NAT1 STUN 穿透与多服务器 Profile 管理的 RustDesk 增强版，支持 TCP/UDP 独立分流、云主机/STUN 双模自适应与最高 120 FPS P2P 直连。">
     <meta name="twitter:image" content="https://raw.githubusercontent.com/rustdesk/rustdesk/master/res/128x128@2x.png">
 
     <!-- JSON-LD Structured Data for Google/Bing SEO -->
@@ -183,12 +183,12 @@
             </div>
 
             <h1 class="text-4xl sm:text-6xl font-extrabold tracking-tight text-white mb-6 leading-tight">
-                免公网 IPv4 的极速远程桌面<br>
+                免公网 IPv4 的自建远程桌面<br>
                 <span class="gradient-text">Lucky STUN + 云主机混合自适应</span>
             </h1>
 
             <p class="text-lg sm:text-xl text-slate-400 max-w-3xl mx-auto mb-10 leading-relaxed font-light">
-                针对家庭宽带 NAT1 打洞与云主机混合部署量身打造。独创多 Profile 线路管理、TCP/UDP 独立端口分流及会话路由透传显示，实现电竞级 120 FPS P2P 直连与智能无感故障切换。
+                针对家庭宽带 NAT1 打洞与云主机混合部署量身打造。内置多 Profile 线路管理、TCP/UDP 独立端口分流及会话路由显示，支持最高 120 FPS 的 P2P 直连与自动故障切换。
             </p>
 
             <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -212,15 +212,15 @@
                 </div>
                 <div class="p-4 rounded-xl bg-slate-900/40 border border-slate-800/40">
                     <div class="text-2xl font-bold text-sky-400 font-mono">120 FPS</div>
-                    <div class="text-xs text-slate-400 mt-1">支持最高 120 帧极速画质</div>
+                    <div class="text-xs text-slate-400 mt-1">P2P 直连下最高 120 帧画质</div>
                 </div>
                 <div class="p-4 rounded-xl bg-slate-900/40 border border-slate-800/40">
-                    <div class="text-2xl font-bold text-emerald-400 font-mono">10 ms</div>
-                    <div class="text-xs text-slate-400 mt-1">UDP 53 原生 DNS 毫秒解析</div>
+                    <div class="text-2xl font-bold text-emerald-400 font-mono">UDP 53</div>
+                    <div class="text-xs text-slate-400 mt-1">原生 DNS TXT 快速解析</div>
                 </div>
                 <div class="p-4 rounded-xl bg-slate-900/40 border border-slate-800/40">
                     <div class="text-2xl font-bold text-indigo-400 font-mono">100%</div>
-                    <div class="text-xs text-slate-400 mt-1">官方单端口方案向下兼容</div>
+                    <div class="text-xs text-slate-400 mt-1">向下兼容官方单端口方案</div>
                 </div>
             </div>
         </div>
@@ -270,7 +270,7 @@
                         </div>
                         <h3 class="text-lg font-bold text-white mb-2.5">双模端口智能自适应</h3>
                         <p class="text-slate-400 text-xs leading-relaxed">
-                            自建云服务器只需填写纯域名（如 <code class="text-xs bg-slate-800 px-1 py-0.5 rounded text-slate-300">desk.domain.com</code>），自动补齐 21115 在线/21116 信令/21117 中继；同时对 STUN 动态非连续端口 100% 精确保留，杜绝套接字错误。
+                            自建云服务器只需填写纯域名（如 <code class="text-xs bg-slate-800 px-1 py-0.5 rounded text-slate-300">desk.domain.com</code>），自动补齐 21115 在线/21116 信令/21117 中继；同时对 STUN 动态非连续端口完整保留，避免套接字地址错误。
                         </p>
                     </div>
                 </div>
@@ -309,7 +309,7 @@
                         </div>
                         <h3 class="text-lg font-bold text-white mb-2.5">动态 DNS TXT 自动寻址</h3>
                         <p class="text-slate-400 text-xs leading-relaxed">
-                            Lucky WebHook 联动自动推送最新端口至 DNS TXT。客户端原生支持 UDP 53 毫秒级多源 DNS 解析；家庭宽带重新拨号导致公网端口变动后，被控端后台无感热重载。
+                            Lucky WebHook 联动自动推送最新端口至 DNS TXT。客户端原生支持 UDP 53 并发多源 DNS 解析与结果缓存；家庭宽带重新拨号导致公网端口变动后，被控端后台自动热重载。
                         </p>
                     </div>
                 </div>
@@ -322,7 +322,7 @@
                         </div>
                         <h3 class="text-lg font-bold text-white mb-2.5">端到端 Ed25519 加密</h3>
                         <p class="text-slate-400 text-xs leading-relaxed">
-                            完全继承 RustDesk 军工级安全架构。TXT 自动安全注入服务端公钥 Key，支持非对称密钥交换握手与端到端 ChaCha20/AES 流加密传输，彻底阻断中间人窃听。
+                            完全继承 RustDesk 端到端加密架构。服务端公钥 Key 在客户端手动填写一次，DNS TXT 仅分发 host/tcp/relay 等地址信息，不会覆盖 Key 配置；非对称密钥交换握手与端到端流加密传输，防止中间人窃听。
                         </p>
                     </div>
                 </div>
@@ -335,7 +335,7 @@
                         </div>
                         <h3 class="text-lg font-bold text-white mb-2.5">智能多级降级保活</h3>
                         <p class="text-slate-400 text-xs leading-relaxed">
-                            在严格对称型 NAT 防火墙下打洞失败时，自动秒级无缝降级切换至 hbbr 中继隧道；HTTP 心跳探测受阻时自动切至 TCP 代理保活，确保 100% 随时可用。
+                            在严格对称型 NAT 防火墙下打洞失败时，自动无缝降级切换至 hbbr 中继隧道；HTTP 心跳探测受阻时自动切至 TCP 代理保活，持续提升整体可用性。
                         </p>
                     </div>
                 </div>
@@ -403,11 +403,11 @@
                                 <span class="text-emerald-400">host</span>=198.51.100.123:24869,<br>
                                 <span class="text-sky-400">tcp</span>=198.51.100.123:24439,<br>
                                 <span class="text-purple-400">relay</span>=198.51.100.123:24867,<br>
-                                <span class="text-teal-400">online</span>=198.51.100.123:24115,<br>
-                                <span class="text-amber-400">key</span>=uSmsZQFJuhdstR...
+                                <span class="text-teal-400">online</span>=198.51.100.123:24115, <span class="text-slate-500">(可选)</span><br>
+                                <span class="text-rose-400">api</span>=https://api.example.com <span class="text-slate-500">(可选)</span>
                             </div>
                             <div class="text-xs text-slate-400">
-                                ⚡ RustDesk 内置 UDP 53 DNS 引擎，极速秒级解析提取。
+                                ⚡ RustDesk 内置 UDP 53 DNS 解析引擎，多源并发查询快速提取；服务端 Key 需在客户端手动填写一次，TXT 不分发 Key。
                             </div>
                         </div>
                     </div>
@@ -519,7 +519,7 @@
                             <p class="text-sm text-slate-400 mt-1 mb-3">将各 STUN 隧道的公网映射结果拼接为 TXT 记录（包含信令、中继及在线检测通道）：</p>
                             
                             <div class="code-block rounded-xl p-4 font-mono text-xs text-brand-300 break-all select-all">
-                                host=198.51.100.123:24869,tcp=198.51.100.123:24439,relay=198.51.100.123:24867,online=198.51.100.123:24115,key=你的公钥字符串
+                                host=198.51.100.123:24869,tcp=198.51.100.123:24439,relay=198.51.100.123:24867,online=198.51.100.123:24115,api=https://api.example.com
                             </div>
 
                             <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs text-slate-300">
@@ -533,18 +533,18 @@
                                     <span class="font-mono text-purple-400 font-bold">relay</span>: 必须。hbbr TCP 数据中继端口（默认 21117/tcp 映射）
                                 </div>
                                 <div class="bg-slate-900 p-2.5 rounded-lg border border-slate-800">
-                                    <span class="font-mono text-teal-400 font-bold">online</span>: <strong class="text-teal-300">推荐</strong>。hbbs TCP 21115 在线探测端口，用于主控端极速查询被控端实时在线状态（红绿灯指示）
+                                    <span class="font-mono text-teal-400 font-bold">online</span>: <strong class="text-teal-300">推荐</strong>。hbbs TCP 21115 在线探测端口，用于主控端快速查询被控端实时在线状态（红绿灯指示）
                                 </div>
                                 <div class="bg-slate-900 p-2.5 rounded-lg border border-slate-800">
                                     <span class="font-mono text-blue-400 font-bold">api</span>: 可选。21114 HTTP Web 后台与通讯录同步接口（若部署了 rustdesk-api）
                                 </div>
                                 <div class="bg-slate-900 p-2.5 rounded-lg border border-slate-800">
-                                    <span class="font-mono text-amber-400 font-bold">key</span>: 可选。服务端的通信加密公钥（id_ed25519.pub）
+                                    <span class="font-mono text-amber-400 font-bold">key</span>: 已废弃。出于安全考虑 TXT 不再下发或覆盖 Key，请在客户端「Key」栏手动填写一次 id_ed25519.pub 公钥
                                 </div>
                             </div>
 
                             <p class="text-xs text-slate-400 mt-3">
-                                💡 在 Lucky WebHook 中可使用变量如 <code class="text-slate-200">#{RustDesk-UDP.ip}:#{RustDesk-UDP.port}</code> 自动联动更新 Cloudflare、腾讯云、阿里云 DNS。若未配置 <code class="text-teal-300">online</code> 端口，客户端会自动回退至通过信令心跳探测在线状态。
+                                💡 在 Lucky WebHook 中可使用变量如 <code class="text-slate-200">#{RustDesk-UDP.ip}:#{RustDesk-UDP.port}</code> 自动联动更新 Cloudflare、腾讯云、阿里云 DNS。若未配置 <code class="text-teal-300">online</code> 端口，客户端会自动回退至通过信令心跳探测在线状态；旧记录中的 <code class="text-amber-300">key=</code> 字段会被忽略。
                             </p>
                         </div>
                     </div>
@@ -567,7 +567,7 @@
                                     </div>
                                     <div class="text-slate-400 mb-2">只需在「ID 服务器」填入你的域名：</div>
                                     <div class="font-mono bg-slate-950 px-2.5 py-1.5 rounded border border-slate-800 text-brand-300">rustdesk.example.com</div>
-                                    <div class="text-slate-500 mt-2">其他项留空，客户端自动通过 DNS TXT 秒级提取各端口与 Key。</div>
+                                    <div class="text-slate-500 mt-2">中继/API 等项留空，客户端自动通过 DNS TXT 提取各端口；「Key」需手动填写一次 id_ed25519.pub 公钥。</div>
                                 </div>
 
                                 <div class="p-3.5 rounded-xl bg-slate-900 border border-slate-800">
@@ -586,7 +586,7 @@
                             </div>
 
                             <p class="text-xs text-emerald-400 font-medium mt-3">
-                                🟢 保存后客户端左下角显示「就绪 (Ready)」，即可随时开始电竞级极速远程！
+                                🟢 保存后客户端左下角显示「就绪 (Ready)」，即可开始高清流畅的远程控制。
                             </p>
                         </div>
                     </div>
@@ -633,7 +633,7 @@
                                 <span class="text-sky-300 font-semibold">连接线路与打洞模式实时透传</span>
                             </div>
                             <p class="text-slate-400 leading-relaxed">
-                                远程连接建立后，状态栏与会话信息面板实时展示当前生效的服务器节点名称、链路传输类型（🟢 P2P 端到端直连 / 🟣 hbbr 中继隧道 / ⚡ WebRTC）及毫秒级 RTT 延迟。
+                                远程连接建立后，状态栏与会话信息面板实时展示当前生效的服务器节点名称、链路传输类型（🟢 P2P 端到端直连 / 🟣 hbbr 中继隧道 / ⚡ WebRTC）及实时 RTT 延迟。
                             </p>
                         </div>
 
@@ -643,7 +643,7 @@
                                 <span class="text-emerald-300 font-semibold">标准云服务器全链路端口智能自适应</span>
                             </div>
                             <p class="text-slate-400 leading-relaxed">
-                                彻底解决输入纯域名自建服务器时出现的 <code class="text-brand-300">invalid socket address</code> 异常；在信令、中继、在线探测各阶段全自动补齐缺省端口，并对 STUN 动态多端口完整保护。
+                                解决输入纯域名自建服务器时出现的 <code class="text-brand-300">invalid socket address</code> 异常；在信令、中继、在线探测各阶段自动补齐缺省端口，并对 STUN 动态多端口完整保留。
                             </p>
                         </div>
 
@@ -653,7 +653,17 @@
                                 <span class="text-amber-300 font-semibold">独立在线流与 TCP 代理心跳容错</span>
                             </div>
                             <p class="text-slate-400 leading-relaxed">
-                                完善独立在线状态查询流通道；当 HTTP POST 心跳超时或被拦截时，自动无感启用 TCP 代理保活与探测降级通道，确保对端在线状态感知始终稳定。
+                                完善独立在线状态查询流通道；当 HTTP POST 心跳超时或被拦截时，自动启用 TCP 代理保活与探测降级通道，提升对端在线状态感知的稳定性。
+                            </p>
+                        </div>
+
+                        <div class="p-4 rounded-xl bg-slate-900/70 border border-slate-800">
+                            <div class="font-bold text-white mb-2 flex items-center space-x-2">
+                                <span class="text-base">🔐</span>
+                                <span class="text-rose-300 font-semibold">DNS TXT 解析安全加固</span>
+                            </div>
+                            <p class="text-slate-400 leading-relaxed">
+                                TXT 通道不再下发或覆盖服务端公钥 Key（改为客户端手动填写一次）；DNS 应答校验事务 ID 与记录归属，拒绝 SPF/DKIM 等无关 TXT 记录误解析；解析引擎改为多源并发竞速并加入 30 秒结果缓存，同时支持可选的 online/api 字段自动填充。
                             </p>
                         </div>
                     </div>
@@ -803,7 +813,7 @@
                 <div class="glow-card rounded-2xl p-6">
                     <h3 class="font-bold text-base text-white mb-2">Q2: 家庭宽带重新拨号导致公网端口变化，需要手动重启被控端吗？</h3>
                     <p class="text-sm text-slate-400 leading-relaxed">
-                        完全不需要。RustDesk 被控端内置周期性 DNS TXT 轮询检测机制。当检测到 Lucky 推送的端口或公网 IP 变动时，客户端会自动无感热重载并与新的公网端口握手。
+                        不需要。RustDesk 被控端内置周期性 DNS TXT 轮询检测机制。当检测到 Lucky 推送的端口或公网 IP 变动时，客户端会自动热重载并与新的公网端口握手，无需手动重启。
                     </p>
                 </div>
 
@@ -819,14 +829,14 @@
                 <div class="glow-card rounded-2xl p-6">
                     <h3 class="font-bold text-base text-white mb-2">Q4: 为什么默认是 30 帧，如何开启 60 FPS 或 120 FPS？</h3>
                     <p class="text-sm text-slate-400 leading-relaxed">
-                        进入客户端「设置」->「显示」-> 勾选「自定义画质与帧率」，将滑块拖动到 60 或 120 即可。同时在「硬件加速」中开启 NVENC / AMF / QSV 显卡硬编解码，在 P2P 直连下体验电竞级丝滑控制。
+                        进入客户端「设置」->「显示」-> 勾选「自定义画质与帧率」，将滑块拖动到 60 或 120 即可。同时在「硬件加速」中开启 NVENC / AMF / QSV 显卡硬编解码，在 P2P 直连下可获得更流畅的控制体验。
                     </p>
                 </div>
 
                 <div class="glow-card rounded-2xl p-6">
                     <h3 class="font-bold text-base text-white mb-2">Q5: 如何使用多服务器配置 (Multi-Profile) 功能？</h3>
                     <p class="text-sm text-slate-400 leading-relaxed">
-                        进入客户端「设置」->「网络（ID/中继服务器）」，点击「添加配置」按钮，可分别添加不同网络环境的节点（如“家庭 NAS - Lucky STUN”、“阿里云专线中继”）。可在配置列表中一键切换启用或禁用特定节点，并实时查看节点网络延迟。当取消勾选所有自建节点时，客户端会自动无感切换回退到官方公共服务器保障连通。
+                        进入客户端「设置」->「网络（ID/中继服务器）」，点击「添加配置」按钮，可分别添加不同网络环境的节点（如“家庭 NAS - Lucky STUN”、“阿里云专线中继”）。可在配置列表中一键切换启用或禁用特定节点，并实时查看节点网络延迟。当取消勾选所有自建节点时，客户端会自动切换回退到官方公共服务器保障连通。
                     </p>
                 </div>
 
@@ -840,7 +850,14 @@
                 <div class="glow-card rounded-2xl p-6">
                     <h3 class="font-bold text-base text-white mb-2">Q7: 自建云服务器（如阿里云、腾讯云）只填域名不加端口能直接连接吗？</h3>
                     <p class="text-sm text-slate-400 leading-relaxed">
-                        完全可以！增强版已实现全链路端口智能自适应。对于标准云主机，在 ID 服务器中直接输入纯域名（如 <code class="text-xs font-mono bg-slate-950 px-1.5 py-0.5 rounded text-sky-300 border border-slate-800">desk.yourdomain.com</code>），客户端会自动智能为信令分配 21116、中继分配 21117、在线探测分配 21115，无需手动拼接任何端口号，杜绝套接字错误。
+                        可以！增强版已实现全链路端口智能自适应。对于标准云主机，在 ID 服务器中直接输入纯域名（如 <code class="text-xs font-mono bg-slate-950 px-1.5 py-0.5 rounded text-sky-300 border border-slate-800">desk.yourdomain.com</code>），客户端会自动为信令分配 21116、中继分配 21117、在线探测分配 21115，无需手动拼接任何端口号，避免套接字地址错误。
+                    </p>
+                </div>
+
+                <div class="glow-card rounded-2xl p-6">
+                    <h3 class="font-bold text-base text-white mb-2">Q9: 以前的版本会从 TXT 自动填入 Key，升级后需要重新设置吗？</h3>
+                    <p class="text-sm text-slate-400 leading-relaxed">
+                        需要。出于安全考虑（DNS TXT 通道未签名，可能被篡改），新版本解析 TXT 时不再写入或覆盖客户端的 Key 配置。请在「网络设置」的「Key」一栏手动填写一次服务端 <code class="text-xs font-mono bg-slate-950 px-1.5 py-0.5 rounded text-brand-300 border border-slate-800">id_ed25519.pub</code> 公钥即可，之后无需再改动；旧 TXT 记录中残留的 <code class="text-xs font-mono bg-slate-950 px-1.5 py-0.5 rounded text-slate-300 border border-slate-800">key=</code> 字段会被直接忽略，不影响连接。
                     </p>
                 </div>
 
