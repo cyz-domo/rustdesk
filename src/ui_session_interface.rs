@@ -70,6 +70,9 @@ pub struct Session<T: InvokeUiSession> {
     // Indicate whether the session is reconnected.
     // Used to auto start file transfer after reconnection.
     pub reconnect_count: Arc<AtomicUsize>,
+    // How many times the background direct-upgrade probe has reconnected this session.
+    // Caps the relay->direct switch so a flaky punch cannot loop reconnects.
+    pub upgrade_attempts: Arc<AtomicUsize>,
     pub last_audit_note: Arc<Mutex<String>>,
     pub audit_guid: Arc<Mutex<String>>,
 }

@@ -97,6 +97,7 @@ pub use super::lang::*;
 mod audio_playback;
 #[cfg(all(test, not(target_os = "linux")))]
 mod audio_state_tests;
+pub mod direct_upgrade;
 pub mod file_trait;
 pub mod helper;
 pub mod io_loop;

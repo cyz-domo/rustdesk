@@ -1332,6 +1332,13 @@ pub fn get_webrtc_enabled() -> bool {
     )
 }
 
+pub fn get_upgrade_to_direct_enabled() -> bool {
+    config::option2bool(
+        keys::OPTION_ENABLE_UPGRADE_TO_DIRECT,
+        &get_local_option(keys::OPTION_ENABLE_UPGRADE_TO_DIRECT),
+    )
+}
+
 pub fn get_local_option(key: &str) -> String {
     let v = LocalConfig::get_option(key);
     if key == keys::OPTION_ENABLE_UDP_PUNCH
@@ -3265,8 +3272,15 @@ mod tests {
             keys::OPTION_CUSTOM_RENDEZVOUS_SERVER.to_string(),
             "1:2".to_string(),
         );
+        let _restore_tcp = RestoreCustomRendezvousServer(Config::get_option(
+            "rendezvous-server-tcp",
+        ));
+        Config::set_option("rendezvous-server-tcp".to_string(), String::new());
 
-        assert_eq!(get_tcp_proxy_addr(), format!("[1:2]:{RENDEZVOUS_PORT}"));
+        assert_eq!(
+            get_tcp_proxy_addr(""),
+            format!("[1:2]:{RENDEZVOUS_PORT}")
+        );
     }
 
     #[tokio::test]
