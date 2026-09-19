@@ -177,17 +177,37 @@ class _OnlineStatusWidgetState extends State<OnlineStatusWidget> {
       }
     }
 
-    String tooltip = '';
+    // 🟢-style emoji render as tofu boxes on Windows desktop (no color emoji
+    // font support in Flutter), so draw the status dots as widgets instead.
+    final List<InlineSpan> tooltipLines = [];
     if (stateGlobal.serverStatuses.isNotEmpty) {
-      tooltip = stateGlobal.serverStatuses.map((s) {
-        final icon = s.online ? '🟢' : (s.enabled ? '🔴' : '⚪');
+      for (final s in stateGlobal.serverStatuses) {
+        final dotColor =
+            s.online ? Colors.green : (s.enabled ? Colors.red : Colors.grey);
         final lat = s.online
             ? '(${s.latencyMs}ms)'
             : (s.enabled ? '(${translate("offline")})' : '(${translate("disabled")})');
         final name = s.name.isNotEmpty ? s.name : s.host;
         final hostPart = (s.host.isNotEmpty && s.name.isNotEmpty && s.host != s.name) ? ' (${s.host})' : '';
-        return '$icon $name$hostPart $lat';
-      }).join('\n');
+        if (tooltipLines.isNotEmpty) {
+          tooltipLines.add(const TextSpan(text: '\n'));
+        }
+        tooltipLines.add(TextSpan(
+          children: [
+            WidgetSpan(
+              alignment: PlaceholderAlignment.middle,
+              child: Container(
+                width: 8,
+                height: 8,
+                margin: const EdgeInsets.only(right: 6),
+                decoration:
+                    BoxDecoration(color: dotColor, shape: BoxShape.circle),
+              ),
+            ),
+            TextSpan(text: '$name$hostPart $lat'),
+          ],
+        ));
+      }
     }
 
     final widgetText = Text(
@@ -195,9 +215,9 @@ class _OnlineStatusWidgetState extends State<OnlineStatusWidget> {
       style: TextStyle(fontSize: em),
     );
 
-    if (tooltip.isNotEmpty) {
+    if (tooltipLines.isNotEmpty) {
       return Tooltip(
-        message: tooltip,
+        richMessage: TextSpan(children: tooltipLines),
         waitDuration: const Duration(milliseconds: 200),
         child: widgetText,
       );

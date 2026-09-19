@@ -84,8 +84,12 @@ void changeIdDialog() {
 
   gFFI.dialogManager.show((setState, close, context) {
     submit() async {
-      debugPrint("onSubmit");
-      newId = controller.text.trim();
+      // Pasting from notes/IM apps can prepend a BOM or embed zero-width
+      // characters; trim() does not remove them and Rust's id regex then
+      // rejects the value with only a bare "Invalid format" hint.
+      newId = controller.text
+          .trim()
+          .replaceAll(RegExp('[\\u200B\\u200C\\u200D\\uFEFF]'), '');
 
       final Iterable violations = rules.where((r) => !r.validate(newId));
       if (violations.isNotEmpty) {
