@@ -753,6 +753,19 @@ async fn test_nat_type_() -> ResultType<bool> {
         }
     }
     let ok = port1 > 0;
+    // `port2 == 0` means the second sample never landed: that server has no `port - 1` to
+    // answer on (a single-port tunnel forwards only one), or it went quiet after the handshake.
+    // Nothing was measured, so no verdict may be written -- and the previous one must not
+    // survive either, because it may have been taken on another server: a stale SYMMETRIC makes
+    // every peer this client joins skip punching and relay outright.
+    if ok && port2 == 0 {
+        log::info!(
+            "2-port NAT test inconclusive: no answer from {server2}, nat type unknown in {:?}",
+            start.elapsed()
+        );
+        Config::set_nat_type(NatType::UNKNOWN_NAT as _);
+        return Ok(false);
+    }
     if ok {
         let t = if port2 > 0 && port1 == port2 {
             NatType::ASYMMETRIC
