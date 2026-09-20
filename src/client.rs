@@ -210,22 +210,23 @@ impl Drop for OffererGuard {
     }
 }
 
-/// Race WebRTC against the other transports, preferring P2P: `select_ok` would always pick the
-/// relay, whose TCP connect beats ICE + DTLS + SCTP by an order of magnitude. An `is_p2p` result
-/// wins outright; a relayed one — from either side, since `webrtc_fut` is a whole punch attempt
-/// that can also end in a relay — is held for `window_ms` to give the other side a chance.
+/// Race one preferred P2P transport against a group that may end in a relay, preferring P2P:
+/// `select_ok` would always pick the relay, whose TCP connect beats ICE + DTLS + SCTP — or a
+/// cross-country IPv6 handshake — by an order of magnitude. An `is_p2p` result wins outright; a
+/// relayed one — from either side, since `p2p_fut` can be a whole punch attempt that also ends in
+/// a relay — is held for `window_ms` to give the other side a chance.
 ///
 /// `others` must be non-empty (`select_ok` requires it).
-async fn race_transports_prefer_webrtc<'a, T: 'a>(
-    webrtc_fut: BoxFuture<'a, ResultType<T>>,
+async fn race_transports_prefer_p2p<'a, T: 'a>(
+    p2p_fut: BoxFuture<'a, ResultType<T>>,
     others: Vec<BoxFuture<'a, ResultType<T>>>,
     window_ms: u64,
     is_p2p: impl Fn(&T) -> bool,
 ) -> ResultType<T> {
-    let mut webrtc_fut = Some(webrtc_fut);
+    let mut p2p_fut = Some(p2p_fut);
     let mut others_fut = Some(select_ok(others));
     let mut held: Option<T> = None;
-    let mut webrtc_err: Option<hbb_common::anyhow::Error> = None;
+    let mut p2p_err: Option<hbb_common::anyhow::Error> = None;
     let mut others_err: Option<hbb_common::anyhow::Error> = None;
     let window = tokio::time::sleep(Duration::from_millis(window_ms));
     tokio::pin!(window);
@@ -233,18 +234,18 @@ async fn race_transports_prefer_webrtc<'a, T: 'a>(
     loop {
         tokio::select! {
             res = async {
-                match webrtc_fut.as_mut() {
+                match p2p_fut.as_mut() {
                     Some(fut) => fut.await,
                     None => std::future::pending().await,
                 }
-            }, if webrtc_fut.is_some() => {
-                webrtc_fut = None;
+            }, if p2p_fut.is_some() => {
+                p2p_fut = None;
                 match res {
                     // A direct connection is the outcome this race exists to protect: commit it
                     // outright, and a held relay conn just drops.
                     Ok(conn) if is_p2p(&conn) || others_fut.is_none() => return Ok(conn),
-                    // `webrtc_fut` is a whole punch attempt, not just the WebRTC connect, so it
-                    // can end in a relay of its own. Committing that immediately would preempt a
+                    // `p2p_fut` can be a whole punch attempt rather than one connect, so it can
+                    // end in a relay of its own. Committing that immediately would preempt a
                     // direct punch still in flight on the other branch — the exact inversion this
                     // function exists to prevent — so hold it on the same terms as any relay.
                     Ok(conn) => {
@@ -265,9 +266,9 @@ async fn race_transports_prefer_webrtc<'a, T: 'a>(
                             }
                         }
                         match others_err.take() {
-                            Some(oe) => bail!("WebRTC failed: {}; fallback failed: {}", e, oe),
-                            None if others_fut.is_none() => bail!("WebRTC failed: {}", e),
-                            None => webrtc_err = Some(e),
+                            Some(oe) => bail!("P2P failed: {}; fallback failed: {}", e, oe),
+                            None if others_fut.is_none() => bail!("P2P failed: {}", e),
+                            None => p2p_err = Some(e),
                         }
                     }
                 }
@@ -287,7 +288,7 @@ async fn race_transports_prefer_webrtc<'a, T: 'a>(
                         // Relayed: commit now only if nothing direct can still arrive. If a
                         // direct attempt is still in flight (here or in `unfinished`), hold it
                         // and keep racing for the preference window instead of discarding them.
-                        if webrtc_fut.is_none() && unfinished.is_empty() {
+                        if p2p_fut.is_none() && unfinished.is_empty() {
                             return Ok(conn);
                         }
                         if held.is_none() {
@@ -301,14 +302,14 @@ async fn race_transports_prefer_webrtc<'a, T: 'a>(
                             others_fut = Some(select_ok(unfinished));
                         }
                     }
-                    Err(e) => match webrtc_err.take() {
+                    Err(e) => match p2p_err.take() {
                         // Nothing more can win, but a parked relay is still a valid outcome — take
                         // it before failing the connection.
                         Some(we) => match held.take() {
                             Some(conn) => return Ok(conn),
-                            None => bail!("WebRTC failed: {}; fallback failed: {}", we, e),
+                            None => bail!("P2P failed: {}; fallback failed: {}", we, e),
                         },
-                        None if webrtc_fut.is_none() => match held.take() {
+                        None if p2p_fut.is_none() => match held.take() {
                             Some(conn) => return Ok(conn),
                             None => return Err(e),
                         },
@@ -596,7 +597,7 @@ impl Client {
         )
         .boxed();
         if has_webrtc_offerer {
-            return race_transports_prefer_webrtc(
+            return race_transports_prefer_p2p(
                 preferred_fut,
                 vec![fallback_fut],
                 Self::relay_fallback_delay_ms(),
@@ -646,6 +647,12 @@ impl Client {
     /// checks + DTLS on high-latency links; short enough that UDP-blocked networks settle on
     /// relay without a noticeable wait. The same role RFC 8305 calls a connection attempt delay.
     const RELAY_FALLBACK_DELAY_MS: u64 = 2500;
+
+    /// Preference window for a punched IPv6 connection racing the relay. Far shorter than
+    /// `RELAY_FALLBACK_DELAY_MS`: the handshake it waits for is a single UDP/KCP round trip, which
+    /// measured ~117ms against the relay's ~76ms, and the peer's v6 candidate is advertised before
+    /// its own punch lands, so a candidate that never completes must release the relay quickly.
+    const IPV6_PREFER_WINDOW_MS: u64 = 1_000;
 
     /// The delay as the user configured it, falling back to `RELAY_FALLBACK_DELAY_MS`. The
     /// settings field holds seconds, which is what a user reasons about; everything here is
@@ -1066,11 +1073,16 @@ impl Client {
                         );
                         start = Instant::now();
                         let mut connect_futures = Vec::new();
+                        // The IPv6 candidate is kept apart from `connect_futures` so the race
+                        // below can tell it from the relay. It is also the one that may never
+                        // arrive: the peer's `start_ipv6` answers as soon as it has a v6 socket,
+                        // without waiting for its own punch to land.
+                        let mut ipv6_fut = None;
                         if let Some(s) = ipv6.0 {
                             let addr = AddrMangle::decode(&rr.socket_addr_v6);
                             if addr.port() > 0 {
                                 if s.connect(addr).await.is_ok() {
-                                    connect_futures.push(
+                                    ipv6_fut = Some(
                                         async move {
                                             let (conn, kcp, typ) =
                                                 udp_nat_connect(s, "IPv6", CONNECT_TIMEOUT).await?;
@@ -1185,7 +1197,14 @@ impl Client {
                                 // The peer answered WebRTC: prefer P2P. The relay result is held
                                 // for the preference window so WebRTC can win even though a relay
                                 // TCP connect completes much faster than ICE + DTLS setup.
-                                race_transports_prefer_webrtc(
+                                //
+                                // WebRTC owns the preferred slot, so the IPv6 candidate joins the
+                                // fallback group: the race's `is_p2p` predicate still lets it win
+                                // outright over a held relay.
+                                if let Some(fut) = ipv6_fut.take() {
+                                    connect_futures.push(fut);
+                                }
+                                race_transports_prefer_p2p(
                                     webrtc_fut,
                                     connect_futures,
                                     Self::relay_fallback_delay_ms(),
@@ -1193,6 +1212,18 @@ impl Client {
                                 )
                                 .await
                             }
+                        } else if let Some(ipv6_fut) = ipv6_fut {
+                            // The peer offered a direct v6 path: prefer it over the relay, whose TCP
+                            // connect finishes far sooner than a cross-country handshake. The window
+                            // is short because that candidate can go quiet — the peer reports its v6
+                            // address as soon as it has a socket, not once its punch lands.
+                            race_transports_prefer_p2p(
+                                ipv6_fut,
+                                connect_futures,
+                                Self::IPV6_PREFER_WINDOW_MS,
+                                |result| result.3,
+                            )
+                            .await
                         } else {
                             // Run all connection attempts concurrently, take the first success.
                             select_ok(connect_futures).await.map(|r| r.0)
@@ -1531,7 +1562,7 @@ impl Client {
         // kind is present.
         let direct_result = match (webrtc_fut, direct_futures.is_empty()) {
             (Some(webrtc_fut), false) => {
-                race_transports_prefer_webrtc(
+                race_transports_prefer_p2p(
                     webrtc_fut,
                     direct_futures,
                     Self::relay_fallback_delay_ms(),
@@ -5558,7 +5589,7 @@ async fn udp_nat_connect(
 
 #[cfg(test)]
 mod webrtc_race_tests {
-    use super::{race_transports_prefer_webrtc, request_allows_tcp_punch};
+    use super::{race_transports_prefer_p2p, request_allows_tcp_punch};
     use hbb_common::{
         anyhow::anyhow,
         futures::future::{BoxFuture, FutureExt},
@@ -5595,7 +5626,7 @@ mod webrtc_race_tests {
     // relay's TCP connect. Parking it as if it were a relay commits the relay on arrival.
     #[tokio::test]
     async fn direct_result_wins_even_when_it_arrives_first() {
-        let got = race_transports_prefer_webrtc(
+        let got = race_transports_prefer_p2p(
             ok_after(10, "direct"),
             vec![ok_after(120, "relay")],
             60_000,
@@ -5608,7 +5639,7 @@ mod webrtc_race_tests {
 
     #[tokio::test]
     async fn webrtc_preferred_over_faster_relay_within_window() {
-        let got = race_transports_prefer_webrtc(
+        let got = race_transports_prefer_p2p(
             ok_after(120, "webrtc"),
             vec![ok_after(10, "relay")],
             60_000,
@@ -5623,7 +5654,7 @@ mod webrtc_race_tests {
     // not preempt a direct punch still in flight on the fallback branch.
     #[tokio::test]
     async fn relay_from_preferred_branch_does_not_preempt_a_direct_fallback() {
-        let got = race_transports_prefer_webrtc(
+        let got = race_transports_prefer_p2p(
             ok_after(10, "preferred-relay"),
             vec![ok_after(120, "direct")],
             60_000,
@@ -5637,7 +5668,7 @@ mod webrtc_race_tests {
     // ...but it is still committed once nothing direct can arrive.
     #[tokio::test]
     async fn relay_from_preferred_branch_committed_when_fallback_fails() {
-        let got = race_transports_prefer_webrtc(
+        let got = race_transports_prefer_p2p(
             ok_after(10, "preferred-relay"),
             vec![err_after(50, "punch failed")],
             60_000,
@@ -5650,7 +5681,7 @@ mod webrtc_race_tests {
 
     #[tokio::test]
     async fn relay_from_preferred_branch_committed_when_window_expires() {
-        let got = race_transports_prefer_webrtc(
+        let got = race_transports_prefer_p2p(
             ok_after(10, "preferred-relay"),
             vec![ok_after(60_000, "too-slow")],
             100,
@@ -5663,7 +5694,7 @@ mod webrtc_race_tests {
 
     #[tokio::test]
     async fn preference_window_starts_when_relay_is_ready() {
-        let got = race_transports_prefer_webrtc(
+        let got = race_transports_prefer_p2p(
             ok_after(350, "webrtc"),
             vec![ok_after(250, "relay")],
             200,
@@ -5677,7 +5708,7 @@ mod webrtc_race_tests {
     #[tokio::test]
     async fn unfinished_ipv6_still_beats_held_relay() {
         let start = Instant::now();
-        let got = race_transports_prefer_webrtc(
+        let got = race_transports_prefer_p2p(
             ok_after(60_000, "webrtc"),
             vec![ok_after(10, "relay"), ok_after(100, "ipv6")],
             1_000,
@@ -5693,7 +5724,7 @@ mod webrtc_race_tests {
     // unfinished behind it. The relay must not be committed while that direct attempt can win.
     #[tokio::test]
     async fn relay_does_not_preempt_unfinished_direct_after_webrtc_fails() {
-        let got = race_transports_prefer_webrtc(
+        let got = race_transports_prefer_p2p(
             err_after(5, "webrtc dead"),
             vec![ok_after(10, "relay"), ok_after(100, "ipv6")],
             60_000,
@@ -5708,7 +5739,7 @@ mod webrtc_race_tests {
     // must not be committed while the direct attempt is still in flight.
     #[tokio::test]
     async fn held_relay_waits_for_racing_direct_when_webrtc_fails() {
-        let got = race_transports_prefer_webrtc(
+        let got = race_transports_prefer_p2p(
             err_after(50, "webrtc dead"),
             vec![ok_after(10, "relay"), ok_after(100, "ipv6")],
             60_000,
@@ -5723,7 +5754,7 @@ mod webrtc_race_tests {
     // composed error.
     #[tokio::test]
     async fn held_relay_survives_both_errors() {
-        let got = race_transports_prefer_webrtc(
+        let got = race_transports_prefer_p2p(
             err_after(50, "webrtc dead"),
             vec![ok_after(10, "relay"), err_after(100, "ipv6 dead")],
             60_000,
@@ -5737,7 +5768,7 @@ mod webrtc_race_tests {
     #[tokio::test]
     async fn held_relay_committed_when_window_expires() {
         let start = Instant::now();
-        let got = race_transports_prefer_webrtc(
+        let got = race_transports_prefer_p2p(
             ok_after(60_000, "webrtc"),
             vec![ok_after(10, "relay")],
             150,
@@ -5752,7 +5783,7 @@ mod webrtc_race_tests {
     #[tokio::test]
     async fn held_relay_committed_when_webrtc_fails() {
         let start = Instant::now();
-        let got = race_transports_prefer_webrtc(
+        let got = race_transports_prefer_p2p(
             err_after(50, "webrtc dead"),
             vec![ok_after(10, "relay")],
             60_000,
@@ -5766,7 +5797,7 @@ mod webrtc_race_tests {
 
     #[tokio::test]
     async fn relay_committed_directly_after_webrtc_failed() {
-        let got = race_transports_prefer_webrtc(
+        let got = race_transports_prefer_p2p(
             err_after(5, "webrtc dead"),
             vec![ok_after(100, "relay")],
             60_000,
@@ -5779,7 +5810,7 @@ mod webrtc_race_tests {
 
     #[tokio::test]
     async fn webrtc_still_wins_past_window_when_relay_dead() {
-        let got = race_transports_prefer_webrtc(
+        let got = race_transports_prefer_p2p(
             ok_after(300, "webrtc"),
             vec![err_after(10, "relay dead")],
             50,
@@ -5793,7 +5824,7 @@ mod webrtc_race_tests {
     #[tokio::test]
     async fn p2p_transport_committed_immediately() {
         let start = Instant::now();
-        let got = race_transports_prefer_webrtc(
+        let got = race_transports_prefer_p2p(
             ok_after(60_000, "webrtc"),
             vec![ok_after(10, "ipv6")],
             60_000,
@@ -5807,7 +5838,7 @@ mod webrtc_race_tests {
 
     #[tokio::test]
     async fn both_failing_compose_error() {
-        let err = race_transports_prefer_webrtc(
+        let err = race_transports_prefer_p2p(
             err_after(10, "webrtc dead"),
             vec![err_after(20, "relay dead")],
             1_000,
