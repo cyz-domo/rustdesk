@@ -1,0 +1,87 @@
+From 141a2863fd16c774d280238cbacb56fd8935b88e Mon Sep 17 00:00:00 2001
+From: TIANXUAN13 <2926930231@qq.com>
+Date: Sun, 20 Sep 2026 17:34:03 +0800
+Subject: [PATCH 1/2] feat(rendezvous): enable UDP hole punching in open-source
+ hbbs
+
+The open-source rendezvous server silently dropped UDP TestNatRequest,
+so clients never learned their UDP mapping (PunchHoleRequest.udp_port
+stayed 0) and the UDP punch path never started. It also ignored the
+is_udp / udp_port protocol fields when relaying punch messages.
+
+- answer TestNatRequest over UDP with the observed source port (+
+  optional ConfigUpdate), mirroring the TCP arm
+- forward A's observed UDP port in PunchHole so B probes that port
+- set is_udp on PunchHoleResponse when B reached us via UDP, and deliver
+  the response both over UDP and via A's TCP punch connection (UDP-only
+  delivery was a dead letter for TCP requesters)
+
+Verified on a live deployment: 5G client behind symmetric NAT now
+completes UDP hole punching instead of always falling back to relay.
+---
+ src/rendezvous_server.rs | 28 +++++++++++++++++++++++++++-
+ 1 file changed, 27 insertions(+), 1 deletion(-)
+
+diff --git a/src/rendezvous_server.rs b/src/rendezvous_server.rs
+index fb5105d..3edb88e 100644
+--- a/src/rendezvous_server.rs
++++ b/src/rendezvous_server.rs
+@@ -449,6 +449,24 @@ impl RendezvousServer {
+                 Some(rendezvous_message::Union::LocalAddr(la)) => {
+                     self.handle_local_addr(la, addr, Some(socket)).await?;
+                 }
++                Some(rendezvous_message::Union::TestNatRequest(tar)) => {
++                    // Answer UDP TestNat with the observed source port so clients learn their
++                    // UDP mapping; without this PunchHoleRequest.udp_port stays 0 and the
++                    // UDP punch path never runs.
++                    let mut msg_out = RendezvousMessage::new();
++                    let mut res = TestNatResponse {
++                        port: addr.port() as _,
++                        ..Default::default()
++                    };
++                    if self.inner.serial > tar.serial {
++                        let mut cu = ConfigUpdate::new();
++                        cu.serial = self.inner.serial;
++                        cu.rendezvous_servers = (*self.rendezvous_servers).clone();
++                        res.cu = MessageField::from_option(Some(cu));
++                    }
++                    msg_out.set_test_nat_response(res);
++                    socket.send(&msg_out, addr).await?;
++                }
+                 Some(rendezvous_message::Union::ConfigureUpdate(mut cu)) => {
+                     if try_into_v4(addr).ip().is_loopback() && cu.serial > self.inner.serial {
+                         let mut inner: Inner = (*self.inner).clone();
+@@ -835,6 +853,8 @@ impl RendezvousServer {
+             socket_addr: AddrMangle::encode(addr).into(),
+             pk: self.get_pk(&phs.version, phs.id).await,
+             relay_server: phs.relay_server.clone(),
++            // B arrived via UDP => `addr` is B's UDP mapping; A must switch to its UDP socket.
++            is_udp: socket.is_some(),
+             ..Default::default()
+         };
+         if let Ok(t) = phs.nat_type.enum_value() {
+@@ -842,7 +862,11 @@ impl RendezvousServer {
+         }
+         msg_out.set_punch_hole_response(p);
+         if let Some(socket) = socket {
+-            socket.send(&msg_out, addr_a).await?;
++            // A's request may have come over either channel: reply via UDP to its observed
++            // address, and also hand the response to A's TCP punch connection (UDP-only
++            // delivery is a dead letter when A requested over TCP).
++            allow_err!(socket.send(&msg_out, addr_a).await);
++            self.send_to_tcp(msg_out, addr_a).await;
+         } else {
+             self.send_to_tcp(msg_out, addr_a).await;
+         }
+@@ -983,6 +1007,8 @@ impl RendezvousServer {
+                     socket_addr,
+                     nat_type: ph.nat_type,
+                     relay_server,
++                    // forward A's observed UDP port so B can probe it and take the UDP punch path
++                    udp_port: ph.udp_port,
+                     ..Default::default()
+                 });
+             }
+-- 
+2.55.0.windows.5
+
