@@ -56,6 +56,17 @@ void setTemporaryPasswordLengthDialog(
   }, backDismiss: true, clickMaskDismiss: true);
 }
 
+/// Same server, ignoring case and an optional `:port` that one side may have left out.
+bool _isSameServerHost(String a, String b) {
+  String withoutPort(String s) {
+    s = s.trim().toLowerCase();
+    final i = s.lastIndexOf(':');
+    if (i > 0 && int.tryParse(s.substring(i + 1)) != null) s = s.substring(0, i);
+    return s;
+  }
+  return a.trim().isNotEmpty && b.trim().isNotEmpty && withoutPort(a) == withoutPort(b);
+}
+
 void showServerSettings(OverlayDialogManager dialogManager,
     void Function(VoidCallback) setState) async {
   Map<String, dynamic> options = {};
@@ -79,13 +90,15 @@ void showServerSettingsWithValue(
   options['relay-server'] = serverConfig.relayServer;
   options['api-server'] = serverConfig.apiServer;
   options['key'] = serverConfig.key;
-  showServerSettingsWithOptions(options, dialogManager, upSetState);
+  showServerSettingsWithOptions(options, dialogManager, upSetState,
+      scanned: serverConfig);
 }
 
 void showServerSettingsWithOptions(
     Map<String, dynamic> options,
     OverlayDialogManager dialogManager,
-    void Function(VoidCallback)? upSetState) async {
+    void Function(VoidCallback)? upSetState,
+    {ServerConfig? scanned}) async {
   var isInProgress = false;
 
   List<ServerProfileItem> profiles = [];
@@ -154,11 +167,36 @@ void showServerSettingsWithOptions(
   int selectedIndex = 0;
   final tabScrollController = ScrollController();
 
-  final nameCtrl = TextEditingController(text: profiles[0].name);
-  final idCtrl = TextEditingController(text: profiles[0].host);
-  final relayCtrl = TextEditingController(text: profiles[0].relay);
-  final apiCtrl = TextEditingController(text: profiles[0].api);
-  final keyCtrl = TextEditingController(text: profiles[0].key);
+  // Upstream prefilled the dialog from a scanned/shared config; reading the fields off
+  // `server-profiles` alone made a QR scan look accepted while it changed nothing. It goes
+  // in front because submit() activates the first enabled profile.
+  final scannedHost = scanned?.idServer.trim() ?? '';
+  if (scannedHost.isNotEmpty) {
+    final existing =
+        profiles.indexWhere((p) => _isSameServerHost(p.host, scannedHost));
+    if (existing >= 0) {
+      selectedIndex = existing;
+    } else {
+      profiles.insert(
+          0,
+          ServerProfileItem(
+            id: 'profile-${DateTime.now().millisecondsSinceEpoch}',
+            name: scannedHost,
+            host: scannedHost,
+            relay: scanned?.relayServer ?? '',
+            api: scanned?.apiServer ?? '',
+            key: scanned?.key ?? '',
+            enabled: true,
+          ));
+      selectedIndex = 0;
+    }
+  }
+
+  final nameCtrl = TextEditingController(text: profiles[selectedIndex].name);
+  final idCtrl = TextEditingController(text: profiles[selectedIndex].host);
+  final relayCtrl = TextEditingController(text: profiles[selectedIndex].relay);
+  final apiCtrl = TextEditingController(text: profiles[selectedIndex].api);
+  final keyCtrl = TextEditingController(text: profiles[selectedIndex].key);
 
   void syncCurrentProfileFromControllers() {
     if (selectedIndex >= 0 && selectedIndex < profiles.length) {
@@ -572,7 +610,7 @@ void showServerSettingsWithOptions(
                   ),
                   Divider(height: 16),
                   buildField(
-                    translate('Profile Name'),
+                    translate('Profile name'),
                     nameCtrl,
                     '',
                     onChanged: (v) {

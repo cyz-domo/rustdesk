@@ -186,7 +186,7 @@ class _OnlineStatusWidgetState extends State<OnlineStatusWidget> {
             s.online ? Colors.green : (s.enabled ? Colors.red : Colors.grey);
         final lat = s.online
             ? '(${s.latencyMs}ms)'
-            : (s.enabled ? '(${translate("offline")})' : '(${translate("disabled")})');
+            : (s.enabled ? '(${translate("Offline")})' : '(${translate("Disabled")})');
         final name = s.name.isNotEmpty ? s.name : s.host;
         final hostPart = (s.host.isNotEmpty && s.name.isNotEmpty && s.host != s.name) ? ' (${s.host})' : '';
         if (tooltipLines.isNotEmpty) {

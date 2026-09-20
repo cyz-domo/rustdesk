@@ -207,29 +207,34 @@ pub fn update_resolved_profile_data(
         online: online.filter(|s| !s.is_empty()).map(|s| s.to_string()),
     };
 
-    if let Ok(mut map) = RESOLVED_PROFILES.write() {
-        // Keys stay full ("host:port" / profile id): a bare-IP alias would let
-        // profiles sharing one public IP overwrite each other. Bare-IP queries
-        // are served by the scan fallback in get_resolved_profile_data.
-        if !profile_id.is_empty() {
-            map.insert(profile_id.to_string(), data.clone());
+    let persisted = {
+        match RESOLVED_PROFILES.write() {
+            Ok(mut map) => {
+                // Keys stay full ("host:port" / profile id): a bare-IP alias would let
+                // profiles sharing one public IP overwrite each other. Bare-IP queries
+                // are served by the scan fallback in get_resolved_profile_data.
+                if !profile_id.is_empty() {
+                    map.insert(profile_id.to_string(), data.clone());
+                }
+                if !original_host.is_empty() {
+                    map.insert(original_host.to_string(), data.clone());
+                }
+                if !resolved_host.is_empty() {
+                    map.insert(resolved_host.to_string(), data.clone());
+                }
+                if let Some(ref tcp) = data.tcp_host {
+                    map.insert(tcp.clone(), data.clone());
+                }
+                if let Some(ref relay) = data.relay {
+                    map.insert(relay.clone(), data.clone());
+                }
+                serde_json::to_string(&*map).ok()
+            }
+            Err(_) => None,
         }
-        if !original_host.is_empty() {
-            map.insert(original_host.to_string(), data.clone());
-        }
-        if !resolved_host.is_empty() {
-            map.insert(resolved_host.to_string(), data.clone());
-        }
-        if let Some(ref tcp) = data.tcp_host {
-            map.insert(tcp.clone(), data.clone());
-        }
-        if let Some(ref relay) = data.relay {
-            map.insert(relay.clone(), data.clone());
-        }
-
-        if let Ok(json) = serde_json::to_string(&*map) {
-            Config::set_option("resolved-server-profiles".to_owned(), json);
-        }
+    };
+    if let Some(json) = persisted {
+        Config::set_option("resolved-server-profiles".to_owned(), json);
     }
 }
 
@@ -336,10 +341,17 @@ pub fn is_host_match(h1: &str, h2: &str) -> bool {
     }
     let p1 = parse_host(h1);
     let p2 = parse_host(h2);
-    if !p1.is_empty() && !p2.is_empty() {
-        if p1.eq_ignore_ascii_case(p2) {
-            return true;
-        }
+    // Same rule as `is_host_match_str`: two entries that both spell out a port must agree on it.
+    // Without it every profile sharing one public IP behind a different STUN-mapped port matches
+    // the first one, and `get_profile_by_host` then hands out that profile's key, tcp host and
+    // relay — which surfaces as an endless key mismatch against the right server.
+    let both_ported = has_explicit_port(h1) && has_explicit_port(h2);
+    if !p1.is_empty()
+        && !p2.is_empty()
+        && p1.eq_ignore_ascii_case(p2)
+        && (!both_ported || h1.eq_ignore_ascii_case(h2))
+    {
+        return true;
     }
     if h1.eq_ignore_ascii_case(h2) {
         return true;
@@ -503,19 +515,26 @@ pub fn get_online_by_host(host: &str) -> Option<String> {
 }
 
 pub fn update_server_profile_latency(id: &str, configured_host: &str, resolved_host: &str, latency: i64) {
-    if let Ok(mut map) = SERVER_LATENCIES.lock() {
-        if !id.is_empty() {
-            map.insert(id.to_string(), latency);
+    // The JSON is built under the lock but written to disk after it is released:
+    // Config::set_option reads and rewrites the options file synchronously, and
+    // the mediator calls here from a Tokio task.
+    let persisted = match SERVER_LATENCIES.lock() {
+        Ok(mut map) => {
+            if !id.is_empty() {
+                map.insert(id.to_string(), latency);
+            }
+            if !configured_host.is_empty() {
+                map.insert(configured_host.to_string(), latency);
+            }
+            if !resolved_host.is_empty() {
+                map.insert(resolved_host.to_string(), latency);
+            }
+            serde_json::to_string(&*map).ok()
         }
-        if !configured_host.is_empty() {
-            map.insert(configured_host.to_string(), latency);
-        }
-        if !resolved_host.is_empty() {
-            map.insert(resolved_host.to_string(), latency);
-        }
-        if let Ok(json) = serde_json::to_string(&*map) {
-            Config::set_option("server-latencies".to_owned(), json);
-        }
+        Err(_) => None,
+    };
+    if let Some(json) = persisted {
+        Config::set_option("server-latencies".to_owned(), json);
     }
     Config::update_latency(resolved_host, latency);
 }
@@ -632,6 +651,14 @@ mod tests {
         // Same public IP, different STUN-mapped ports must not cross-match.
         assert!(!is_host_match_str("1.2.3.4:24439", "1.2.3.4:24869", "1.2.3.4"));
         assert!(is_host_match_str("1.2.3.4:24439", "1.2.3.4:24439", "1.2.3.4"));
+    }
+
+    #[test]
+    fn public_match_keeps_distinct_ports_apart() {
+        assert!(!is_host_match("203.0.113.7:17366", "203.0.113.7:17368"));
+        assert!(is_host_match("203.0.113.7:17366", "203.0.113.7:17366"));
+        assert!(is_host_match("203.0.113.7", "203.0.113.7:17366"));
+        assert!(!is_host_match("[2001:db8::7]:17366", "[2001:db8::7]:17368"));
     }
 
     #[test]

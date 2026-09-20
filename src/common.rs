@@ -782,31 +782,27 @@ pub async fn get_rendezvous_server(ms_timeout: u64) -> (String, Vec<String>, boo
     let active_profiles = server_profile::get_active_server_profiles();
     let has_multi = active_profiles.len() > 1;
     let (mut a, mut b) = if !active_profiles.is_empty() {
-        let mut hosts: Vec<String> = active_profiles
+        let hosts: Vec<String> = active_profiles
             .into_iter()
             .map(|p| socket_client::check_port(p.host, config::RENDEZVOUS_PORT))
             .filter(|h| !h.trim().is_empty())
             .collect();
         let cur = Config::get_rendezvous_server();
-        if !cur.is_empty() {
-            if let Some(pos) = hosts.iter().position(|h| server_profile::is_host_match(h, &cur)) {
-                let a = hosts.remove(pos);
-                (a, hosts)
-            } else if !hosts.is_empty() {
-                let a = hosts.remove(0);
-                (a, hosts)
-            } else {
-                (cur, hosts)
-            }
-        } else if !hosts.is_empty() {
-            let a = hosts.remove(0);
-            (a, hosts)
+        if hosts.is_empty() {
+            (cur, hosts)
         } else {
-            #[cfg(any(target_os = "android", target_os = "ios"))]
-            let (a, b) = get_rendezvous_server_(ms_timeout);
-            #[cfg(not(any(target_os = "android", target_os = "ios")))]
-            let (a, b) = get_rendezvous_server_(ms_timeout).await;
-            (a, b)
+            // The chosen host stays inside `b` on purpose: the tail below reads upstream's
+            // `b.contains(&a)` as "the current server is one of the candidates", so removing it
+            // here would make every multi-profile lookup look like a dropped server and rotate the
+            // connection to the last profile in the list whenever TXT resolution returns nothing.
+            let pick = match cur.is_empty() {
+                true => 0,
+                false => hosts
+                    .iter()
+                    .position(|h| server_profile::is_host_match(h, &cur))
+                    .unwrap_or(0),
+            };
+            (hosts[pick].clone(), hosts)
         }
     } else {
         #[cfg(any(target_os = "android", target_os = "ios"))]
@@ -838,13 +834,16 @@ pub async fn get_rendezvous_server(ms_timeout: u64) -> (String, Vec<String>, boo
         );
         a = resolved.host;
         resolved_from_txt = true;
-        if let Some(api) = resolved.api {
-            Config::set_option("api-server".to_owned(), api);
-        }
-        if let Some(online) = resolved.online {
-            Config::set_option("online-server".to_owned(), online);
-        }
+        // Same limit as the tcp/relay writes below: with several profiles active the global
+        // options are shared, so each profile's TXT answer would overwrite the previous one and
+        // the profiles would fight over api-server / online-server on every resolution.
         if !has_multi {
+            if let Some(api) = resolved.api {
+                Config::set_option("api-server".to_owned(), api);
+            }
+            if let Some(online) = resolved.online {
+                Config::set_option("online-server".to_owned(), online);
+            }
             if let Some(tcp) = resolved.tcp {
                 Config::set_option("rendezvous-server-tcp".to_owned(), tcp);
             }

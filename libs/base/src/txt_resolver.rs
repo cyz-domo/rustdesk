@@ -220,8 +220,9 @@ fn parse_dns_txt_response(buf: &[u8], query_id: u16, domain: &str) -> Option<Str
     if u16::from_be_bytes([buf[0], buf[1]]) != query_id {
         return None;
     }
-    // QR bit set and RCODE == NOERROR
-    if buf[2] & 0x80 == 0 || buf[3] & 0x0f != 0 {
+    // QR bit set, TC clear (a cut-off answer can still parse as a shorter TXT record),
+    // and RCODE == NOERROR.
+    if buf[2] & 0x80 == 0 || buf[2] & 0x02 != 0 || buf[3] & 0x0f != 0 {
         return None;
     }
     let qdcount = u16::from_be_bytes([buf[4], buf[5]]) as usize;
@@ -634,6 +635,24 @@ mod tests {
         // Wrong transaction id or wrong queried domain must be rejected.
         assert!(parse_dns_txt_response(&pkt, 0x4321, "rd.example.com").is_none());
         assert!(parse_dns_txt_response(&pkt, 0x1234, "example.com").is_none());
+    }
+
+    #[test]
+    fn test_parse_dns_txt_response_rejects_truncated() {
+        let mut pkt = Vec::new();
+        pkt.extend_from_slice(&0x1234u16.to_be_bytes());
+        // TC set: the answer is cut short, so it must not be taken as a whole record.
+        pkt.extend_from_slice(&[0x81 | 0x02, 0x80]);
+        pkt.extend_from_slice(&[0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00]);
+        pkt.extend_from_slice(&dns_name_bytes("rd.example.com"));
+        pkt.extend_from_slice(&[0x00, 0x10, 0x00, 0x01]); // question TXT/IN
+        pkt.extend_from_slice(&dns_txt_rr(&[0xc0, 0x0c], "host=1.2.3.4:21116"));
+        assert!(parse_dns_txt_response(&pkt, 0x1234, "rd.example.com").is_none());
+        pkt[2] = 0x81;
+        assert_eq!(
+            parse_dns_txt_response(&pkt, 0x1234, "rd.example.com").as_deref(),
+            Some("host=1.2.3.4:21116")
+        );
     }
 
     #[tokio::test]

@@ -7,6 +7,7 @@ import 'package:flutter_hbb/main.dart';
 import 'package:flutter_hbb/mobile/pages/settings_page.dart';
 import 'package:flutter_hbb/models/chat_model.dart';
 import 'package:flutter_hbb/models/platform_model.dart';
+import 'package:flutter_hbb/models/state_model.dart';
 import 'package:get/get.dart';
 import 'package:window_manager/window_manager.dart';
 
@@ -33,6 +34,7 @@ class ServerModel with ChangeNotifier {
   bool _showElevation = false;
   bool hideCm = false;
   int _connectStatus = 0; // Rendezvous Server status
+  String _lastServerStatuses = "";
   String _verificationMethod = "";
   String _temporaryPasswordLength = "";
   bool _allowNumericOneTimePassword = false;
@@ -154,6 +156,22 @@ class ServerModel with ChangeNotifier {
       if (statusNum != _connectStatus) {
         _connectStatus = statusNum;
         notifyListeners();
+      }
+
+      // The mobile profile editor shows one dot per server off stateGlobal, and this is
+      // the only poll that runs there. Rewriting the list would rebuild every tab, so it
+      // happens only when the payload actually changed.
+      final rawStatuses = connectionStatus['server_statuses'];
+      if (rawStatuses is List) {
+        final encoded = jsonEncode(rawStatuses);
+        if (encoded != _lastServerStatuses) {
+          _lastServerStatuses = encoded;
+          stateGlobal.serverStatuses.value = rawStatuses
+              .whereType<Map>()
+              .map((e) =>
+                  ServerStatusItem.fromJson(Map<String, dynamic>.from(e)))
+              .toList();
+        }
       }
 
       if (desktopType == DesktopType.cm) {

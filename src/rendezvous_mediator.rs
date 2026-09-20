@@ -54,12 +54,31 @@ fn connection_meta(
 }
 
 lazy_static::lazy_static! {
-    static ref SOLVING_PK_MISMATCH: Mutex<String> = Default::default();
+    static ref SOLVING_PK_MISMATCH: Mutex<(String, Option<Instant>)> = Default::default();
     static ref LAST_MSG: Mutex<(SocketAddr, Instant)> = Mutex::new((SocketAddr::new([0; 4].into(), 0), Instant::now()));
     static ref LAST_RELAY_MSG: Mutex<(SocketAddr, Instant)> = Mutex::new((SocketAddr::new([0; 4].into(), 0), Instant::now()));
     static ref WEBRTC_ICE_TXS: Mutex<HashMap<String, IceRoute>> = Default::default();
     static ref ICE_DIGEST_STATE: RandomState = Default::default();
 }
+
+/// How long one mediator may keep the others out of the PK-mismatch slot. A solve is a
+/// RegisterPk round trip plus the reply, so anything past this is a server that stopped answering.
+const PK_MISMATCH_STALE: Duration = Duration::from_secs(30);
+
+/// True while another host owns the mismatch slot. Only one mediator may solve at a time
+/// because `Config::update_id()` rewrites state shared by every profile; the deadline is what
+/// keeps a profile stuck on a dead server from blocking the others for the whole process,
+/// now that a failing profile retries in place instead of restarting the mediator loop.
+fn pk_mismatch_owned_by_other(host: &str, solving: &(String, Option<Instant>)) -> bool {
+    if solving.0.is_empty() || solving.0.as_str() == host {
+        return false;
+    }
+    !solving
+        .1
+        .map(|since| since.elapsed() >= PK_MISMATCH_STALE)
+        .unwrap_or(true)
+}
+
 /// Remote ICE candidates buffered per session while the answerer applies them. Same depth as the
 /// controller's own buffer (`Client::MAX_PENDING_WEBRTC_ICE`), though that one evicts its oldest
 /// where a full channel here refuses the newest.
@@ -216,15 +235,17 @@ impl ServerContext {
                 return check_port(relay, RENDEZVOUS_PORT + 1);
             }
         }
+        // Upstream lets the user's explicit option beat what hbbs advertises; the
+        // host check keeps one profile's option from hijacking another, since every
+        // enabled profile runs its own mediator against this single option.
+        let relay_server = Config::get_option("relay-server");
+        if !relay_server.is_empty() && server_profile::is_host_match(&relay_server, &self.host) {
+            return check_port(&relay_server, RENDEZVOUS_PORT + 1);
+        }
         if !provided_by_rendezvous_server.is_empty() {
             return check_port(provided_by_rendezvous_server, RENDEZVOUS_PORT + 1);
         }
-        let relay_server = Config::get_option("relay-server");
-        if !relay_server.is_empty() && server_profile::is_host_match(&relay_server, &self.host) {
-            check_port(&relay_server, RENDEZVOUS_PORT + 1)
-        } else {
-            crate::increase_port(&check_port(&self.host, RENDEZVOUS_PORT), 1)
-        }
+        crate::increase_port(&check_port(&self.host, RENDEZVOUS_PORT), 1)
     }
 }
 
@@ -279,7 +300,7 @@ impl RendezvousMediator {
         loop {
             let timeout = Arc::new(RwLock::new(CONNECT_TIMEOUT));
             let conn_start_time = Instant::now();
-            *SOLVING_PK_MISMATCH.lock().await = "".to_owned();
+            *SOLVING_PK_MISMATCH.lock().await = Default::default();
             if !config::option2bool("stop-service", &Config::get_option("stop-service"))
                 && !crate::platform::installing_service()
             {
@@ -524,7 +545,7 @@ impl RendezvousMediator {
                     Ok(register_pk_response::Result::OK) => {
                         Config::set_key_confirmed(true);
                         Config::set_host_key_confirmed(&self.host_prefix, true);
-                        *SOLVING_PK_MISMATCH.lock().await = "".to_owned();
+                        *SOLVING_PK_MISMATCH.lock().await = Default::default();
                         NEEDS_DEPLOY.store(false, Ordering::SeqCst);
                         #[cfg(target_os = "android")]
                         reset_needs_deploy_notification();
@@ -1316,11 +1337,11 @@ impl RendezvousMediator {
     async fn handle_uuid_mismatch(&mut self, socket: Sink<'_>) -> ResultType<()> {
         {
             let mut solving = SOLVING_PK_MISMATCH.lock().await;
-            if solving.is_empty() || *solving == self.host {
+            if !pk_mismatch_owned_by_other(&self.host, &solving) {
                 log::info!("UUID_MISMATCH received from {}", self.host);
                 Config::set_key_confirmed(false);
                 Config::update_id();
-                *solving = self.host.clone();
+                *solving = (self.host.clone(), Some(Instant::now()));
             } else {
                 return Ok(());
             }
@@ -1330,7 +1351,7 @@ impl RendezvousMediator {
 
     async fn register_peer(&mut self, socket: Sink<'_>) -> ResultType<()> {
         let solving = SOLVING_PK_MISMATCH.lock().await;
-        if !(solving.is_empty() || *solving == self.host) {
+        if pk_mismatch_owned_by_other(&self.host, &solving) {
             return Ok(());
         }
         drop(solving);
