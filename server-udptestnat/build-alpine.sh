@@ -39,6 +39,8 @@ grep -q "udp_port: ph.udp_port"    work/rustdesk-server/src/rendezvous_server.rs
 grep -q "IPv6 introduction was Pro-server-only" work/rustdesk-server/src/rendezvous_server.rs
 grep -q "ph.socket_addr_v6"                     work/rustdesk-server/src/rendezvous_server.rs
 grep -q "phs.socket_addr_v6.clone()"               work/rustdesk-server/src/rendezvous_server.rs
+grep -q "la.socket_addr_v6"                         work/rustdesk-server/src/rendezvous_server.rs
+grep -q "never spawns the IPv6 leg"                 work/rustdesk-server/src/rendezvous_server.rs
 
 mkdir -p work/rustdesk-server/out work/rustup
 # Alpine 镜像没有 bash，用 sh（脚本为 POSIX 写法）；服务器容器网桥 DNS 不通，用 host 网络

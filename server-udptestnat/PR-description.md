@@ -56,6 +56,11 @@ server-side gaps cause this; the client side is already complete:
   forward A's self-reported v6 punch socket into `PunchHole.socket_addr_v6`
   (fallback: observed v6 addr when no self-report); carry B's
   `PunchHoleSent.socket_addr_v6` into `PunchHoleResponse.socket_addr_v6`.
+- `fix(rendezvous): carry socket_addr_v6 through the same_intranet path` — when
+  hbbs judges the peers same-intranet it answers with `FetchLocalAddr` instead
+  of `PunchHole`; without the same forwarding there (and of B's
+  `LocalAddr.socket_addr_v6` into the `PunchHoleResponse`), a shared CGNAT egress
+  IP silently forfeits IPv6 direct on both legs.
 
 No proto, API, or behavior changes for v4/TCP users; every change fills a field
 the client already knows how to consume.

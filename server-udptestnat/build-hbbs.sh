@@ -49,6 +49,8 @@ grep -q "is_udp: socket.is_some()" "$WORK/src/rendezvous_server.rs" \
   && grep -q "IPv6 introduction was Pro-server-only" "$WORK/src/rendezvous_server.rs" \
   && grep -q "ph.socket_addr_v6"                     "$WORK/src/rendezvous_server.rs" \
   && grep -q "phs.socket_addr_v6.clone()" "$WORK/src/rendezvous_server.rs" \
+  && grep -q "la.socket_addr_v6"                     "$WORK/src/rendezvous_server.rs" \
+  && grep -q "never spawns the IPv6 leg"             "$WORK/src/rendezvous_server.rs" \
   || { echo "补丁内容校验失败"; exit 1; }
 
 echo "==> 容器内 musl 静态构建（产物可跑在 alpine/debian/scratch 任意镜像里）"

@@ -1,7 +1,7 @@
 From 4d055f42abba1c6ae0fa01305fe4f1ee1900db1b Mon Sep 17 00:00:00 2001
 From: TIANXUAN13 <2926930231@qq.com>
 Date: Sun, 20 Sep 2026 17:34:15 +0800
-Subject: [PATCH 2/2] feat(rendezvous): pass through socket_addr_v6 to enable
+Subject: [PATCH 2/3] feat(rendezvous): pass through socket_addr_v6 to enable
  IPv6 hole punching
 
 Clients only run the IPv6 leg when the dedicated PunchHole/PunchHoleResponse
