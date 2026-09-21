@@ -105,6 +105,19 @@
     <style>
         html { scroll-behavior: smooth; }
         body { font-family: 'Inter', sans-serif; }
+        /* 简约若隐若现的格子纸背景 (Subtle Grid Paper Pattern) */
+        .bg-grid-pattern {
+            background-size: 32px 32px;
+            background-image: 
+                linear-gradient(to right, rgba(100, 116, 139, 0.08) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(100, 116, 139, 0.08) 1px, transparent 1px);
+        }
+        .dark .bg-grid-pattern {
+            background-size: 32px 32px;
+            background-image: 
+                linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+        }
         .gradient-text {
             background: linear-gradient(135deg, #16a34a 0%, #0284c7 100%);
             -webkit-background-clip: text;
@@ -116,20 +129,23 @@
             -webkit-text-fill-color: transparent;
         }
         .glow-card {
-            background: rgba(255, 255, 255, 0.9);
+            background: rgba(255, 255, 255, 0.85);
             backdrop-filter: blur(12px);
-            border: 1px solid rgba(226, 232, 240, 0.9);
-            box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(226, 232, 240, 0.85);
+            box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.03);
             transition: all 0.3s ease;
         }
         .dark .glow-card {
-            background: rgba(17, 24, 39, 0.75);
-            border: 1px solid rgba(255, 255, 255, 0.08);
+            background: rgba(15, 23, 42, 0.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.07);
             box-shadow: none;
         }
         .glow-card:hover {
             border-color: rgba(34, 197, 94, 0.5);
-            box-shadow: 0 10px 30px -5px rgba(34, 197, 94, 0.15);
+            box-shadow: 0 10px 30px -5px rgba(34, 197, 94, 0.12);
             transform: translateY(-2px);
         }
         .dark .glow-card:hover {
@@ -148,7 +164,7 @@
         }
     </style>
 </head>
-<body class="bg-slate-100/50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 antialiased selection:bg-brand-500 selection:text-slate-950 transition-colors duration-300">
+<body class="bg-slate-50 dark:bg-[#0b0f19] text-slate-800 dark:text-slate-100 antialiased selection:bg-brand-500 selection:text-slate-950 transition-colors duration-300 bg-grid-pattern min-h-screen">
 
     <!-- 顶部导航栏 -->
     <header class="sticky top-0 z-50 bg-white/85 dark:bg-slate-950/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800/80 transition-colors">
@@ -179,6 +195,7 @@
                 <a href="#changelog" class="hover:text-brand-500 dark:hover:text-brand-400 transition-colors">最新动态</a>
                 <a href="#download" class="hover:text-brand-500 dark:hover:text-brand-400 transition-colors">下载客户端</a>
                 <a href="#faq" class="hover:text-brand-500 dark:hover:text-brand-400 transition-colors">常见问题</a>
+                <a href="#acknowledgements" class="hover:text-brand-500 dark:hover:text-brand-400 transition-colors">致谢</a>
             </nav>
             <div class="flex items-center space-x-3">
                 <button id="theme-toggle" type="button" onclick="toggleTheme()" class="p-2 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-900 dark:hover:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 transition-colors" title="切换深色/浅色模式" aria-label="Toggle Theme">
@@ -199,29 +216,29 @@
     <!-- Hero 区域 -->
     <section class="relative pt-20 pb-28 overflow-hidden">
         <!-- 氛围光晕 -->
-        <div class="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[350px] bg-brand-500/15 blur-[120px] rounded-full pointer-events-none"></div>
-        <div class="absolute top-1/3 left-1/3 w-[300px] h-[250px] bg-sky-500/15 blur-[100px] rounded-full pointer-events-none"></div>
+        <div class="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[350px] bg-brand-500/10 dark:bg-brand-500/15 blur-[120px] rounded-full pointer-events-none"></div>
+        <div class="absolute top-1/3 left-1/3 w-[300px] h-[250px] bg-sky-500/10 dark:bg-sky-500/15 blur-[100px] rounded-full pointer-events-none"></div>
 
         <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
             <div class="flex justify-center mb-6">
-                <div class="w-20 h-20 rounded-3xl bg-slate-900/90 border border-slate-700/80 p-4 flex items-center justify-center shadow-2xl shadow-sky-500/20 backdrop-blur-xl">
+                <div class="w-20 h-20 rounded-3xl bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-700/80 p-4 flex items-center justify-center shadow-2xl shadow-sky-500/20 backdrop-blur-xl">
                     <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" class="w-full h-full" style="isolation:isolate" viewBox="66.993 897.484 26 26">
                         <path fill="url(#rd-logo-a)" d="m89.318 903.552-2.135 2.122c-.376.337-.558.879-.347 1.337 1.422 2.976.882 6.524-1.452 8.856-2.335 2.331-5.887 2.87-8.866 1.449-.439-.197-.954-.03-1.292.312l-2.17 2.167a1.154 1.154 0 0 0 .208 1.81 13.005 13.005 0 0 0 15.91-1.912 12.97 12.97 0 0 0 1.956-15.887 1.154 1.154 0 0 0-1.812-.254zm-18.467-2.305a12.969 12.969 0 0 0-2.02 15.885 1.154 1.154 0 0 0 1.812.254l2.124-2.11c.385-.336.572-.884.359-1.348-1.423-2.976-.884-6.524 1.451-8.856 2.334-2.332 5.887-2.871 8.866-1.45.434.194.942.033 1.281-.3l2.182-2.18a1.152 1.152 0 0 0-.208-1.81 13.009 13.009 0 0 0-15.893 1.973z"/>
                     </svg>
                 </div>
             </div>
 
-            <div class="inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-full bg-slate-900/90 border border-slate-700/80 text-xs font-medium text-slate-300 mb-8 shadow-inner">
-                <span class="w-2 h-2 rounded-full bg-brand-400 animate-pulse"></span>
+            <div class="inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-full bg-white/90 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-700/80 text-xs font-medium text-slate-700 dark:text-slate-300 mb-8 shadow-sm">
+                <span class="w-2 h-2 rounded-full bg-brand-500 animate-pulse"></span>
                 <span>ProxyProtocol v2 + 170ms TCP 打洞 · Lucky STUN 穿透 · 多服务器 Profile 调度</span>
             </div>
 
-            <h1 class="text-4xl sm:text-6xl font-extrabold tracking-tight text-white mb-6 leading-tight">
+            <h1 class="text-4xl sm:text-6xl font-extrabold tracking-tight text-slate-900 dark:text-white mb-6 leading-tight">
                 免公网 IPv4 的自建远程桌面<br>
                 <span class="gradient-text">TCP 打洞 + Lucky STUN + 云主机自适应</span>
             </h1>
 
-            <p class="text-lg sm:text-xl text-slate-400 max-w-3xl mx-auto mb-10 leading-relaxed font-light">
+            <p class="text-lg sm:text-xl text-slate-600 dark:text-slate-400 max-w-3xl mx-auto mb-10 leading-relaxed font-light">
                 针对家庭光猫拨号反向代理、NAT1 STUN 打洞与云主机混合部署量身打造。原生支持 ProxyProtocol v2 真实 IP 解码、170ms 极速 TCP 打洞、四通道并发竞速、中继转直连智能热升级与最高 120 FPS P2P 直连。
             </p>
 
@@ -230,167 +247,167 @@
                     <svg class="w-5 h-5 fill-current" viewBox="0 0 20 20"><path d="M10.75 2.75a.75.75 0 00-1.5 0v8.614L6.295 8.235a.75.75 0 10-1.09 1.03l4.25 4.5a.75.75 0 001.09 0l4.25-4.5a.75.75 0 00-1.09-1.03l-2.955 3.129V2.75z"/><path d="M3.5 12.75a.75.75 0 00-1.5 0v2.5A2.75 2.75 0 004.75 18h10.5A2.75 2.75 0 0018 15.25v-2.5a.75.75 0 00-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5z"/></svg>
                     <span>下载最新客户端</span>
                 </a>
-                <a href="#guide" class="w-full sm:w-auto px-8 py-3.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-200 font-semibold text-base border border-slate-700 transition-all flex items-center justify-center space-x-2">
+                <a href="#guide" class="w-full sm:w-auto px-8 py-3.5 rounded-xl bg-white hover:bg-slate-50 dark:bg-slate-900 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 font-semibold text-base border border-slate-300 dark:border-slate-700 transition-all flex items-center justify-center space-x-2 shadow-sm">
                     <span>📖 查看配置教程</span>
                 </a>
-                <a href="#changelog" class="w-full sm:w-auto px-6 py-3.5 rounded-xl bg-slate-900/50 hover:bg-slate-800/80 text-slate-300 font-medium text-base border border-slate-800 transition-all flex items-center justify-center space-x-2">
+                <a href="#changelog" class="w-full sm:w-auto px-6 py-3.5 rounded-xl bg-white/70 hover:bg-white dark:bg-slate-900/50 dark:hover:bg-slate-800/80 text-slate-700 dark:text-slate-300 font-medium text-base border border-slate-300 dark:border-slate-800 transition-all flex items-center justify-center space-x-2">
                     <span>⚡ 查看最新动态</span>
                 </a>
             </div>
 
             <!-- 数据指示标签 -->
-            <div class="mt-14 grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto pt-8 border-t border-slate-800/60">
-                <div class="p-4 rounded-xl bg-slate-900/40 border border-slate-800/40">
-                    <div class="text-2xl font-bold text-brand-400 font-mono">170 ms</div>
-                    <div class="text-xs text-slate-400 mt-1">TCP 打洞极速直连</div>
+            <div class="mt-14 grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto pt-8 border-t border-slate-200 dark:border-slate-800/60">
+                <div class="glow-card p-4 rounded-xl">
+                    <div class="text-2xl font-bold text-brand-600 dark:text-brand-400 font-mono">170 ms</div>
+                    <div class="text-xs text-slate-600 dark:text-slate-400 mt-1">TCP 打洞极速直连</div>
                 </div>
-                <div class="p-4 rounded-xl bg-slate-900/40 border border-slate-800/40">
-                    <div class="text-2xl font-bold text-sky-400 font-mono">4 通道</div>
-                    <div class="text-xs text-slate-400 mt-1">IPv4/IPv6/TCP/WebRTC 竞速</div>
+                <div class="glow-card p-4 rounded-xl">
+                    <div class="text-2xl font-bold text-sky-600 dark:text-sky-400 font-mono">4 通道</div>
+                    <div class="text-xs text-slate-600 dark:text-slate-400 mt-1">IPv4/IPv6/TCP/WebRTC 竞速</div>
                 </div>
-                <div class="p-4 rounded-xl bg-slate-900/40 border border-slate-800/40">
-                    <div class="text-2xl font-bold text-emerald-400 font-mono">120 FPS</div>
-                    <div class="text-xs text-slate-400 mt-1">P2P 直连下最高 120 帧画质</div>
+                <div class="glow-card p-4 rounded-xl">
+                    <div class="text-2xl font-bold text-emerald-600 dark:text-emerald-400 font-mono">120 FPS</div>
+                    <div class="text-xs text-slate-600 dark:text-slate-400 mt-1">P2P 直连下最高 120 帧画质</div>
                 </div>
-                <div class="p-4 rounded-xl bg-slate-900/40 border border-slate-800/40">
-                    <div class="text-2xl font-bold text-indigo-400 font-mono">0 元</div>
-                    <div class="text-xs text-slate-400 mt-1">免固定公网 IPv4 成本</div>
+                <div class="glow-card p-4 rounded-xl">
+                    <div class="text-2xl font-bold text-indigo-600 dark:text-indigo-400 font-mono">0 元</div>
+                    <div class="text-xs text-slate-600 dark:text-slate-400 mt-1">免固定公网 IPv4 成本</div>
                 </div>
             </div>
         </div>
     </section>
 
     <!-- 核心特性区域 -->
-    <section id="features" class="py-20 bg-slate-900/40 border-y border-slate-800/80">
+    <section id="features" class="py-20 border-y border-slate-200/80 dark:border-slate-800/80">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="text-center max-w-3xl mx-auto mb-16">
-                <h2 class="text-xs uppercase tracking-widest text-brand-400 font-bold mb-3 font-mono">CORE ADVANTAGES</h2>
-                <p class="text-3xl sm:text-4xl font-extrabold text-white">为什么选择定制增强版？</p>
-                <p class="text-slate-400 mt-4 text-base">突破官方单服务器单端口假设，为家庭 Lucky STUN 穿透与多节点混合组网提供全链路深度适配</p>
+                <h2 class="text-xs uppercase tracking-widest text-brand-600 dark:text-brand-400 font-bold mb-3 font-mono">CORE ADVANTAGES</h2>
+                <p class="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-white">为什么选择定制增强版？</p>
+                <p class="text-slate-600 dark:text-slate-400 mt-4 text-base">突破官方单服务器单端口假设，为家庭 Lucky STUN 穿透与多节点混合组网提供全链路深度适配</p>
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <!-- 特性 1: TCP 打洞与 ProxyProtocol v2 -->
-                <div class="glow-card rounded-2xl p-7 flex flex-col justify-between border-slate-800">
+                <div class="glow-card rounded-2xl p-7 flex flex-col justify-between">
                     <div>
-                        <div class="w-12 h-12 rounded-xl bg-brand-500/10 border border-brand-500/20 flex items-center justify-center text-brand-400 text-2xl mb-5">
+                        <div class="w-12 h-12 rounded-xl bg-brand-500/10 border border-brand-500/20 flex items-center justify-center text-brand-500 dark:text-brand-400 text-2xl mb-5">
                             ⚡
                         </div>
                         <div class="flex items-center space-x-2 mb-2.5">
-                            <h3 class="text-lg font-bold text-white">ProxyProtocol v2 & TCP 打洞</h3>
-                            <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-brand-500/20 text-brand-400 border border-brand-500/30">全新突破</span>
+                            <h3 class="text-lg font-bold text-slate-900 dark:text-white">ProxyProtocol v2 & TCP 打洞</h3>
+                            <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-brand-500/20 text-brand-600 dark:text-brand-400 border border-brand-500/30">全新突破</span>
                         </div>
-                        <p class="text-slate-400 text-xs leading-relaxed">
-                            彻底攻克光猫拨号（未改桥接）及 Lucky/Nginx 反向代理下 SNAT 丢失客户端真实公网 IP 导致打洞回环假死的痛点。服务端原生自动解码 ProxyProtocol v1/v2，企业严苛对称型 NAT 下 <strong class="text-brand-300">170ms 极速建立 TCP 直连</strong>。
+                        <p class="text-slate-600 dark:text-slate-400 text-xs leading-relaxed">
+                            彻底攻克光猫拨号（未改桥接）及 Lucky/Nginx 反向代理下 SNAT 丢失客户端真实公网 IP 导致打洞回环假死的痛点。服务端原生自动解码 ProxyProtocol v1/v2，企业严苛对称型 NAT 下 <strong class="text-brand-600 dark:text-brand-300">170ms 极速建立 TCP 直连</strong>。
                         </p>
                     </div>
                 </div>
 
                 <!-- 特性 2: 全新动态 P2P 穿透引擎 -->
-                <div class="glow-card rounded-2xl p-7 flex flex-col justify-between border-slate-800">
+                <div class="glow-card rounded-2xl p-7 flex flex-col justify-between">
                     <div>
-                        <div class="w-12 h-12 rounded-xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-400 text-2xl mb-5">
+                        <div class="w-12 h-12 rounded-xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-500 dark:text-sky-400 text-2xl mb-5">
                             🚀
                         </div>
                         <div class="flex items-center space-x-2 mb-2.5">
-                            <h3 class="text-lg font-bold text-white">四通道并发竞速打洞引擎</h3>
-                            <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-sky-500/20 text-sky-400 border border-sky-500/30">架构升级</span>
+                            <h3 class="text-lg font-bold text-slate-900 dark:text-white">四通道并发竞速打洞引擎</h3>
+                            <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-sky-500/20 text-sky-600 dark:text-sky-400 border border-sky-500/30">架构升级</span>
                         </div>
-                        <p class="text-slate-400 text-xs leading-relaxed">
+                        <p class="text-slate-600 dark:text-slate-400 text-xs leading-relaxed">
                             参考 OpenP2P 启发，实现动态源端口锁定与双向端口回填，彻底解决“同 IP 换端口”错位问题；IPv4 UDP (KCP)、IPv6 UDP、TCP Punch 与 WebRTC 四通道毫秒级并发探测竞速，自动优选最高速、最低延迟通道。
                         </p>
                     </div>
                 </div>
 
                 <!-- 特性 3: 中继转直连智能无感热升级 -->
-                <div class="glow-card rounded-2xl p-7 flex flex-col justify-between border-slate-800">
+                <div class="glow-card rounded-2xl p-7 flex flex-col justify-between">
                     <div>
-                        <div class="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 text-2xl mb-5">
+                        <div class="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-500 dark:text-emerald-400 text-2xl mb-5">
                             🔄
                         </div>
                         <div class="flex items-center space-x-2 mb-2.5">
-                            <h3 class="text-lg font-bold text-white">中继转直连智能热升级</h3>
-                            <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">体验跃升</span>
+                            <h3 class="text-lg font-bold text-slate-900 dark:text-white">中继转直连智能热升级</h3>
+                            <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">体验跃升</span>
                         </div>
-                        <p class="text-slate-400 text-xs leading-relaxed">
+                        <p class="text-slate-600 dark:text-slate-400 text-xs leading-relaxed">
                             连接初始先走中继秒连兜底，后台静默探测直连可能。一旦 NAT 映射就绪自动弹出直连升级提示，一键无感切换至零延迟 P2P 直连。内置智能防打扰与重试配额解耦，常规会话重连绝不误吞升级机会。
                         </p>
                     </div>
                 </div>
 
                 <!-- 特性 4: IPv6 双栈直连解耦与安全闭环 -->
-                <div class="glow-card rounded-2xl p-7 flex flex-col justify-between border-slate-800">
+                <div class="glow-card rounded-2xl p-7 flex flex-col justify-between">
                     <div>
-                        <div class="w-12 h-12 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400 text-2xl mb-5">
+                        <div class="w-12 h-12 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-500 dark:text-purple-400 text-2xl mb-5">
                             🌐
                         </div>
-                        <h3 class="text-lg font-bold text-white mb-2.5">IPv6 双栈直连与安全闭环</h3>
-                        <p class="text-slate-400 text-xs leading-relaxed">
+                        <h3 class="text-lg font-bold text-slate-900 dark:text-white mb-2.5">IPv6 双栈直连与安全闭环</h3>
+                        <p class="text-slate-600 dark:text-slate-400 text-xs leading-relaxed">
                             解耦 Windows 套接字运行时限制，修复无连接套接字系统错误导致的 IPv6 候选误杀，让双栈网络的直连打洞成功率翻倍；同时实现服务端强制中继（ALWAYS_USE_RELAY / 跨网隔离）在 IPv4 与 IPv6 双通道严密闭环。
                         </p>
                     </div>
                 </div>
 
                 <!-- 特性 5: 多服务器配置 -->
-                <div class="glow-card rounded-2xl p-7 flex flex-col justify-between border-slate-800">
+                <div class="glow-card rounded-2xl p-7 flex flex-col justify-between">
                     <div>
-                        <div class="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 text-2xl mb-5">
+                        <div class="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500 dark:text-amber-400 text-2xl mb-5">
                             🎛️
                         </div>
-                        <h3 class="text-lg font-bold text-white mb-2.5">多服务器 Profile 管理</h3>
-                        <p class="text-slate-400 text-xs leading-relaxed">
+                        <h3 class="text-lg font-bold text-slate-900 dark:text-white mb-2.5">多服务器 Profile 管理</h3>
+                        <p class="text-slate-600 dark:text-slate-400 text-xs leading-relaxed">
                             支持同时添加家庭 Lucky STUN、公司阿里云/腾讯云、个人 VPS 及官方节点。支持节点独立延迟测速、一键启用/禁用切换，所有节点关闭时自动平滑回退官方公共节点兜底。
                         </p>
                     </div>
                 </div>
 
                 <!-- 特性 6: 线路透明展示 -->
-                <div class="glow-card rounded-2xl p-7 flex flex-col justify-between border-slate-800">
+                <div class="glow-card rounded-2xl p-7 flex flex-col justify-between">
                     <div>
-                        <div class="w-12 h-12 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 text-2xl mb-5">
+                        <div class="w-12 h-12 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-500 dark:text-indigo-400 text-2xl mb-5">
                             🧭
                         </div>
-                        <h3 class="text-lg font-bold text-white mb-2.5">线路透传与状态感知</h3>
-                        <p class="text-slate-400 text-xs leading-relaxed">
+                        <h3 class="text-lg font-bold text-slate-900 dark:text-white mb-2.5">线路透传与状态感知</h3>
+                        <p class="text-slate-600 dark:text-slate-400 text-xs leading-relaxed">
                             远程会话建立后，状态栏与信息面板实时展示当前连接生效的服务器名称（如“家庭 NAS 节点”）、连接模式（🟢 P2P 直连 / 🟣 hbbr 中继 / ⚡ WebRTC）及双向 RTT 延迟。
                         </p>
                     </div>
                 </div>
 
                 <!-- 特性 7: TCP/UDP 分流与双模端口 -->
-                <div class="glow-card rounded-2xl p-7 flex flex-col justify-between border-slate-800">
+                <div class="glow-card rounded-2xl p-7 flex flex-col justify-between">
                     <div>
-                        <div class="w-12 h-12 rounded-xl bg-teal-500/10 border border-teal-500/20 flex items-center justify-center text-teal-400 text-2xl mb-5">
+                        <div class="w-12 h-12 rounded-xl bg-teal-500/10 border border-teal-500/20 flex items-center justify-center text-teal-500 dark:text-teal-400 text-2xl mb-5">
                             🔀
                         </div>
-                        <h3 class="text-lg font-bold text-white mb-2.5">TCP / UDP 独立端口分流</h3>
-                        <p class="text-slate-400 text-xs leading-relaxed">
+                        <h3 class="text-lg font-bold text-slate-900 dark:text-white mb-2.5">TCP / UDP 独立端口分流</h3>
+                        <p class="text-slate-600 dark:text-slate-400 text-xs leading-relaxed">
                             底层套接字精准分流 UDP（心跳注册）与 TCP（信令协商），从根源解决 Lucky 穿透端口分裂引起的握手超时假死；同时自适应识别标准云服务器纯域名，自动补齐缺省端口。
                         </p>
                     </div>
                 </div>
 
                 <!-- 特性 8: 动态 DNS TXT 寻址 -->
-                <div class="glow-card rounded-2xl p-7 flex flex-col justify-between border-slate-800">
+                <div class="glow-card rounded-2xl p-7 flex flex-col justify-between">
                     <div>
-                        <div class="w-12 h-12 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400 text-2xl mb-5">
+                        <div class="w-12 h-12 rounded-xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-500 dark:text-rose-400 text-2xl mb-5">
                             📡
                         </div>
-                        <h3 class="text-lg font-bold text-white mb-2.5">动态 DNS TXT 自动寻址</h3>
-                        <p class="text-slate-400 text-xs leading-relaxed">
+                        <h3 class="text-lg font-bold text-slate-900 dark:text-white mb-2.5">动态 DNS TXT 自动寻址</h3>
+                        <p class="text-slate-600 dark:text-slate-400 text-xs leading-relaxed">
                             Lucky WebHook 联动自动推送最新端口至 DNS TXT。客户端原生支持 UDP 53 并发多源 DNS 解析与结果缓存；家庭宽带重新拨号导致公网端口变动后，被控端后台自动热重载。
                         </p>
                     </div>
                 </div>
 
                 <!-- 特性 9: 端到端加密与 120 FPS 高帧 -->
-                <div class="glow-card rounded-2xl p-7 flex flex-col justify-between border-slate-800">
+                <div class="glow-card rounded-2xl p-7 flex flex-col justify-between">
                     <div>
-                        <div class="w-12 h-12 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400 text-2xl mb-5">
+                        <div class="w-12 h-12 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-500 dark:text-blue-400 text-2xl mb-5">
                             🛡️
                         </div>
-                        <h3 class="text-lg font-bold text-white mb-2.5">Ed25519 加密与 120 FPS 高帧</h3>
-                        <p class="text-slate-400 text-xs leading-relaxed">
+                        <h3 class="text-lg font-bold text-slate-900 dark:text-white mb-2.5">Ed25519 加密与 120 FPS 高帧</h3>
+                        <p class="text-slate-600 dark:text-slate-400 text-xs leading-relaxed">
                             继承端到端非对称流加密，直连零服务器带宽消耗；支持 5~120 FPS 自由调节，全面支持 NVENC / AMF / QSV 显卡硬件编解码加速，画质超清操控如丝般顺滑。
                         </p>
                     </div>
@@ -400,7 +417,7 @@
     </section>
 
     <!-- 方案与技术对比区域 -->
-    <section id="comparison" class="py-20 bg-slate-50/50 dark:bg-slate-900/60 border-b border-slate-200 dark:border-slate-800/80">
+    <section id="comparison" class="py-20 border-b border-slate-200/80 dark:border-slate-800/80">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="text-center max-w-3xl mx-auto mb-16">
                 <h2 class="text-xs uppercase tracking-widest text-emerald-600 dark:text-emerald-400 font-bold mb-3 font-mono">BENCHMARKS & COMPARISON</h2>
@@ -409,7 +426,7 @@
             </div>
 
             <!-- 对比表格卡片 -->
-            <div class="glow-card rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 shadow-xl">
+            <div class="glow-card rounded-2xl overflow-hidden shadow-xl">
                 <div class="overflow-x-auto">
                     <table class="w-full text-left text-xs sm:text-sm">
                         <thead class="bg-slate-100 dark:bg-slate-950/90 text-slate-700 dark:text-slate-300 font-mono text-xs border-b border-slate-200 dark:border-slate-800 uppercase tracking-wider">
@@ -579,117 +596,117 @@
     </section>
 
     <!-- 硬核工程演进与深度问题修复实录 -->
-    <section id="engineering" class="py-20 bg-slate-950 border-b border-slate-800/80">
+    <section id="engineering" class="py-20 border-b border-slate-200/80 dark:border-slate-800/80">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="text-center max-w-3xl mx-auto mb-16">
-                <h2 class="text-xs uppercase tracking-widest text-sky-400 font-bold mb-3 font-mono">ENGINEERING EXCELLENCE</h2>
-                <p class="text-3xl sm:text-4xl font-extrabold text-white">硬核工程演进与问题修复实录</p>
-                <p class="text-slate-400 mt-4 text-base">代码不仅停留在“能跑”，更经得起严格的底层协议审计、边界测试与持续精进</p>
+                <h2 class="text-xs uppercase tracking-widest text-sky-600 dark:text-sky-400 font-bold mb-3 font-mono">ENGINEERING EXCELLENCE</h2>
+                <p class="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-white">硬核工程演进与问题修复实录</p>
+                <p class="text-slate-600 dark:text-slate-400 mt-4 text-base">代码不仅停留在“能跑”，更经得起严格的底层协议审计、边界测试与持续精进</p>
             </div>
 
             <!-- 案例网格 -->
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
                 
                 <!-- Case 1: 策略闭环与 IPv6 旁路修复 -->
-                <div class="glow-card rounded-2xl p-7 border border-slate-800 flex flex-col justify-between">
+                <div class="glow-card rounded-2xl p-7 flex flex-col justify-between">
                     <div>
                         <div class="flex items-center justify-between mb-4">
-                            <span class="px-2.5 py-1 rounded-full text-xs font-mono font-bold bg-rose-500/20 text-rose-400 border border-rose-500/30">Case 1 · 安全闭环</span>
+                            <span class="px-2.5 py-1 rounded-full text-xs font-mono font-bold bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/30">Case 1 · 安全闭环</span>
                             <span class="text-xs text-slate-500 font-mono">rendezvous_mediator.rs</span>
                         </div>
-                        <h3 class="text-lg font-bold text-white mb-2.5">服务端强制中继策略与 IPv6 旁路泄漏修复</h3>
-                        <div class="space-y-2 text-xs text-slate-400 leading-relaxed mb-4">
-                            <p><strong class="text-slate-300">现场痛点：</strong> 服务端通过 <code class="text-slate-200">ph.nat_type = SYMMETRIC</code> 表达 <code class="text-slate-200">ALWAYS_USE_RELAY</code> 与跨局域网隔离策略。被控端此前为规避本地 NAT 超时投毒跳过了此检查，导致服务端强制中继被架空；且 IPv6 候选未受策略门禁，使双栈客户端仍能绕道直连。</p>
-                            <p><strong class="text-brand-300">工业级解法：</strong> 恢复信令中的服务端 SYMMETRIC 判定，同时坚决不引入本地易超时的 <code class="text-slate-200">Config::get_nat_type()</code>；将 <code class="text-slate-200">policy_relay</code> 检查前置到 <code class="text-slate-200">start_ipv6</code> 之前，当策略要求中继时彻底关闭 IPv6 候选供给，达成 IPv4/IPv6 双通道 100% 安全闭环。</p>
+                        <h3 class="text-lg font-bold text-slate-900 dark:text-white mb-2.5">服务端强制中继策略与 IPv6 旁路泄漏修复</h3>
+                        <div class="space-y-2 text-xs text-slate-600 dark:text-slate-400 leading-relaxed mb-4">
+                            <p><strong class="text-slate-800 dark:text-slate-300">现场痛点：</strong> 服务端通过 <code class="text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-900 px-1 py-0.5 rounded">ph.nat_type = SYMMETRIC</code> 表达 <code class="text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-900 px-1 py-0.5 rounded">ALWAYS_USE_RELAY</code> 与跨局域网隔离策略。被控端此前为规避本地 NAT 超时投毒跳过了此检查，导致服务端强制中继被架空；且 IPv6 候选未受策略门禁，使双栈客户端仍能绕道直连。</p>
+                            <p><strong class="text-brand-600 dark:text-brand-300">工业级解法：</strong> 恢复信令中的服务端 SYMMETRIC 判定，同时坚决不引入本地易超时的 <code class="text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-900 px-1 py-0.5 rounded">Config::get_nat_type()</code>；将 <code class="text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-900 px-1 py-0.5 rounded">policy_relay</code> 检查前置到 <code class="text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-900 px-1 py-0.5 rounded">start_ipv6</code> 之前，当策略要求中继时彻底关闭 IPv6 候选供给，达成 IPv4/IPv6 双通道 100% 安全闭环。</p>
                         </div>
                     </div>
-                    <div class="p-3 bg-slate-900/80 rounded-xl border border-slate-800 text-[11px] font-mono text-slate-300">
+                    <div class="p-3 bg-slate-100 dark:bg-slate-900/80 rounded-xl border border-slate-200 dark:border-slate-800 text-[11px] font-mono text-slate-800 dark:text-slate-300">
                         <span class="text-slate-500">// 策略中继严禁向对端暴露 v6 候选竞速</span><br>
-                        <span class="text-sky-400">let</span> policy_relay = ph.nat_type.enum_value() == Ok(NatType::SYMMETRIC) || relay;<br>
-                        <span class="text-sky-400">if</span> peer_addr_v6.port() > 0 && !policy_relay { start_ipv6(...).await; }
+                        <span class="text-sky-600 dark:text-sky-400">let</span> policy_relay = ph.nat_type.enum_value() == Ok(NatType::SYMMETRIC) || relay;<br>
+                        <span class="text-sky-600 dark:text-sky-400">if</span> peer_addr_v6.port() > 0 && !policy_relay { start_ipv6(...).await; }
                     </div>
                 </div>
 
                 <!-- Case 2: Windows IPv6 套接字误杀修复 -->
-                <div class="glow-card rounded-2xl p-7 border border-slate-800 flex flex-col justify-between">
+                <div class="glow-card rounded-2xl p-7 flex flex-col justify-between">
                     <div>
                         <div class="flex items-center justify-between mb-4">
-                            <span class="px-2.5 py-1 rounded-full text-xs font-mono font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30">Case 2 · 系统兼容</span>
+                            <span class="px-2.5 py-1 rounded-full text-xs font-mono font-bold bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30">Case 2 · 系统兼容</span>
                             <span class="text-xs text-slate-500 font-mono">client.rs / udp_nat_connect</span>
                         </div>
-                        <h3 class="text-lg font-bold text-white mb-2.5">Windows 10014/10049 错误导致 IPv6 候选误杀修复</h3>
-                        <div class="space-y-2 text-xs text-slate-400 leading-relaxed mb-4">
-                            <p><strong class="text-slate-300">现场痛点：</strong> Windows 系统上对未调用 <code class="text-slate-200">connect()</code> 的 UDP 套接字调用 <code class="text-slate-200">peer_addr()</code> 会抛出操作系统内核级错误 <code class="text-slate-200">os error 10014 (WSAEFAULT)</code> 或 <code class="text-slate-200">10049 (WSAEADDRNOTAVAIL)</code>，导致可用 IPv6 候选在并发竞速前被静默丢弃。</p>
-                            <p><strong class="text-brand-300">工业级解法：</strong> 解耦运行时系统查询，将套接字与解码地址以元组 <code class="text-slate-200">Option&lt;(Arc&lt;UdpSocket&gt;, SocketAddr)&gt;</code> 直接注入打洞引擎；并在底层测试路由成功时才登记候选，既不误杀可用 IPv6，又避免无路由主机浪费 2~3 秒竞速窗口。</p>
+                        <h3 class="text-lg font-bold text-slate-900 dark:text-white mb-2.5">Windows 10014/10049 错误导致 IPv6 候选误杀修复</h3>
+                        <div class="space-y-2 text-xs text-slate-600 dark:text-slate-400 leading-relaxed mb-4">
+                            <p><strong class="text-slate-800 dark:text-slate-300">现场痛点：</strong> Windows 系统上对未调用 <code class="text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-900 px-1 py-0.5 rounded">connect()</code> 的 UDP 套接字调用 <code class="text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-900 px-1 py-0.5 rounded">peer_addr()</code> 会抛出操作系统内核级错误 <code class="text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-900 px-1 py-0.5 rounded">os error 10014 (WSAEFAULT)</code> 或 <code class="text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-900 px-1 py-0.5 rounded">10049 (WSAEADDRNOTAVAIL)</code>，导致可用 IPv6 候选在并发竞速前被静默丢弃。</p>
+                            <p><strong class="text-brand-600 dark:text-brand-300">工业级解法：</strong> 解耦运行时系统查询，将套接字与解码地址以元组 <code class="text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-900 px-1 py-0.5 rounded">Option&lt;(Arc&lt;UdpSocket&gt;, SocketAddr)&gt;</code> 直接注入打洞引擎；并在底层测试路由成功时才登记候选，既不误杀可用 IPv6，又避免无路由主机浪费 2~3 秒竞速窗口。</p>
                         </div>
                     </div>
-                    <div class="p-3 bg-slate-900/80 rounded-xl border border-slate-800 text-[11px] font-mono text-slate-300">
+                    <div class="p-3 bg-slate-100 dark:bg-slate-900/80 rounded-xl border border-slate-200 dark:border-slate-800 text-[11px] font-mono text-slate-800 dark:text-slate-300">
                         <span class="text-slate-500">// 绕过系统 peer_addr 陷阱，元组直接供给竞速池</span><br>
-                        <span class="text-sky-400">if let</span> Some((udp_socket_v6, v6_target)) = udp_socket_v6 {<br>
-                        &nbsp;&nbsp;direct_futures.push(udp_nat_connect(udp_socket_v6, v6_target, <span class="text-emerald-400">"IPv6"</span>, udp_timeout).boxed());<br>
+                        <span class="text-sky-600 dark:text-sky-400">if let</span> Some((udp_socket_v6, v6_target)) = udp_socket_v6 {<br>
+                        &nbsp;&nbsp;direct_futures.push(udp_nat_connect(udp_socket_v6, v6_target, <span class="text-emerald-600 dark:text-emerald-400">"IPv6"</span>, udp_timeout).boxed());<br>
                         }
                     </div>
                 </div>
 
                 <!-- Case 3: 中继转直连升级状态机与防打扰重构 -->
-                <div class="glow-card rounded-2xl p-7 border border-slate-800 flex flex-col justify-between">
+                <div class="glow-card rounded-2xl p-7 flex flex-col justify-between">
                     <div>
                         <div class="flex items-center justify-between mb-4">
-                            <span class="px-2.5 py-1 rounded-full text-xs font-mono font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">Case 3 · 交互体验</span>
+                            <span class="px-2.5 py-1 rounded-full text-xs font-mono font-bold bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">Case 3 · 交互体验</span>
                             <span class="text-xs text-slate-500 font-mono">direct_upgrade.rs / ui_session</span>
                         </div>
-                        <h3 class="text-lg font-bold text-white mb-2.5">中继转直连升级计数解耦与优雅防打扰重构</h3>
-                        <div class="space-y-2 text-xs text-slate-400 leading-relaxed mb-4">
-                            <p><strong class="text-slate-300">现场痛点：</strong> 早期升级弹窗展示时立即递增配额并退出循环，用户点击“Not now”后重试机会被提前烧毁；若将计数挪至重连入口，离线自动重试定时器与对端重启也会误吞配额；若不退出又会导致每隔 5 分钟反复弹窗轰炸。</p>
-                            <p><strong class="text-brand-300">工业级解法：</strong> 将配额严格定义为单会话提示上限（<code class="text-slate-200">MAX_UPGRADE_PROMPTS = 1</code>），弹出后探测任务主动退出当前会话，绝不二次骚扰；常规会话重连与升级流程完全独立，保障升级机会精准生效。</p>
+                        <h3 class="text-lg font-bold text-slate-900 dark:text-white mb-2.5">中继转直连升级计数解耦与优雅防打扰重构</h3>
+                        <div class="space-y-2 text-xs text-slate-600 dark:text-slate-400 leading-relaxed mb-4">
+                            <p><strong class="text-slate-800 dark:text-slate-300">现场痛点：</strong> 早期升级弹窗展示时立即递增配额并退出循环，用户点击“Not now”后重试机会被提前烧毁；若将计数挪至重连入口，离线自动重试定时器与对端重启也会误吞配额；若不退出又会导致每隔 5 分钟反复弹窗轰炸。</p>
+                            <p><strong class="text-brand-600 dark:text-brand-300">工业级解法：</strong> 将配额严格定义为单会话提示上限（<code class="text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-900 px-1 py-0.5 rounded">MAX_UPGRADE_PROMPTS = 1</code>），弹出后探测任务主动退出当前会话，绝不二次骚扰；常规会话重连与升级流程完全独立，保障升级机会精准生效。</p>
                         </div>
                     </div>
-                    <div class="p-3 bg-slate-900/80 rounded-xl border border-slate-800 text-[11px] font-mono text-slate-300">
+                    <div class="p-3 bg-slate-100 dark:bg-slate-900/80 rounded-xl border border-slate-200 dark:border-slate-800 text-[11px] font-mono text-slate-800 dark:text-slate-300">
                         <span class="text-slate-500">// 弹窗展示精准计数并优雅退出，常规重连不受任何牵连</span><br>
-                        <span class="text-sky-400">let</span> attempts = handler.upgrade_attempts.fetch_add(1, Ordering::SeqCst) + 1;<br>
-                        handler.ui_handler.msgbox(<span class="text-emerald-400">"upgrade-direct"</span>, ...);<br>
-                        <span class="text-sky-400">return;</span> <span class="text-slate-500">// 本轮退出，不重复打扰</span>
+                        <span class="text-sky-600 dark:text-sky-400">let</span> attempts = handler.upgrade_attempts.fetch_add(1, Ordering::SeqCst) + 1;<br>
+                        handler.ui_handler.msgbox(<span class="text-emerald-600 dark:text-emerald-400">"upgrade-direct"</span>, ...);<br>
+                        <span class="text-sky-600 dark:text-sky-400">return;</span> <span class="text-slate-500">// 本轮退出，不重复打扰</span>
                     </div>
                 </div>
 
                 <!-- Case 4: 打洞超时自适应与 2000ms 深度保底 -->
-                <div class="glow-card rounded-2xl p-7 border border-slate-800 flex flex-col justify-between">
+                <div class="glow-card rounded-2xl p-7 flex flex-col justify-between">
                     <div>
                         <div class="flex items-center justify-between mb-4">
-                            <span class="px-2.5 py-1 rounded-full text-xs font-mono font-bold bg-indigo-500/20 text-indigo-400 border border-indigo-500/30">Case 4 · 性能自适应</span>
+                            <span class="px-2.5 py-1 rounded-full text-xs font-mono font-bold bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 border border-indigo-500/30">Case 4 · 性能自适应</span>
                             <span class="text-xs text-slate-500 font-mono">client.rs / punch_udp</span>
                         </div>
-                        <h3 class="text-lg font-bold text-white mb-2.5">打破打洞硬等瓶颈，构建 2000ms 深度保底</h3>
-                        <div class="space-y-2 text-xs text-slate-400 leading-relaxed mb-4">
-                            <p><strong class="text-slate-300">现场痛点：</strong> 原版打洞硬等 3 秒乃至 20 秒，打不通时长时间黑屏卡顿；而在无中继配置时超时时间又被强压至 1000ms，导致慢网环境下原本 1.5s~2s 才能回音的有效打洞被掐断判定为失败。</p>
-                            <p><strong class="text-brand-300">工业级解法：</strong> 区分局域网与公网打洞预算：局域网保持毫秒级极速响应，非局域网设立 <code class="text-slate-200">PUNCH_MIN_MS = 2000ms</code> 深度探测窗口并绑定 <code class="text-slate-200">min(3s)</code> 上限，超时毫秒级平滑降级中继，真正兼顾打通率与回退时延。</p>
+                        <h3 class="text-lg font-bold text-slate-900 dark:text-white mb-2.5">打破打洞硬等瓶颈，构建 2000ms 深度保底</h3>
+                        <div class="space-y-2 text-xs text-slate-600 dark:text-slate-400 leading-relaxed mb-4">
+                            <p><strong class="text-slate-800 dark:text-slate-300">现场痛点：</strong> 原版打洞硬等 3 秒乃至 20 秒，打不通时长时间黑屏卡顿；而在无中继配置时超时时间又被强压至 1000ms，导致慢网环境下原本 1.5s~2s 才能回音的有效打洞被掐断判定为失败。</p>
+                            <p><strong class="text-brand-600 dark:text-brand-300">工业级解法：</strong> 区分局域网与公网打洞预算：局域网保持毫秒级极速响应，非局域网设立 <code class="text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-900 px-1 py-0.5 rounded">PUNCH_MIN_MS = 2000ms</code> 深度探测窗口并绑定 <code class="text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-900 px-1 py-0.5 rounded">min(3s)</code> 上限，超时毫秒级平滑降级中继，真正兼顾打通率与回退时延。</p>
                         </div>
                     </div>
-                    <div class="p-3 bg-slate-900/80 rounded-xl border border-slate-800 text-[11px] font-mono text-slate-300">
+                    <div class="p-3 bg-slate-100 dark:bg-slate-900/80 rounded-xl border border-slate-200 dark:border-slate-800 text-[11px] font-mono text-slate-800 dark:text-slate-300">
                         <span class="text-slate-500">// 局域网极速响应，公网打洞给予 2000ms 充足往返预算</span><br>
-                        <span class="text-sky-400">const</span> PUNCH_MIN_MS: u64 = 2000;<br>
-                        <span class="text-sky-400">let</span> udp_timeout = <span class="text-sky-400">if</span> is_local { connect_timeout } <span class="text-sky-400">else</span> { connect_timeout.max(Self::PUNCH_MIN_MS) };
+                        <span class="text-sky-600 dark:text-sky-400">const</span> PUNCH_MIN_MS: u64 = 2000;<br>
+                        <span class="text-sky-600 dark:text-sky-400">let</span> udp_timeout = <span class="text-sky-600 dark:text-sky-400">if</span> is_local { connect_timeout } <span class="text-sky-600 dark:text-sky-400">else</span> { connect_timeout.max(Self::PUNCH_MIN_MS) };
                     </div>
                 </div>
 
             </div>
 
             <!-- 实战检验：生产日志透视 -->
-            <div class="glow-card rounded-2xl p-6 sm:p-8 border border-slate-800 bg-slate-900/40">
-                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4 pb-4 border-b border-slate-800">
+            <div class="glow-card rounded-2xl p-6 sm:p-8">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4 pb-4 border-b border-slate-200 dark:border-slate-800">
                     <div>
-                        <div class="text-xs font-mono uppercase tracking-widest text-brand-400 font-bold">PRODUCTION VERIFICATION</div>
-                        <h3 class="text-base sm:text-lg font-bold text-white mt-1">光猫拨号反向代理下的 TCP 极速打洞日志实录</h3>
+                        <div class="text-xs font-mono uppercase tracking-widest text-brand-600 dark:text-brand-400 font-bold">PRODUCTION VERIFICATION</div>
+                        <h3 class="text-base sm:text-lg font-bold text-slate-900 dark:text-white mt-1">光猫拨号反向代理下的 TCP 极速打洞日志实录</h3>
                     </div>
-                    <span class="px-3 py-1 rounded-full text-xs font-mono font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 w-fit">实测通过 · 170ms 直连</span>
+                    <span class="px-3 py-1 rounded-full text-xs font-mono font-semibold bg-emerald-500/20 text-emerald-600 dark:text-emerald-300 border border-emerald-500/30 w-fit">实测通过 · 170ms 直连</span>
                 </div>
-                <div class="code-block rounded-xl p-4 font-mono text-xs text-slate-300 overflow-x-auto space-y-1.5 leading-relaxed bg-slate-950 border border-slate-800">
+                <div class="code-block rounded-xl p-4 font-mono text-xs overflow-x-auto space-y-1.5 leading-relaxed">
                     <div class="text-slate-500"># 示例调试日志（IP与端口已脱敏）：服务端自动解码 ProxyProtocol v2，精准还原被 Lucky SNAT 掩盖的客户端真实公网 IP</div>
-                    <div><span class="text-slate-400">[2026-09-21 20:42:26]</span> <span class="text-sky-400 font-bold">INFO</span> [rendezvous_server.rs] <span class="text-brand-300 font-semibold">ProxyProtocol v2: updated client [::ffff:192.168.1.100]:42622 -> 203.0.113.88:12242</span></div>
-                    <div><span class="text-slate-400">[2026-09-21 20:42:28]</span> <span class="text-sky-400 font-bold">INFO</span> [rendezvous_server.rs] <span class="text-brand-300 font-semibold">ProxyProtocol v2: updated client [::ffff:192.168.1.100]:42632 -> 203.0.113.88:12251</span></div>
+                    <div><span class="text-slate-400">[2026-09-21 20:42:26]</span> <span class="text-sky-500 dark:text-sky-400 font-bold">INFO</span> [rendezvous_server.rs] <span class="text-brand-600 dark:text-brand-300 font-semibold">ProxyProtocol v2: updated client [::ffff:192.168.1.100]:42622 -> 203.0.113.88:12242</span></div>
+                    <div><span class="text-slate-400">[2026-09-21 20:42:28]</span> <span class="text-sky-500 dark:text-sky-400 font-bold">INFO</span> [rendezvous_server.rs] <span class="text-brand-600 dark:text-brand-300 font-semibold">ProxyProtocol v2: updated client [::ffff:192.168.1.100]:42632 -> 203.0.113.88:12251</span></div>
                     <div class="text-slate-500 pt-2"># 客户端利用精准公网映射地址执行 TCP 端口复用打洞，毫秒级穿透企业严苛对称型防火墙</div>
-                    <div><span class="text-slate-400">[2026-09-21 20:42:30]</span> <span class="text-emerald-400 font-bold">INFO</span> [client.rs] <span class="text-emerald-300 font-bold">TCP Hole Punched id=1872077265, time_used=170ms</span></div>
-                    <div><span class="text-slate-400">[2026-09-21 20:42:30]</span> <span class="text-emerald-400 font-bold">INFO</span> [client.rs] <span class="text-white font-medium">Session 1872077265 direct connected (Path: Direct TCP P2P, Latency: 12ms)</span></div>
+                    <div><span class="text-slate-400">[2026-09-21 20:42:30]</span> <span class="text-emerald-500 dark:text-emerald-400 font-bold">INFO</span> [client.rs] <span class="text-emerald-600 dark:text-emerald-300 font-bold">TCP Hole Punched id=1872077265, time_used=170ms</span></div>
+                    <div><span class="text-slate-400">[2026-09-21 20:42:30]</span> <span class="text-emerald-500 dark:text-emerald-400 font-bold">INFO</span> [client.rs] <span class="text-slate-900 dark:text-white font-medium">Session 1872077265 direct connected (Path: Direct TCP P2P, Latency: 12ms)</span></div>
                 </div>
             </div>
 
@@ -697,69 +714,69 @@
     </section>
 
     <!-- 网络架构区域 -->
-    <section id="architecture" class="py-20">
+    <section id="architecture" class="py-20 border-b border-slate-200/80 dark:border-slate-800/80">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="text-center max-w-3xl mx-auto mb-16">
-                <h2 class="text-xs uppercase tracking-widest text-sky-400 font-bold mb-3 font-mono">ARCHITECTURE</h2>
-                <p class="text-3xl sm:text-4xl font-extrabold text-white">网络交互与通信流架构</p>
-                <p class="text-slate-400 mt-4 text-base">从家庭内网服务到 DNS TXT 分发，再到主控/被控端智能分流的完整链路</p>
+                <h2 class="text-xs uppercase tracking-widest text-sky-600 dark:text-sky-400 font-bold mb-3 font-mono">ARCHITECTURE</h2>
+                <p class="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-white">网络交互与通信流架构</p>
+                <p class="text-slate-600 dark:text-slate-400 mt-4 text-base">从家庭内网服务到 DNS TXT 分发，再到主控/被控端智能分流的完整链路</p>
             </div>
 
             <!-- 架构展示卡片 -->
-            <div class="glow-card rounded-2xl p-6 sm:p-10 border border-slate-800">
+            <div class="glow-card rounded-2xl p-6 sm:p-10">
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 items-center">
                     
                     <!-- 左侧：内网与 Lucky 映射 -->
                     <div class="space-y-4">
-                        <div class="text-xs font-mono font-semibold uppercase text-brand-400">1. 内网部署与 Lucky STUN 隧道</div>
-                        <div class="p-4 rounded-xl bg-slate-900 border border-slate-800 space-y-3">
+                        <div class="text-xs font-mono font-semibold uppercase text-brand-600 dark:text-brand-400">1. 内网部署与 Lucky STUN 隧道</div>
+                        <div class="p-4 rounded-xl bg-slate-100/80 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-3">
                             <div class="flex items-center justify-between text-xs font-mono">
-                                <span class="text-slate-300">hbbs (UDP 21116)</span>
-                                <span class="text-brand-400">➡️ STUN 1 (UDP)</span>
+                                <span class="text-slate-700 dark:text-slate-300">hbbs (UDP 21116)</span>
+                                <span class="text-brand-600 dark:text-brand-400">➡️ STUN 1 (UDP)</span>
                             </div>
-                            <div class="text-xs text-slate-400 font-mono bg-slate-950 p-2 rounded border border-slate-800">
-                                映射为公网 <span class="text-brand-300">host: 171.x.x.x:24869</span>
-                            </div>
-
-                            <div class="flex items-center justify-between text-xs font-mono pt-2 border-t border-slate-800">
-                                <span class="text-slate-300">hbbs (TCP 21116)</span>
-                                <span class="text-sky-400">➡️ STUN 2 (TCP)</span>
-                            </div>
-                            <div class="text-xs text-slate-400 font-mono bg-slate-950 p-2 rounded border border-slate-800">
-                                映射为公网 <span class="text-sky-300">tcp: 171.x.x.x:24439</span>
+                            <div class="text-xs text-slate-600 dark:text-slate-400 font-mono bg-white dark:bg-slate-950 p-2 rounded border border-slate-200 dark:border-slate-800">
+                                映射为公网 <span class="text-brand-600 dark:text-brand-300">host: 198.51.100.123:24869</span>
                             </div>
 
-                            <div class="flex items-center justify-between text-xs font-mono pt-2 border-t border-slate-800">
-                                <span class="text-slate-300">hbbr (TCP 21117)</span>
-                                <span class="text-purple-400">➡️ STUN 3 (TCP)</span>
+                            <div class="flex items-center justify-between text-xs font-mono pt-2 border-t border-slate-200 dark:border-slate-800">
+                                <span class="text-slate-700 dark:text-slate-300">hbbs (TCP 21116)</span>
+                                <span class="text-sky-600 dark:text-sky-400">➡️ STUN 2 (TCP)</span>
                             </div>
-                            <div class="text-xs text-slate-400 font-mono bg-slate-950 p-2 rounded border border-slate-800">
-                                映射为公网 <span class="text-purple-300">relay: 171.x.x.x:24867</span>
+                            <div class="text-xs text-slate-600 dark:text-slate-400 font-mono bg-white dark:bg-slate-950 p-2 rounded border border-slate-200 dark:border-slate-800">
+                                映射为公网 <span class="text-sky-600 dark:text-sky-300">tcp: 198.51.100.123:24439</span>
                             </div>
 
-                            <div class="flex items-center justify-between text-xs font-mono pt-2 border-t border-slate-800">
-                                <span class="text-slate-300">hbbs (TCP 21115)</span>
-                                <span class="text-teal-400">➡️ STUN 4 (TCP)</span>
+                            <div class="flex items-center justify-between text-xs font-mono pt-2 border-t border-slate-200 dark:border-slate-800">
+                                <span class="text-slate-700 dark:text-slate-300">hbbr (TCP 21117)</span>
+                                <span class="text-purple-600 dark:text-purple-400">➡️ STUN 3 (TCP)</span>
                             </div>
-                            <div class="text-xs text-slate-400 font-mono bg-slate-950 p-2 rounded border border-slate-800">
-                                映射为公网 <span class="text-teal-300">online: 171.x.x.x:24115</span>
+                            <div class="text-xs text-slate-600 dark:text-slate-400 font-mono bg-white dark:bg-slate-950 p-2 rounded border border-slate-200 dark:border-slate-800">
+                                映射为公网 <span class="text-purple-600 dark:text-purple-300">relay: 198.51.100.123:24867</span>
+                            </div>
+
+                            <div class="flex items-center justify-between text-xs font-mono pt-2 border-t border-slate-200 dark:border-slate-800">
+                                <span class="text-slate-700 dark:text-slate-300">hbbs (TCP 21115)</span>
+                                <span class="text-teal-600 dark:text-teal-400">➡️ STUN 4 (TCP)</span>
+                            </div>
+                            <div class="text-xs text-slate-600 dark:text-slate-400 font-mono bg-white dark:bg-slate-950 p-2 rounded border border-slate-200 dark:border-slate-800">
+                                映射为公网 <span class="text-teal-600 dark:text-teal-300">online: 198.51.100.123:24115</span>
                             </div>
                         </div>
                     </div>
 
                     <!-- 中间：DNS TXT 解析 -->
                     <div class="space-y-4">
-                        <div class="text-xs font-mono font-semibold uppercase text-sky-400">2. DNS TXT 动态记录</div>
-                        <div class="p-4 rounded-xl bg-slate-900 border border-slate-800 space-y-3">
-                            <div class="text-xs text-slate-300 font-medium">Lucky WebHook 自动同步至域名 TXT 记录：</div>
-                            <div class="text-xs font-mono text-slate-300 bg-slate-950 p-3 rounded-lg border border-slate-800 break-all leading-relaxed">
-                                <span class="text-emerald-400">host</span>=198.51.100.123:24869,<br>
-                                <span class="text-sky-400">tcp</span>=198.51.100.123:24439,<br>
-                                <span class="text-purple-400">relay</span>=198.51.100.123:24867,<br>
-                                <span class="text-teal-400">online</span>=198.51.100.123:24115, <span class="text-slate-500">(可选)</span><br>
-                                <span class="text-rose-400">api</span>=https://api.example.com <span class="text-slate-500">(可选)</span>
+                        <div class="text-xs font-mono font-semibold uppercase text-sky-600 dark:text-sky-400">2. DNS TXT 动态记录</div>
+                        <div class="p-4 rounded-xl bg-slate-100/80 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-3">
+                            <div class="text-xs text-slate-700 dark:text-slate-300 font-medium">Lucky WebHook 自动同步至域名 TXT 记录：</div>
+                            <div class="text-xs font-mono text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-950 p-3 rounded-lg border border-slate-200 dark:border-slate-800 break-all leading-relaxed">
+                                <span class="text-emerald-600 dark:text-emerald-400">host</span>=198.51.100.123:24869,<br>
+                                <span class="text-sky-600 dark:text-sky-400">tcp</span>=198.51.100.123:24439,<br>
+                                <span class="text-purple-600 dark:text-purple-400">relay</span>=198.51.100.123:24867,<br>
+                                <span class="text-teal-600 dark:text-teal-400">online</span>=198.51.100.123:24115, <span class="text-slate-500">(可选)</span><br>
+                                <span class="text-rose-600 dark:text-rose-400">api</span>=https://api.example.com <span class="text-slate-500">(可选)</span>
                             </div>
-                            <div class="text-xs text-slate-400">
+                            <div class="text-xs text-slate-600 dark:text-slate-400">
                                 ⚡ RustDesk 内置 UDP 53 DNS 解析引擎，多源并发查询快速提取；服务端 Key 需在客户端手动填写一次，TXT 不分发 Key。
                             </div>
                         </div>
@@ -767,27 +784,27 @@
 
                     <!-- 右侧：客户端智能分流 -->
                     <div class="space-y-4">
-                        <div class="text-xs font-mono font-semibold uppercase text-emerald-400">3. 客户端自动化分流运行</div>
-                        <div class="p-4 rounded-xl bg-slate-900 border border-slate-800 space-y-2 text-xs">
-                            <div class="p-2.5 rounded bg-slate-950 border border-slate-800 flex items-center justify-between">
+                        <div class="text-xs font-mono font-semibold uppercase text-emerald-600 dark:text-emerald-400">3. 客户端自动化分流运行</div>
+                        <div class="p-4 rounded-xl bg-slate-100/80 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-2 text-xs">
+                            <div class="p-2.5 rounded bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex items-center justify-between text-slate-700 dark:text-slate-300">
                                 <span>🟢 被控端心跳/注册</span>
-                                <span class="font-mono text-emerald-400 font-semibold">直连 host (UDP)</span>
+                                <span class="font-mono text-emerald-600 dark:text-emerald-400 font-semibold">直连 host (UDP)</span>
                             </div>
-                            <div class="p-2.5 rounded bg-slate-950 border border-slate-800 flex items-center justify-between">
+                            <div class="p-2.5 rounded bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex items-center justify-between text-slate-700 dark:text-slate-300">
                                 <span>🔵 主控握手/信令协商</span>
-                                <span class="font-mono text-sky-400 font-semibold">直连 tcp (TCP)</span>
+                                <span class="font-mono text-sky-600 dark:text-sky-400 font-semibold">直连 tcp (TCP)</span>
                             </div>
-                            <div class="p-2.5 rounded bg-slate-950 border border-slate-800 flex items-center justify-between">
+                            <div class="p-2.5 rounded bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex items-center justify-between text-slate-700 dark:text-slate-300">
                                 <span>🟣 穿透失败中继转发</span>
-                                <span class="font-mono text-purple-400 font-semibold">直连 relay (TCP)</span>
+                                <span class="font-mono text-purple-600 dark:text-purple-400 font-semibold">直连 relay (TCP)</span>
                             </div>
-                            <div class="p-2.5 rounded bg-slate-950 border border-slate-800 flex items-center justify-between">
+                            <div class="p-2.5 rounded bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex items-center justify-between text-slate-700 dark:text-slate-300">
                                 <span>📶 对端在线状态探测</span>
-                                <span class="font-mono text-teal-400 font-semibold">直连 online (TCP)</span>
+                                <span class="font-mono text-teal-600 dark:text-teal-400 font-semibold">直连 online (TCP)</span>
                             </div>
-                            <div class="p-2.5 rounded bg-slate-950 border border-slate-800 flex items-center justify-between">
+                            <div class="p-2.5 rounded bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex items-center justify-between text-slate-700 dark:text-slate-300">
                                 <span>⚡ P2P NAT 打洞通道</span>
-                                <span class="font-mono text-amber-400 font-semibold">端到端直连 (0服务器流量)</span>
+                                <span class="font-mono text-amber-600 dark:text-amber-400 font-semibold">端到端直连 (0服务器流量)</span>
                             </div>
                         </div>
                     </div>
@@ -796,14 +813,13 @@
             </div>
         </div>
     </section>
-
     <!-- Lucky 配置教程区域 -->
-    <section id="guide" class="py-20 bg-slate-900/40 border-y border-slate-800/80">
+    <section id="guide" class="py-20 border-y border-slate-200/80 dark:border-slate-800/80">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="text-center max-w-3xl mx-auto mb-16">
-                <h2 class="text-xs uppercase tracking-widest text-brand-400 font-bold mb-3 font-mono">TUTORIAL</h2>
-                <p class="text-3xl sm:text-4xl font-extrabold text-white">Lucky STUN 打洞配置保姆级教程</p>
-                <p class="text-slate-400 mt-4 text-base">只需 4 步，轻松搭建完全免费的公网自建远程桌面</p>
+                <h2 class="text-xs uppercase tracking-widest text-brand-600 dark:text-brand-400 font-bold mb-3 font-mono">TUTORIAL</h2>
+                <p class="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-white">Lucky STUN 打洞配置保姆级教程</p>
+                <p class="text-slate-600 dark:text-slate-400 mt-4 text-base">只需 4 步，轻松搭建完全免费的公网自建远程桌面</p>
             </div>
 
             <div class="max-w-4xl mx-auto space-y-8">
@@ -811,24 +827,24 @@
                 <!-- 步骤 1 -->
                 <div class="glow-card rounded-2xl p-6 sm:p-8">
                     <div class="flex items-start space-x-4">
-                        <div class="flex-shrink-0 w-8 h-8 rounded-lg bg-brand-500/20 text-brand-400 font-bold flex items-center justify-center font-mono border border-brand-500/30">
+                        <div class="flex-shrink-0 w-8 h-8 rounded-lg bg-brand-500/20 text-brand-600 dark:text-brand-400 font-bold flex items-center justify-center font-mono border border-brand-500/30">
                             1
                         </div>
                         <div class="flex-1">
                             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
-                                <h3 class="text-lg font-bold text-white">服务端部署 (推荐 Docker Compose 整合版 / 原生二进制)</h3>
-                                <span class="px-2.5 py-0.5 rounded text-[11px] font-mono font-bold bg-brand-500/20 text-brand-400 border border-brand-500/30 w-fit">S6 进程托管 & Web控制台</span>
+                                <h3 class="text-lg font-bold text-slate-900 dark:text-white">服务端部署 (推荐 Docker Compose 整合版 / 原生二进制)</h3>
+                                <span class="px-2.5 py-0.5 rounded text-[11px] font-mono font-bold bg-brand-500/20 text-brand-600 dark:text-brand-400 border border-brand-500/30 w-fit">S6 进程托管 & Web控制台</span>
                             </div>
-                            <p class="text-sm text-slate-400 mt-1 mb-4 leading-relaxed">
-                                在你的内网 NAS、Linux 服务器或软路由上部署。强烈推荐使用我们维护的 S6 整合镜像 <code class="text-brand-300 font-mono">cyzdomo/rustdesk-server-s6:latest</code>，单容器集成 hbbs、hbbr、Web 管理控制台与 ProxyProtocol v2 自动解码。
+                            <p class="text-sm text-slate-600 dark:text-slate-400 mt-1 mb-4 leading-relaxed">
+                                在你的内网 NAS、Linux 服务器或软路由上部署。强烈推荐使用我们维护的 S6 整合镜像 <code class="text-brand-600 dark:text-brand-300 font-mono">cyzdomo/rustdesk-server-s6:latest</code>，单容器集成 hbbs、hbbr、Web 管理控制台与 ProxyProtocol v2 自动解码。
                             </p>
 
                             <!-- 方式 A: Docker Compose -->
                             <div class="mb-5">
-                                <div class="flex items-center space-x-2 text-xs font-bold text-slate-200 mb-2">
-                                    <span class="text-brand-400 font-mono">▶ 推荐方案 A：Docker Compose 极简配置 (docker-compose.yml)</span>
+                                <div class="flex items-center space-x-2 text-xs font-bold text-slate-700 dark:text-slate-200 mb-2">
+                                    <span class="text-brand-600 dark:text-brand-400 font-mono">▶ 推荐方案 A：Docker Compose 极简配置 (docker-compose.yml)</span>
                                 </div>
-                                <div class="code-block rounded-xl p-4 font-mono text-xs text-slate-300 overflow-x-auto leading-relaxed">
+                                <div class="code-block rounded-xl p-4 font-mono text-xs overflow-x-auto leading-relaxed">
 version: '3.8'
 
 # 若使用 bridge 桥接模式，取消注释以下 networks 及 ports
@@ -871,40 +887,45 @@ services:
       # 宿主机数据持久化挂载（请替换为你的实际 NAS/服务器路径）
       - /vol2/1000/docker-data/rustdesk/server:/data     # 存放服务通信密钥及 hbbs 数据
       - /vol2/1000/docker-data/rustdesk/api:/app/data   # 存放 SQLite 数据库及 Web 后台配置
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
                 <!-- 步骤 2 -->
                 <div class="glow-card rounded-2xl p-6 sm:p-8">
                     <div class="flex items-start space-x-4">
-                        <div class="flex-shrink-0 w-8 h-8 rounded-lg bg-sky-500/20 text-sky-400 font-bold flex items-center justify-center font-mono border border-sky-500/30">
+                        <div class="flex-shrink-0 w-8 h-8 rounded-lg bg-sky-500/20 text-sky-600 dark:text-sky-400 font-bold flex items-center justify-center font-mono border border-sky-500/30">
                             2
                         </div>
                         <div class="flex-1">
-                            <h3 class="text-lg font-bold text-white">在 Lucky 管理后台创建 3 条 STUN 穿透规则</h3>
-                            <p class="text-sm text-slate-400 mt-1 mb-4">登录 Lucky 后台 ->「STUN 内网穿透」-> 新建规则：</p>
+                            <h3 class="text-lg font-bold text-slate-900 dark:text-white">在 Lucky 管理后台创建 3 条 STUN 穿透规则</h3>
+                            <p class="text-sm text-slate-600 dark:text-slate-400 mt-1 mb-4">登录 Lucky 后台 ->「STUN 内网穿透」-> 新建规则：</p>
                             
                             <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-                                <div class="p-3.5 rounded-xl bg-slate-900 border border-slate-800">
-                                    <div class="font-bold text-brand-400 mb-1">规则 1：hbbs UDP</div>
-                                    <div class="text-slate-400">协议：<span class="text-slate-200">UDP</span></div>
-                                    <div class="text-slate-400">目标端口：<span class="text-slate-200 font-mono">21116</span></div>
+                                <div class="p-3.5 rounded-xl bg-slate-100/80 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+                                    <div class="font-bold text-brand-600 dark:text-brand-400 mb-1">规则 1：hbbs UDP</div>
+                                    <div class="text-slate-600 dark:text-slate-400">协议：<span class="text-slate-800 dark:text-slate-200">UDP</span></div>
+                                    <div class="text-slate-600 dark:text-slate-400">目标端口：<span class="text-slate-800 dark:text-slate-200 font-mono">21116</span></div>
                                 </div>
-                                <div class="p-3.5 rounded-xl bg-slate-900 border border-slate-800">
-                                    <div class="font-bold text-sky-400 mb-1">规则 2：hbbs TCP</div>
-                                    <div class="text-slate-400">协议：<span class="text-slate-200">TCP</span></div>
-                                    <div class="text-slate-400">目标端口：<span class="text-slate-200 font-mono">21116</span></div>
+                                <div class="p-3.5 rounded-xl bg-slate-100/80 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+                                    <div class="font-bold text-sky-600 dark:text-sky-400 mb-1">规则 2：hbbs TCP</div>
+                                    <div class="text-slate-600 dark:text-slate-400">协议：<span class="text-slate-800 dark:text-slate-200">TCP</span></div>
+                                    <div class="text-slate-600 dark:text-slate-400">目标端口：<span class="text-slate-800 dark:text-slate-200 font-mono">21116</span></div>
                                 </div>
-                                <div class="p-3.5 rounded-xl bg-slate-900 border border-slate-800">
-                                    <div class="font-bold text-purple-400 mb-1">规则 3：hbbr TCP</div>
-                                    <div class="text-slate-400">协议：<span class="text-slate-200">TCP</span></div>
-                                    <div class="text-slate-400">目标端口：<span class="text-slate-200 font-mono">21117</span></div>
+                                <div class="p-3.5 rounded-xl bg-slate-100/80 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+                                    <div class="font-bold text-purple-600 dark:text-purple-400 mb-1">规则 3：hbbr TCP</div>
+                                    <div class="text-slate-600 dark:text-slate-400">协议：<span class="text-slate-800 dark:text-slate-200">TCP</span></div>
+                                    <div class="text-slate-600 dark:text-slate-400">目标端口：<span class="text-slate-800 dark:text-slate-200 font-mono">21117</span></div>
                                 </div>
                             </div>
 
-                            <div class="mt-4 p-3.5 rounded-xl bg-brand-500/10 border border-brand-500/20 text-xs text-slate-300">
-                                <div class="font-bold text-brand-300 mb-1 flex items-center space-x-1.5">
+                            <div class="mt-4 p-3.5 rounded-xl bg-brand-500/10 border border-brand-500/20 text-xs text-slate-700 dark:text-slate-300">
+                                <div class="font-bold text-brand-600 dark:text-brand-300 mb-1 flex items-center space-x-1.5">
                                     <span>💡 进阶技巧：开启 Proxy Protocol 启用极速 TCP 打洞（支持光猫拨号 / 免桥接）</span>
                                 </div>
-                                <p class="text-slate-400 leading-relaxed">
+                                <p class="text-slate-600 dark:text-slate-400 leading-relaxed">
                                     若家庭网络由光猫拨号（NAS 挂在光猫下通过 DMZ 映射），Lucky 进行 TCP 穿透时默认会进行 SNAT，导致服务端获取到的对端 IP 变为内网回环而打洞失败。在 Lucky 的<strong>【STUN 内网穿透】规则 -> 编辑 -> 高级设置</strong>中，勾选<strong>【附加 Proxy Protocol】（ProxyProtocolV2）</strong>。增强版 hbbs 服务端原生支持该协议头并自动解码还原客户端真实公网 IP，即可在 170ms 内极速建立 TCP 端到端直连！
                                 </p>
                             </div>
@@ -915,40 +936,40 @@ services:
                 <!-- 步骤 3 -->
                 <div class="glow-card rounded-2xl p-6 sm:p-8">
                     <div class="flex items-start space-x-4">
-                        <div class="flex-shrink-0 w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 font-bold flex items-center justify-center font-mono border border-emerald-500/30">
+                        <div class="flex-shrink-0 w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-bold flex items-center justify-center font-mono border border-emerald-500/30">
                             3
                         </div>
                         <div class="flex-1">
-                            <h3 class="text-lg font-bold text-white">配置 Lucky WebHook 或 DNS TXT 记录</h3>
-                            <p class="text-sm text-slate-400 mt-1 mb-3">将各 STUN 隧道的公网映射结果拼接为 TXT 记录（包含信令、中继及在线检测通道）：</p>
+                            <h3 class="text-lg font-bold text-slate-900 dark:text-white">配置 Lucky WebHook 或 DNS TXT 记录</h3>
+                            <p class="text-sm text-slate-600 dark:text-slate-400 mt-1 mb-3">将各 STUN 隧道的公网映射结果拼接为 TXT 记录（包含信令、中继及在线检测通道）：</p>
                             
-                            <div class="code-block rounded-xl p-4 font-mono text-xs text-brand-300 break-all select-all">
+                            <div class="code-block rounded-xl p-4 font-mono text-xs text-brand-600 dark:text-brand-300 break-all select-all">
                                 host=198.51.100.123:24869,tcp=198.51.100.123:24439,relay=198.51.100.123:24867,online=198.51.100.123:24115,api=https://api.example.com
                             </div>
 
-                            <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs text-slate-300">
-                                <div class="bg-slate-900 p-2.5 rounded-lg border border-slate-800">
-                                    <span class="font-mono text-emerald-400 font-bold">host</span>: 必须。hbbs UDP 注册与 STUN 打洞端口（默认 21116/udp 映射）
+                            <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs text-slate-700 dark:text-slate-300">
+                                <div class="bg-slate-100/80 dark:bg-slate-900 p-2.5 rounded-lg border border-slate-200 dark:border-slate-800">
+                                    <span class="font-mono text-emerald-600 dark:text-emerald-400 font-bold">host</span>: 必须。hbbs UDP 注册与 STUN 打洞端口（默认 21116/udp 映射）
                                 </div>
-                                <div class="bg-slate-900 p-2.5 rounded-lg border border-slate-800">
-                                    <span class="font-mono text-sky-400 font-bold">tcp</span>: 必须 (STUN)。hbbs TCP 信令控制端口（默认 21116/tcp 映射）
+                                <div class="bg-slate-100/80 dark:bg-slate-900 p-2.5 rounded-lg border border-slate-200 dark:border-slate-800">
+                                    <span class="font-mono text-sky-600 dark:text-sky-400 font-bold">tcp</span>: 必须 (STUN)。hbbs TCP 信令控制端口（默认 21116/tcp 映射）
                                 </div>
-                                <div class="bg-slate-900 p-2.5 rounded-lg border border-slate-800">
-                                    <span class="font-mono text-purple-400 font-bold">relay</span>: 必须。hbbr TCP 数据中继端口（默认 21117/tcp 映射）
+                                <div class="bg-slate-100/80 dark:bg-slate-900 p-2.5 rounded-lg border border-slate-200 dark:border-slate-800">
+                                    <span class="font-mono text-purple-600 dark:text-purple-400 font-bold">relay</span>: 必须。hbbr TCP 数据中继端口（默认 21117/tcp 映射）
                                 </div>
-                                <div class="bg-slate-900 p-2.5 rounded-lg border border-slate-800">
-                                    <span class="font-mono text-teal-400 font-bold">online</span>: <strong class="text-teal-300">推荐</strong>。hbbs TCP 21115 在线探测端口，用于主控端快速查询被控端实时在线状态（红绿灯指示）
+                                <div class="bg-slate-100/80 dark:bg-slate-900 p-2.5 rounded-lg border border-slate-200 dark:border-slate-800">
+                                    <span class="font-mono text-teal-600 dark:text-teal-400 font-bold">online</span>: <strong class="text-teal-600 dark:text-teal-300">推荐</strong>。hbbs TCP 21115 在线探测端口，用于主控端快速查询被控端实时在线状态（红绿灯指示）
                                 </div>
-                                <div class="bg-slate-900 p-2.5 rounded-lg border border-slate-800">
-                                    <span class="font-mono text-blue-400 font-bold">api</span>: 可选。21114 HTTP Web 后台与通讯录同步接口（若部署了 rustdesk-api）
+                                <div class="bg-slate-100/80 dark:bg-slate-900 p-2.5 rounded-lg border border-slate-200 dark:border-slate-800">
+                                    <span class="font-mono text-blue-600 dark:text-blue-400 font-bold">api</span>: 可选。21114 HTTP Web 后台与通讯录同步接口（若部署了 rustdesk-api）
                                 </div>
-                                <div class="bg-slate-900 p-2.5 rounded-lg border border-slate-800">
-                                    <span class="font-mono text-amber-400 font-bold">key</span>: 已废弃。出于安全考虑 TXT 不再下发或覆盖 Key，请在客户端「Key」栏手动填写一次 id_ed25519.pub 公钥
+                                <div class="bg-slate-100/80 dark:bg-slate-900 p-2.5 rounded-lg border border-slate-200 dark:border-slate-800">
+                                    <span class="font-mono text-amber-600 dark:text-amber-400 font-bold">key</span>: 已废弃。出于安全考虑 TXT 不再下发或覆盖 Key，请在客户端「Key」栏手动填写一次 id_ed25519.pub 公钥
                                 </div>
                             </div>
 
-                            <p class="text-xs text-slate-400 mt-3">
-                                💡 在 Lucky WebHook 中可使用变量如 <code class="text-slate-200">#{RustDesk-UDP.ip}:#{RustDesk-UDP.port}</code> 自动联动更新 Cloudflare、腾讯云、阿里云 DNS。若未配置 <code class="text-teal-300">online</code> 端口，客户端会自动回退至通过信令心跳探测在线状态；旧记录中的 <code class="text-amber-300">key=</code> 字段会被忽略。
+                            <p class="text-xs text-slate-600 dark:text-slate-400 mt-3">
+                                💡 在 Lucky WebHook 中可使用变量如 <code class="text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-900 px-1 py-0.5 rounded">#{RustDesk-UDP.ip}:#{RustDesk-UDP.port}</code> 自动联动更新 Cloudflare、腾讯云、阿里云 DNS。若未配置 <code class="text-teal-600 dark:text-teal-300">online</code> 端口，客户端会自动回退至通过信令心跳探测在线状态；旧记录中的 <code class="text-amber-600 dark:text-amber-300">key=</code> 字段会被忽略。
                             </p>
                         </div>
                     </div>
@@ -957,39 +978,39 @@ services:
                 <!-- 步骤 4 -->
                 <div class="glow-card rounded-2xl p-6 sm:p-8">
                     <div class="flex items-start space-x-4">
-                        <div class="flex-shrink-0 w-8 h-8 rounded-lg bg-indigo-500/20 text-indigo-400 font-bold flex items-center justify-center font-mono border border-indigo-500/30">
+                        <div class="flex-shrink-0 w-8 h-8 rounded-lg bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 font-bold flex items-center justify-center font-mono border border-indigo-500/30">
                             4
                         </div>
                         <div class="flex-1">
-                            <h3 class="text-lg font-bold text-white">客户端极简填入与多配置管理</h3>
-                            <p class="text-sm text-slate-400 mt-1 mb-4">打开 RustDesk 客户端 -> 点击「网络设置（ID/中继服务器）」：</p>
+                            <h3 class="text-lg font-bold text-slate-900 dark:text-white">客户端极简填入与多配置管理</h3>
+                            <p class="text-sm text-slate-600 dark:text-slate-400 mt-1 mb-4">打开 RustDesk 客户端 -> 点击「网络设置（ID/中继服务器）」：</p>
                             
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs mb-4">
-                                <div class="p-3.5 rounded-xl bg-slate-900 border border-slate-800">
-                                    <div class="font-bold text-brand-400 mb-1 flex items-center space-x-1">
+                                <div class="p-3.5 rounded-xl bg-slate-100/80 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+                                    <div class="font-bold text-brand-600 dark:text-brand-400 mb-1 flex items-center space-x-1">
                                         <span>模式 A：Lucky STUN 动态穿透</span>
                                     </div>
-                                    <div class="text-slate-400 mb-2">只需在「ID 服务器」填入你的域名：</div>
-                                    <div class="font-mono bg-slate-950 px-2.5 py-1.5 rounded border border-slate-800 text-brand-300">rustdesk.example.com</div>
+                                    <div class="text-slate-600 dark:text-slate-400 mb-2">只需在「ID 服务器」填入你的域名：</div>
+                                    <div class="font-mono bg-white dark:bg-slate-950 px-2.5 py-1.5 rounded border border-slate-200 dark:border-slate-800 text-brand-600 dark:text-brand-300">rustdesk.example.com</div>
                                     <div class="text-slate-500 mt-2">中继/API 等项留空，客户端自动通过 DNS TXT 提取各端口；「Key」需手动填写一次 id_ed25519.pub 公钥。</div>
                                 </div>
 
-                                <div class="p-3.5 rounded-xl bg-slate-900 border border-slate-800">
-                                    <div class="font-bold text-sky-400 mb-1 flex items-center space-x-1">
+                                <div class="p-3.5 rounded-xl bg-slate-100/80 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+                                    <div class="font-bold text-sky-600 dark:text-sky-400 mb-1 flex items-center space-x-1">
                                         <span>模式 B：标准云服务器 (阿里云/腾讯云)</span>
                                     </div>
-                                    <div class="text-slate-400 mb-2">直接填入纯公网域名或 IP（无需端口）：</div>
-                                    <div class="font-mono bg-slate-950 px-2.5 py-1.5 rounded border border-slate-800 text-sky-300">desk.yourdomain.com</div>
+                                    <div class="text-slate-600 dark:text-slate-400 mb-2">直接填入纯公网域名或 IP（无需端口）：</div>
+                                    <div class="font-mono bg-white dark:bg-slate-950 px-2.5 py-1.5 rounded border border-slate-200 dark:border-slate-800 text-sky-600 dark:text-sky-300">desk.yourdomain.com</div>
                                     <div class="text-slate-500 mt-2">增强版全自动智能补齐 21115 在线/21116 信令/21117 中继。</div>
                                 </div>
                             </div>
 
-                            <div class="p-3.5 rounded-xl bg-slate-900/60 border border-slate-800 text-xs text-slate-300">
-                                <span class="text-brand-400 font-bold">✨ 多服务器配置 (Multi-Profile)：</span>
+                            <div class="p-3.5 rounded-xl bg-slate-100/80 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 text-xs text-slate-700 dark:text-slate-300">
+                                <span class="text-brand-600 dark:text-brand-400 font-bold">✨ 多服务器配置 (Multi-Profile)：</span>
                                 可以在设置页面点击「+ 添加配置」，将家庭 STUN 与云服务器同时保存为不同 Profile，随时一键测速与无缝切换生效。
                             </div>
 
-                            <p class="text-xs text-emerald-400 font-medium mt-3">
+                            <p class="text-xs text-emerald-600 dark:text-emerald-400 font-medium mt-3">
                                 🟢 保存后客户端左下角显示「就绪 (Ready)」，即可开始高清流畅的远程控制。
                             </p>
                         </div>
@@ -1001,136 +1022,136 @@ services:
     </section>
 
     <!-- 最新动态与版本更新记录 -->
-    <section id="changelog" class="py-20 bg-slate-900/40 border-b border-slate-800/80">
+    <section id="changelog" class="py-20 border-b border-slate-200/80 dark:border-slate-800/80 relative">
         <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="text-center max-w-3xl mx-auto mb-16">
-                <h2 class="text-xs uppercase tracking-widest text-brand-400 font-bold mb-3 font-mono">RELEASE HIGHLIGHTS</h2>
-                <p class="text-3xl sm:text-4xl font-extrabold text-white">最新版本功能动态</p>
-                <p class="text-slate-400 mt-4 text-base">持续迭代演进，打造免公网 IP 与云主机混合部署的最佳体验</p>
+                <h2 class="text-xs uppercase tracking-widest text-brand-600 dark:text-brand-400 font-bold mb-3 font-mono">RELEASE HIGHLIGHTS</h2>
+                <p class="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-white">最新版本功能动态</p>
+                <p class="text-slate-600 dark:text-slate-400 mt-4 text-base">持续迭代演进，打造免公网 IP 与云主机混合部署的最佳体验</p>
             </div>
 
             <!-- 时间轴卡片 -->
             <div class="space-y-6">
                 <!-- 2026.09 最新版本 -->
-                <div class="glow-card rounded-2xl p-7 border-l-4 border-l-brand-400">
-                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-5 pb-3.5 border-b border-slate-800">
+                <div class="glow-card rounded-2xl p-7 border-l-4 border-l-brand-500">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-5 pb-3.5 border-b border-slate-200 dark:border-slate-800">
                         <div class="flex items-center space-x-3">
-                            <span class="px-3 py-1 rounded-full text-xs font-mono font-bold bg-brand-500/20 text-brand-400 border border-brand-500/30">v1.4.x-enhanced (2026.09)</span>
-                            <h3 class="text-lg font-bold text-white">ProxyProtocol v2 赋能 TCP 打洞、四通道并发竞速与中继转直连升级</h3>
+                            <span class="px-3 py-1 rounded-full text-xs font-mono font-bold bg-brand-500/20 text-brand-600 dark:text-brand-400 border border-brand-500/30">v1.4.x-enhanced (2026.09)</span>
+                            <h3 class="text-lg font-bold text-slate-900 dark:text-white">ProxyProtocol v2 赋能 TCP 打洞、四通道并发竞速与中继转直连升级</h3>
                         </div>
-                        <span class="text-xs text-brand-400 font-mono font-semibold">最新发布 · 生产就绪</span>
+                        <span class="text-xs text-brand-600 dark:text-brand-400 font-mono font-semibold">最新发布 · 生产就绪</span>
                     </div>
 
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-slate-300">
-                        <div class="p-4 rounded-xl bg-slate-900/70 border border-slate-800">
-                            <div class="font-bold text-white mb-2 flex items-center space-x-2">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-slate-700 dark:text-slate-300">
+                        <div class="p-4 rounded-xl bg-white/70 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800/80">
+                            <div class="font-bold text-slate-900 dark:text-white mb-2 flex items-center space-x-2">
                                 <span class="text-base">⚡</span>
-                                <span class="text-brand-300 font-semibold">ProxyProtocol v2 支持与 170ms TCP 打洞</span>
+                                <span class="text-brand-600 dark:text-brand-300 font-semibold">ProxyProtocol v2 支持与 170ms TCP 打洞</span>
                             </div>
-                            <p class="text-slate-400 leading-relaxed">
+                            <p class="text-slate-600 dark:text-slate-400 leading-relaxed">
                                 攻克光猫路由拨号（未改桥接）及反向代理 SNAT 导致对端 IP 变为内网回环的难题。服务端原生解码 ProxyProtocol v1/v2，精准获取客户端真实公网 IP 与动态映射端口，实测跨网 TCP 打洞 170ms 极速建立端到端直连！
                             </p>
                         </div>
 
-                        <div class="p-4 rounded-xl bg-slate-900/70 border border-slate-800">
-                            <div class="font-bold text-white mb-2 flex items-center space-x-2">
+                        <div class="p-4 rounded-xl bg-white/70 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800/80">
+                            <div class="font-bold text-slate-900 dark:text-white mb-2 flex items-center space-x-2">
                                 <span class="text-base">🚀</span>
-                                <span class="text-sky-300 font-semibold">四通道多传输协议并发竞速 (Multi-Transport Race)</span>
+                                <span class="text-sky-600 dark:text-sky-300 font-semibold">四通道多传输协议并发竞速 (Multi-Transport Race)</span>
                             </div>
-                            <p class="text-slate-400 leading-relaxed">
+                            <p class="text-slate-600 dark:text-slate-400 leading-relaxed">
                                 IPv4 动态源端口锁定与双向回填，彻底杜绝端口探测错位；IPv4 UDP (KCP)、IPv6 UDP、TCP 打洞与 WebRTC 四通道并发探测，毫秒级快速胜出并绑定最优低延迟直连通路。
                             </p>
                         </div>
 
-                        <div class="p-4 rounded-xl bg-slate-900/70 border border-slate-800">
-                            <div class="font-bold text-white mb-2 flex items-center space-x-2">
+                        <div class="p-4 rounded-xl bg-white/70 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800/80">
+                            <div class="font-bold text-slate-900 dark:text-white mb-2 flex items-center space-x-2">
                                 <span class="text-base">🌐</span>
-                                <span class="text-purple-300 font-semibold">IPv6 候选解耦与双栈安全策略闭环</span>
+                                <span class="text-purple-600 dark:text-purple-300 font-semibold">IPv6 候选解耦与双栈安全策略闭环</span>
                             </div>
-                            <p class="text-slate-400 leading-relaxed">
+                            <p class="text-slate-600 dark:text-slate-400 leading-relaxed">
                                 修复 Windows 平台未连接套接字系统调用错误导致 IPv6 候选被误杀的问题，释放双栈网络直连潜能；同时严格联动服务端强制中继策略（ALWAYS_USE_RELAY / 跨网隔离），IPv4 与 IPv6 双通道严密防绕过。
                             </p>
                         </div>
 
-                        <div class="p-4 rounded-xl bg-slate-900/70 border border-slate-800">
-                            <div class="font-bold text-white mb-2 flex items-center space-x-2">
+                        <div class="p-4 rounded-xl bg-white/70 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800/80">
+                            <div class="font-bold text-slate-900 dark:text-white mb-2 flex items-center space-x-2">
                                 <span class="text-base">🔄</span>
-                                <span class="text-emerald-300 font-semibold">中继转直连智能升级体验重构</span>
+                                <span class="text-emerald-600 dark:text-emerald-300 font-semibold">中继转直连智能升级体验重构</span>
                             </div>
-                            <p class="text-slate-400 leading-relaxed">
+                            <p class="text-slate-600 dark:text-slate-400 leading-relaxed">
                                 采用“先中继秒连兜底、后台静默探测直连”策略。重试计数与常规重连（离线重试、重启等）彻底解耦，只有用户点击确认升级才消耗额度；增加优雅防打扰机制，避免周期性弹窗干扰工作。
                             </p>
                         </div>
                     </div>
                 </div>
 
-                <div class="glow-card rounded-2xl p-7 border-l-4 border-l-slate-700">
-                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-5 pb-3.5 border-b border-slate-800">
+                <div class="glow-card rounded-2xl p-7 border-l-4 border-l-slate-400 dark:border-l-slate-600">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-5 pb-3.5 border-b border-slate-200 dark:border-slate-800">
                         <div class="flex items-center space-x-3">
-                            <span class="px-3 py-1 rounded-full text-xs font-mono font-bold bg-slate-800 text-slate-300 border border-slate-700">v1.4.x-enhanced 基础版</span>
-                            <h3 class="text-lg font-bold text-white">多 Profile 调度、线路透传与全链路端口自适应</h3>
+                            <span class="px-3 py-1 rounded-full text-xs font-mono font-bold bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700">v1.4.x-enhanced 基础版</span>
+                            <h3 class="text-lg font-bold text-slate-900 dark:text-white">多 Profile 调度、线路透传与全链路端口自适应</h3>
                         </div>
-                        <span class="text-xs text-slate-400 font-mono">稳定发布</span>
+                        <span class="text-xs text-slate-500 dark:text-slate-400 font-mono">稳定发布</span>
                     </div>
 
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-slate-300">
-                        <div class="p-4 rounded-xl bg-slate-900/70 border border-slate-800">
-                            <div class="font-bold text-white mb-2 flex items-center space-x-2">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-slate-700 dark:text-slate-300">
+                        <div class="p-4 rounded-xl bg-white/70 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800/80">
+                            <div class="font-bold text-slate-900 dark:text-white mb-2 flex items-center space-x-2">
                                 <span class="text-base">🎛️</span>
-                                <span class="text-brand-300 font-semibold">多服务器 Profile 智能管理系统</span>
+                                <span class="text-brand-600 dark:text-brand-300 font-semibold">多服务器 Profile 智能管理系统</span>
                             </div>
-                            <p class="text-slate-400 leading-relaxed">
+                            <p class="text-slate-600 dark:text-slate-400 leading-relaxed">
                                 支持在客户端配置并维护多套服务器 Profile（家庭 STUN、公司云节点、个人 VPS 等）。具备延迟横向探测对比、一键开关及全禁用状态下自动平滑回退官方公共节点保底。
                             </p>
                         </div>
 
-                        <div class="p-4 rounded-xl bg-slate-900/70 border border-slate-800">
-                            <div class="font-bold text-white mb-2 flex items-center space-x-2">
+                        <div class="p-4 rounded-xl bg-white/70 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800/80">
+                            <div class="font-bold text-slate-900 dark:text-white mb-2 flex items-center space-x-2">
                                 <span class="text-base">🧭</span>
-                                <span class="text-sky-300 font-semibold">连接线路与打洞模式实时透传</span>
+                                <span class="text-sky-600 dark:text-sky-300 font-semibold">连接线路与打洞模式实时透传</span>
                             </div>
-                            <p class="text-slate-400 leading-relaxed">
+                            <p class="text-slate-600 dark:text-slate-400 leading-relaxed">
                                 远程连接建立后，状态栏与会话信息面板实时展示当前生效的服务器节点名称、链路传输类型（🟢 P2P 端到端直连 / 🟣 hbbr 中继隧道 / ⚡ WebRTC）及实时 RTT 延迟。
                             </p>
                         </div>
 
-                        <div class="p-4 rounded-xl bg-slate-900/70 border border-slate-800">
-                            <div class="font-bold text-white mb-2 flex items-center space-x-2">
+                        <div class="p-4 rounded-xl bg-white/70 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800/80">
+                            <div class="font-bold text-slate-900 dark:text-white mb-2 flex items-center space-x-2">
                                 <span class="text-base">🛠️</span>
-                                <span class="text-emerald-300 font-semibold">标准云服务器全链路端口智能自适应</span>
+                                <span class="text-emerald-600 dark:text-emerald-300 font-semibold">标准云服务器全链路端口智能自适应</span>
                             </div>
-                            <p class="text-slate-400 leading-relaxed">
-                                解决输入纯域名自建服务器时出现的 <code class="text-brand-300">invalid socket address</code> 异常；在信令、中继、在线探测各阶段自动补齐缺省端口，并对 STUN 动态多端口完整保留。
+                            <p class="text-slate-600 dark:text-slate-400 leading-relaxed">
+                                解决输入纯域名自建服务器时出现的 <code class="text-brand-600 dark:text-brand-300">invalid socket address</code> 异常；在信令、中继、在线探测各阶段自动补齐缺省端口，并对 STUN 动态多端口完整保留。
                             </p>
                         </div>
 
-                        <div class="p-4 rounded-xl bg-slate-900/70 border border-slate-800">
-                            <div class="font-bold text-white mb-2 flex items-center space-x-2">
+                        <div class="p-4 rounded-xl bg-white/70 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800/80">
+                            <div class="font-bold text-slate-900 dark:text-white mb-2 flex items-center space-x-2">
                                 <span class="text-base">💓</span>
-                                <span class="text-amber-300 font-semibold">独立在线流与 TCP 代理心跳容错</span>
+                                <span class="text-amber-600 dark:text-amber-300 font-semibold">独立在线流与 TCP 代理心跳容错</span>
                             </div>
-                            <p class="text-slate-400 leading-relaxed">
+                            <p class="text-slate-600 dark:text-slate-400 leading-relaxed">
                                 完善独立在线状态查询流通道；当 HTTP POST 心跳超时或被拦截时，自动启用 TCP 代理保活与探测降级通道，提升对端在线状态感知的稳定性。
                             </p>
                         </div>
 
-                        <div class="p-4 rounded-xl bg-slate-900/70 border border-slate-800">
-                            <div class="font-bold text-white mb-2 flex items-center space-x-2">
+                        <div class="p-4 rounded-xl bg-white/70 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800/80">
+                            <div class="font-bold text-slate-900 dark:text-white mb-2 flex items-center space-x-2">
                                 <span class="text-base">🔐</span>
-                                <span class="text-rose-300 font-semibold">DNS TXT 解析安全加固</span>
+                                <span class="text-rose-600 dark:text-rose-300 font-semibold">DNS TXT 解析安全加固</span>
                             </div>
-                            <p class="text-slate-400 leading-relaxed">
+                            <p class="text-slate-600 dark:text-slate-400 leading-relaxed">
                                 TXT 通道不再下发或覆盖服务端公钥 Key（改为客户端手动填写一次）；DNS 应答校验事务 ID 与记录归属，拒绝 SPF/DKIM 等无关 TXT 记录误解析；解析引擎改为多源并发竞速并加入 30 秒结果缓存，同时支持可选的 online/api 字段自动填充。
                             </p>
                         </div>
 
-                        <div class="p-4 rounded-xl bg-slate-900/70 border border-slate-800">
-                            <div class="font-bold text-white mb-2 flex items-center space-x-2">
+                        <div class="p-4 rounded-xl bg-white/70 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800/80">
+                            <div class="font-bold text-slate-900 dark:text-white mb-2 flex items-center space-x-2">
                                 <span class="text-base">📡</span>
-                                <span class="text-emerald-300 font-semibold">中继会话自动升级直连</span>
+                                <span class="text-emerald-600 dark:text-emerald-300 font-semibold">中继会话自动升级直连</span>
                             </div>
-                            <p class="text-slate-400 leading-relaxed">
-                                连接落到中继后，客户端会在后台周期性重新竞速打洞（默认首次 30 秒，间隔指数退避、封顶 5 分钟，持续 2 小时后停止探测）。一旦探测到可用直连路径，即自动重连并切换为直连（约 1-2 秒黑屏，无需手动操作，每会话至多重连 2 次）。服务端策略强制中继的会话不参与升级；可通过 <code class="text-brand-300">enable-upgrade-to-direct</code> 选项关闭，或用 <code class="text-brand-300">upgrade-probe-interval</code> 调整探测间隔。
+                            <p class="text-slate-600 dark:text-slate-400 leading-relaxed">
+                                连接落到中继后，客户端会在后台周期性重新竞速打洞（默认首次 30 秒，间隔指数退避、封顶 5 分钟，持续 2 小时后停止探测）。一旦探测到可用直连路径，即自动重连并切换为直连（约 1-2 秒黑屏，无需手动操作，每会话至多重连 2 次）。服务端策略强制中继的会话不参与升级；可通过 <code class="text-brand-600 dark:text-brand-300">enable-upgrade-to-direct</code> 选项关闭，或用 <code class="text-brand-600 dark:text-brand-300">upgrade-probe-interval</code> 调整探测间隔。
                             </p>
                         </div>
                     </div>
@@ -1140,30 +1161,30 @@ services:
     </section>
 
     <!-- 客户端下载区域 -->
-    <section id="download" class="py-20 relative">
+    <section id="download" class="py-20 relative border-b border-slate-200/80 dark:border-slate-800/80">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="text-center max-w-3xl mx-auto mb-16">
-                <h2 class="text-xs uppercase tracking-widest text-brand-400 font-bold mb-3 font-mono">DOWNLOADS</h2>
-                <p class="text-3xl sm:text-4xl font-extrabold text-white">客户端版本下载</p>
-                <p class="text-slate-400 mt-4 text-base">下载已集成动态 STUN 增强特性的全平台客户端安装包与便携版</p>
+                <h2 class="text-xs uppercase tracking-widest text-brand-600 dark:text-brand-400 font-bold mb-3 font-mono">DOWNLOADS</h2>
+                <p class="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-white">客户端版本下载</p>
+                <p class="text-slate-600 dark:text-slate-400 mt-4 text-base">下载已集成动态 STUN 增强特性的全平台客户端安装包与便携版</p>
             </div>
 
             <!-- 下载卡片网格 -->
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-6xl mx-auto">
                 
                 <!-- Windows x64 便携/安装版 -->
-                <div class="glow-card rounded-2xl p-6 flex flex-col justify-between border-slate-800">
+                <div class="glow-card rounded-2xl p-6 flex flex-col justify-between">
                     <div>
                         <div class="flex items-center justify-between mb-4">
                             <div class="w-11 h-11 rounded-xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center">
-                                <svg class="w-6 h-6 text-sky-400 fill-current" viewBox="0 0 24 24">
+                                <svg class="w-6 h-6 text-sky-500 dark:text-sky-400 fill-current" viewBox="0 0 24 24">
                                     <path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-12.901-1.77"/>
                                 </svg>
                             </div>
-                            <span class="text-xs bg-brand-500/20 text-brand-400 font-semibold px-2.5 py-0.5 rounded-full border border-brand-500/30">推荐</span>
+                            <span class="text-xs bg-brand-500/20 text-brand-600 dark:text-brand-400 font-semibold px-2.5 py-0.5 rounded-full border border-brand-500/30">推荐</span>
                         </div>
-                        <h3 class="text-lg font-bold text-white">Windows (x64)</h3>
-                        <p class="text-xs text-slate-400 mt-1 mb-6 leading-relaxed">
+                        <h3 class="text-lg font-bold text-slate-900 dark:text-white">Windows (x64)</h3>
+                        <p class="text-xs text-slate-600 dark:text-slate-400 mt-1 mb-6 leading-relaxed">
                             单文件免安装便携版；双击直接运行，主界面支持一键固化为系统常驻服务。
                         </p>
                     </div>
@@ -1171,25 +1192,25 @@ services:
                         <a href="https://github.com/cyz-domo/rustdesk/releases/latest" target="_blank" class="w-full py-2.5 rounded-xl bg-brand-500 hover:bg-brand-600 text-slate-950 font-bold text-xs flex items-center justify-center space-x-1.5 transition-all shadow-md shadow-brand-500/20">
                             <span>下载 .exe 单文件</span>
                         </a>
-                        <a href="https://github.com/cyz-domo/rustdesk/releases/latest" target="_blank" class="w-full py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 font-medium text-xs flex items-center justify-center border border-slate-700 transition-all">
+                        <a href="https://github.com/cyz-domo/rustdesk/releases/latest" target="_blank" class="w-full py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-900 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-medium text-xs flex items-center justify-center border border-slate-300 dark:border-slate-700 transition-all">
                             <span>下载 .zip 绿色包</span>
                         </a>
                     </div>
                 </div>
 
                 <!-- macOS Apple Silicon -->
-                <div class="glow-card rounded-2xl p-6 flex flex-col justify-between border-slate-800">
+                <div class="glow-card rounded-2xl p-6 flex flex-col justify-between">
                     <div>
                         <div class="flex items-center justify-between mb-4">
-                            <div class="w-11 h-11 rounded-xl bg-slate-700/30 border border-slate-600/30 flex items-center justify-center">
-                                <svg class="w-6 h-6 text-slate-100 fill-current" viewBox="0 0 24 24">
+                            <div class="w-11 h-11 rounded-xl bg-slate-200 dark:bg-slate-700/30 border border-slate-300 dark:border-slate-600/30 flex items-center justify-center">
+                                <svg class="w-6 h-6 text-slate-800 dark:text-slate-100 fill-current" viewBox="0 0 24 24">
                                     <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.37c.61-.75 1.04-1.8 0.92-2.85-.9.04-2 .6-2.65 1.35-.58.66-1.09 1.73-.95 2.76 1.01.08 2.05-.51 2.68-1.26z"/>
                                 </svg>
                             </div>
-                            <span class="text-xs bg-sky-500/20 text-sky-400 font-semibold px-2.5 py-0.5 rounded-full border border-sky-500/30">Apple Silicon</span>
+                            <span class="text-xs bg-sky-500/20 text-sky-600 dark:text-sky-400 font-semibold px-2.5 py-0.5 rounded-full border border-sky-500/30">Apple Silicon</span>
                         </div>
-                        <h3 class="text-lg font-bold text-white">macOS (ARM64)</h3>
-                        <p class="text-xs text-slate-400 mt-1 mb-6 leading-relaxed">
+                        <h3 class="text-lg font-bold text-slate-900 dark:text-white">macOS (ARM64)</h3>
+                        <p class="text-xs text-slate-600 dark:text-slate-400 mt-1 mb-6 leading-relaxed">
                             适用于 Apple M1 / M2 / M3 / M4 系列 Mac，支持 ScreenCaptureKit 高清原生录屏。
                         </p>
                     </div>
@@ -1201,18 +1222,18 @@ services:
                 </div>
 
                 <!-- Android 移动端 -->
-                <div class="glow-card rounded-2xl p-6 flex flex-col justify-between border-slate-800">
+                <div class="glow-card rounded-2xl p-6 flex flex-col justify-between">
                     <div>
                         <div class="flex items-center justify-between mb-4">
                             <div class="w-11 h-11 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
-                                <svg class="w-6 h-6 text-emerald-400 fill-current" viewBox="0 0 24 24">
+                                <svg class="w-6 h-6 text-emerald-500 dark:text-emerald-400 fill-current" viewBox="0 0 24 24">
                                     <path d="M17.523 15.3414c-.5511 0-.9993-.4486-.9993-.9997s.4482-.9993.9993-.9993c.551 0 .9993.4482.9993.9993.0001.5511-.4483.9997-.9993.9997m-11.046 0c-.5511 0-.9993-.4486-.9993-.9997s.4482-.9993.9993-.9993c.5511 0 .9993.4482.9993.9993 0 .5511-.4482.9997-.9993.9997m11.4045-6.02l1.996-3.4572c.1557-.2696.0633-.6138-.2063-.7695-.2696-.1557-.6138-.0633-.7695.2063l-2.0231 3.5042c-1.4243-.6507-3.0189-1.0152-4.7086-1.0152-1.6897 0-3.2843.3645-4.7086 1.0152L5.4393 5.301c-.1557-.2696-.4999-.362-.7695-.2063-.2696.1557-.362.4999-.2063.7695l1.996 3.4572C2.6865 11.2336.1667 15.2285 0 19.8667h24c-.1667-4.6382-2.6865-8.6331-6.1185-10.5453"/>
                                 </svg>
                             </div>
-                            <span class="text-xs bg-emerald-500/20 text-emerald-400 font-semibold px-2.5 py-0.5 rounded-full border border-emerald-500/30">Android</span>
+                            <span class="text-xs bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-semibold px-2.5 py-0.5 rounded-full border border-emerald-500/30">Android</span>
                         </div>
-                        <h3 class="text-lg font-bold text-white">Android (ARM64)</h3>
-                        <p class="text-xs text-slate-400 mt-1 mb-6 leading-relaxed">
+                        <h3 class="text-lg font-bold text-slate-900 dark:text-white">Android (ARM64)</h3>
+                        <p class="text-xs text-slate-600 dark:text-slate-400 mt-1 mb-6 leading-relaxed">
                             安卓手机与平板移动客户端，支持触屏模拟、远程被控及随时随地随身运维。
                         </p>
                     </div>
@@ -1224,18 +1245,18 @@ services:
                 </div>
 
                 <!-- Linux x64 -->
-                <div class="glow-card rounded-2xl p-6 flex flex-col justify-between border-slate-800">
+                <div class="glow-card rounded-2xl p-6 flex flex-col justify-between">
                     <div>
                         <div class="flex items-center justify-between mb-4">
                             <div class="w-11 h-11 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
-                                <svg class="w-6 h-6 text-amber-400 fill-current" viewBox="0 0 24 24">
+                                <svg class="w-6 h-6 text-amber-500 dark:text-amber-400 fill-current" viewBox="0 0 24 24">
                                     <path d="M12.012 0c-3.784 0-4.836 3.864-4.836 6.132 0 1.25.324 2.82.72 4.104-.42.444-.816.948-1.164 1.5-1.128 1.8-1.572 4.02-1.284 5.928.24 1.62.996 2.844 2.16 3.516.36.216.744.384 1.152.504-1.02.588-1.74 1.5-1.74 2.316 0 .42.204.792.576 1.056.66.468 1.836.72 3.252.72 1.344 0 2.508-.228 3.204-.684.444-.288.696-.696.696-1.152 0-.852-.792-1.788-1.896-2.388.408-.12.792-.288 1.152-.504 1.164-.672 1.92-1.896 2.16-3.516.288-1.908-.156-4.128-1.284-5.928-.348-.552-.744-1.056-1.164-1.5.396-1.284.72-2.856.72-4.104C16.848 3.864 15.796 0 12.012 0zm-1.8 4.092c.672 0 1.2.528 1.2 1.2 0 .672-.528 1.2-1.2 1.2-.672 0-1.2-.528-1.2-1.2 0-.672.528-1.2 1.2-1.2zm3.6 0c.672 0 1.2.528 1.2 1.2 0 .672-.528 1.2-1.2 1.2-.672 0-1.2-.528-1.2-1.2 0-.672.528-1.2 1.2-1.2z"/>
                                 </svg>
                             </div>
-                            <span class="text-xs bg-indigo-500/20 text-indigo-400 font-semibold px-2.5 py-0.5 rounded-full border border-indigo-500/30">Linux</span>
+                            <span class="text-xs bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 font-semibold px-2.5 py-0.5 rounded-full border border-indigo-500/30">Linux</span>
                         </div>
-                        <h3 class="text-lg font-bold text-white">Linux (x86_64 / ARM64)</h3>
-                        <p class="text-xs text-slate-400 mt-1 mb-6 leading-relaxed">
+                        <h3 class="text-lg font-bold text-slate-900 dark:text-white">Linux (x86_64 / ARM64)</h3>
+                        <p class="text-xs text-slate-600 dark:text-slate-400 mt-1 mb-6 leading-relaxed">
                             支持 Ubuntu/Debian (.deb) 及 Fedora/RHEL/CentOS/Rocky (.rpm)，兼容 X11 与 Wayland。
                         </p>
                     </div>
@@ -1243,7 +1264,7 @@ services:
                         <a href="https://github.com/cyz-domo/rustdesk/releases/latest" target="_blank" class="w-full py-2.5 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white font-bold text-xs flex items-center justify-center space-x-1.5 transition-all shadow-md shadow-indigo-500/20">
                             <span>下载 .deb (Ubuntu/Debian)</span>
                         </a>
-                        <a href="https://github.com/cyz-domo/rustdesk/releases/latest" target="_blank" class="w-full py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 font-medium text-xs flex items-center justify-center border border-slate-700 transition-all">
+                        <a href="https://github.com/cyz-domo/rustdesk/releases/latest" target="_blank" class="w-full py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-900 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-medium text-xs flex items-center justify-center border border-slate-300 dark:border-slate-700 transition-all">
                             <span>下载 .rpm (RHEL/Fedora)</span>
                         </a>
                     </div>
@@ -1252,7 +1273,7 @@ services:
             </div>
 
             <div class="mt-10 text-center">
-                <a href="https://github.com/cyz-domo/rustdesk/releases" target="_blank" class="inline-flex items-center space-x-2 text-sm text-slate-400 hover:text-brand-400 transition-colors">
+                <a href="https://github.com/cyz-domo/rustdesk/releases" target="_blank" class="inline-flex items-center space-x-2 text-sm text-slate-600 dark:text-slate-400 hover:text-brand-600 dark:hover:text-brand-400 transition-colors">
                     <span>查看历史版本与完整资产列表 (GitHub Releases) ➡️</span>
                 </a>
             </div>
@@ -1260,33 +1281,33 @@ services:
     </section>
 
     <!-- 常见问题 FAQ 区域 -->
-    <section id="faq" class="py-20 bg-slate-900/40 border-t border-slate-800/80">
+    <section id="faq" class="py-20 border-b border-slate-200/80 dark:border-slate-800/80 relative">
         <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="text-center mb-16">
-                <h2 class="text-xs uppercase tracking-widest text-brand-400 font-bold mb-3 font-mono">FAQ</h2>
-                <p class="text-3xl font-extrabold text-white">常见问题与排查指引</p>
+                <h2 class="text-xs uppercase tracking-widest text-brand-600 dark:text-brand-400 font-bold mb-3 font-mono">FAQ</h2>
+                <p class="text-3xl font-extrabold text-slate-900 dark:text-white">常见问题与排查指引</p>
             </div>
 
             <div class="space-y-6">
                 <div class="glow-card rounded-2xl p-6">
-                    <h3 class="font-bold text-base text-white mb-2">Q1: Mac 下载后提示“已损坏，无法打开”？</h3>
-                    <p class="text-sm text-slate-400 leading-relaxed">
+                    <h3 class="font-bold text-base text-slate-900 dark:text-white mb-2">Q1: Mac 下载后提示“已损坏，无法打开”？</h3>
+                    <p class="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
                         这是由于 macOS Gatekeeper 门禁对未购买苹果开发者证书的软件进行的默认拦截。只需打开 Mac 终端输入：<br>
-                        <code class="text-xs font-mono bg-slate-950 px-2 py-1 rounded text-brand-300 mt-2 inline-block border border-slate-800">sudo xattr -rd com.apple.quarantine /Applications/RustDesk.app</code><br>
+                        <code class="text-xs font-mono bg-slate-100 dark:bg-slate-950 px-2 py-1 rounded text-brand-600 dark:text-brand-300 mt-2 inline-block border border-slate-200 dark:border-slate-800">sudo xattr -rd com.apple.quarantine /Applications/RustDesk.app</code><br>
                         回车输入开机密码后即可直接双击正常打开。
                     </p>
                 </div>
 
                 <div class="glow-card rounded-2xl p-6">
-                    <h3 class="font-bold text-base text-white mb-2">Q2: 家庭宽带重新拨号导致公网端口变化，需要手动重启被控端吗？</h3>
-                    <p class="text-sm text-slate-400 leading-relaxed">
+                    <h3 class="font-bold text-base text-slate-900 dark:text-white mb-2">Q2: 家庭宽带重新拨号导致公网端口变化，需要手动重启被控端吗？</h3>
+                    <p class="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
                         不需要。RustDesk 被控端内置周期性 DNS TXT 轮询检测机制。当检测到 Lucky 推送的端口或公网 IP 变动时，客户端会自动热重载并与新的公网端口握手，无需手动重启。
                     </p>
                 </div>
 
                 <div class="glow-card rounded-2xl p-6">
-                    <h3 class="font-bold text-base text-white mb-2">Q3: 如何确认当前远程桌面是 P2P 直连还是服务器中继？</h3>
-                    <p class="text-sm text-slate-400 leading-relaxed">
+                    <h3 class="font-bold text-base text-slate-900 dark:text-white mb-2">Q3: 如何确认当前远程桌面是 P2P 直连还是服务器中继？</h3>
+                    <p class="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
                         在远程窗口顶部的标签栏（Tab）中：<br>
                         - 🟢 <strong>绿色纯锁图标</strong>：表示 <strong>P2P 端到端直连</strong>（鼠标悬停显示 Direct and encrypted connection），延迟最低且不耗服务器流量；<br>
                         - 🔄 <strong>带转接箭头的锁图标</strong>：表示走 <strong>hbbr 中继服务器</strong> 转发（打洞失败时的兜底保护）。
@@ -1294,57 +1315,57 @@ services:
                 </div>
 
                 <div class="glow-card rounded-2xl p-6">
-                    <h3 class="font-bold text-base text-white mb-2">Q4: 为什么默认是 30 帧，如何开启 60 FPS 或 120 FPS？</h3>
-                    <p class="text-sm text-slate-400 leading-relaxed">
+                    <h3 class="font-bold text-base text-slate-900 dark:text-white mb-2">Q4: 为什么默认是 30 帧，如何开启 60 FPS 或 120 FPS？</h3>
+                    <p class="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
                         进入客户端「设置」->「显示」-> 勾选「自定义画质与帧率」，将滑块拖动到 60 或 120 即可。同时在「硬件加速」中开启 NVENC / AMF / QSV 显卡硬编解码，在 P2P 直连下可获得更流畅的控制体验。
                     </p>
                 </div>
 
                 <div class="glow-card rounded-2xl p-6">
-                    <h3 class="font-bold text-base text-white mb-2">Q5: 如何使用多服务器配置 (Multi-Profile) 功能？</h3>
-                    <p class="text-sm text-slate-400 leading-relaxed">
+                    <h3 class="font-bold text-base text-slate-900 dark:text-white mb-2">Q5: 如何使用多服务器配置 (Multi-Profile) 功能？</h3>
+                    <p class="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
                         进入客户端「设置」->「网络（ID/中继服务器）」，点击「添加配置」按钮，可分别添加不同网络环境的节点（如“家庭 NAS - Lucky STUN”、“阿里云专线中继”）。可在配置列表中一键切换启用或禁用特定节点，并实时查看节点网络延迟。当取消勾选所有自建节点时，客户端会自动切换回退到官方公共服务器保障连通。
                     </p>
                 </div>
 
                 <div class="glow-card rounded-2xl p-6">
-                    <h3 class="font-bold text-base text-white mb-2">Q6: 连接成功后如何查看当前走的是哪条线路？</h3>
-                    <p class="text-sm text-slate-400 leading-relaxed">
-                        在远程控制窗口顶部的 Tab 标签栏中，将鼠标悬停在设备名称左侧的<strong>安全锁图标</strong>上，弹出的浮窗提示中除显示连接模式（🟢 加密直连 / 🟣 加密中继连接）外，还会清晰显示当前会话匹配生效的服务器节点名称与地址（例如 <code class="text-xs font-mono bg-slate-950 px-1.5 py-0.5 rounded text-brand-300 border border-slate-800">Server: aliyun (desk.chaitin.cloud:21116)</code> 或 <code class="text-xs font-mono bg-slate-950 px-1.5 py-0.5 rounded text-brand-300 border border-slate-800">Server: Official</code>）以及公钥指纹。在移动端上，点击连接状态图标同样能查看该详情。
+                    <h3 class="font-bold text-base text-slate-900 dark:text-white mb-2">Q6: 连接成功后如何查看当前走的是哪条线路？</h3>
+                    <p class="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+                        在远程控制窗口顶部的 Tab 标签栏中，将鼠标悬停在设备名称左侧的<strong>安全锁图标</strong>上，弹出的浮窗提示中除显示连接模式（🟢 加密直连 / 🟣 加密中继连接）外，还会清晰显示当前会话匹配生效的服务器节点名称与地址（例如 <code class="text-xs font-mono bg-slate-100 dark:bg-slate-950 px-1.5 py-0.5 rounded text-brand-600 dark:text-brand-300 border border-slate-200 dark:border-slate-800">Server: aliyun (desk.chaitin.cloud:21116)</code> 或 <code class="text-xs font-mono bg-slate-100 dark:bg-slate-950 px-1.5 py-0.5 rounded text-brand-600 dark:text-brand-300 border border-slate-200 dark:border-slate-800">Server: Official</code>）以及公钥指纹。在移动端上，点击连接状态图标同样能查看该详情。
                     </p>
                 </div>
 
                 <div class="glow-card rounded-2xl p-6">
-                    <h3 class="font-bold text-base text-white mb-2">Q7: 自建云服务器（如阿里云、腾讯云）只填域名不加端口能直接连接吗？</h3>
-                    <p class="text-sm text-slate-400 leading-relaxed">
-                        可以！增强版已实现全链路端口智能自适应。对于标准云主机，在 ID 服务器中直接输入纯域名（如 <code class="text-xs font-mono bg-slate-950 px-1.5 py-0.5 rounded text-sky-300 border border-slate-800">desk.yourdomain.com</code>），客户端会自动为信令分配 21116、中继分配 21117、在线探测分配 21115，无需手动拼接任何端口号，避免套接字地址错误。
+                    <h3 class="font-bold text-base text-slate-900 dark:text-white mb-2">Q7: 自建云服务器（如阿里云、腾讯云）只填域名不加端口能直接连接吗？</h3>
+                    <p class="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+                        可以！增强版已实现全链路端口智能自适应。对于标准云主机，在 ID 服务器中直接输入纯域名（如 <code class="text-xs font-mono bg-slate-100 dark:bg-slate-950 px-1.5 py-0.5 rounded text-sky-600 dark:text-sky-300 border border-slate-200 dark:border-slate-800">desk.yourdomain.com</code>），客户端会自动为信令分配 21116、中继分配 21117、在线探测分配 21115，无需手动拼接任何端口号，避免套接字地址错误。
                     </p>
                 </div>
 
                 <div class="glow-card rounded-2xl p-6">
-                    <h3 class="font-bold text-base text-white mb-2">Q8: DNS TXT 记录里的 online 字段有什么用？需要单独配置吗？</h3>
-                    <p class="text-sm text-slate-400 leading-relaxed">
-                        <code class="text-xs font-mono bg-slate-950 px-1.5 py-0.5 rounded text-teal-300 border border-slate-800">online</code> 字段对应 RustDesk 原生 <code class="text-xs font-mono text-slate-300">hbbs</code> 的 TCP 21115 在线探测与状态同步端口。在客户端地址簿或近期连接列表中，用于快速轮询并高亮显示远端设备是否在线（红/绿指示灯）。若在 Lucky 中为 21115 创建了 STUN 穿透规则并将其公网地址填入 TXT 的 <code class="text-xs font-mono bg-slate-950 px-1.5 py-0.5 rounded text-teal-300 border border-slate-800">online=host:port</code> 中，客户端将通过该专用通道刷新状态；如果省略该字段，客户端会自动平滑回退至 21116 信令心跳探测，<strong>完全不影响远程控制打洞、中继和音视频流连接</strong>。
+                    <h3 class="font-bold text-base text-slate-900 dark:text-white mb-2">Q8: DNS TXT 记录里的 online 字段有什么用？需要单独配置吗？</h3>
+                    <p class="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+                        <code class="text-xs font-mono bg-slate-100 dark:bg-slate-950 px-1.5 py-0.5 rounded text-teal-600 dark:text-teal-300 border border-slate-200 dark:border-slate-800">online</code> 字段对应 RustDesk 原生 <code class="text-xs font-mono text-slate-700 dark:text-slate-300">hbbs</code> 的 TCP 21115 在线探测与状态同步端口。在客户端地址簿或近期连接列表中，用于快速轮询并高亮显示远端设备是否在线（红/绿指示灯）。若在 Lucky 中为 21115 创建了 STUN 穿透规则并将其公网地址填入 TXT 的 <code class="text-xs font-mono bg-slate-100 dark:bg-slate-950 px-1.5 py-0.5 rounded text-teal-600 dark:text-teal-300 border border-slate-200 dark:border-slate-800">online=host:port</code> 中，客户端将通过该专用通道刷新状态；如果省略该字段，客户端会自动平滑回退至 21116 信令心跳探测，<strong>完全不影响远程控制打洞、中继和音视频流连接</strong>。
                     </p>
                 </div>
 
                 <div class="glow-card rounded-2xl p-6">
-                    <h3 class="font-bold text-base text-white mb-2">Q9: 以前的版本会从 TXT 自动填入 Key，升级后需要重新设置吗？</h3>
-                    <p class="text-sm text-slate-400 leading-relaxed">
-                        需要。出于安全考虑（DNS TXT 通道未签名，可能被篡改），新版本解析 TXT 时不再写入或覆盖客户端的 Key 配置。请在「网络设置」的「Key」一栏手动填写一次服务端 <code class="text-xs font-mono bg-slate-950 px-1.5 py-0.5 rounded text-brand-300 border border-slate-800">id_ed25519.pub</code> 公钥即可，之后无需再改动；旧 TXT 记录中残留的 <code class="text-xs font-mono bg-slate-950 px-1.5 py-0.5 rounded text-slate-300 border border-slate-800">key=</code> 字段会被直接忽略，不影响连接。
+                    <h3 class="font-bold text-base text-slate-900 dark:text-white mb-2">Q9: 以前的版本会从 TXT 自动填入 Key，升级后需要重新设置吗？</h3>
+                    <p class="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+                        需要。出于安全考虑（DNS TXT 通道未签名，可能被篡改），新版本解析 TXT 时不再写入或覆盖客户端的 Key 配置。请在「网络设置」的「Key」一栏手动填写一次服务端 <code class="text-xs font-mono bg-slate-100 dark:bg-slate-950 px-1.5 py-0.5 rounded text-brand-600 dark:text-brand-300 border border-slate-200 dark:border-slate-800">id_ed25519.pub</code> 公钥即可，之后无需再改动；旧 TXT 记录中残留的 <code class="text-xs font-mono bg-slate-100 dark:bg-slate-950 px-1.5 py-0.5 rounded text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-800">key=</code> 字段会被直接忽略，不影响连接。
                     </p>
                 </div>
 
-                <div class="glow-card rounded-2xl p-6 border-l-4 border-l-brand-400">
-                    <h3 class="font-bold text-base text-white mb-2">Q10: 光猫拨号未改桥接（无公网 IP 直通），为什么现在也能实现 TCP 打洞极速直连？</h3>
-                    <p class="text-sm text-slate-400 leading-relaxed">
-                        在光猫路由拨号模式下，内网 NAS 通常通过 DMZ 或端口映射对外提供服务。当外部电脑（如公司内网）连接时，反向代理（如 Lucky）转发 TCP 连接默认会进行 SNAT（源地址转换），导致服务端获取到的客户端 IP 变成内网网段 IP（如 <code class="text-xs font-mono bg-slate-950 px-1.5 py-0.5 rounded text-slate-300 border border-slate-800">192.168.x.x</code>），直接触发回环检测使得打洞终止。本次增强版在自建 hbbs 服务端原生引入了 <strong>ProxyProtocol v1/v2 协议自动解码</strong>。只需在 Lucky 的 STUN 规则高级设置中勾选【附加 Proxy Protocol】，ProxyProtocol 头就会自动携带真实的客户端公网 IP 及映射端口，服务端精准还原后即可在 <strong>170ms 内极速建立 TCP 端到端打洞</strong>，真正做到免公网 IP、免改桥接的高性能直连！
+                <div class="glow-card rounded-2xl p-6 border-l-4 border-l-brand-500">
+                    <h3 class="font-bold text-base text-slate-900 dark:text-white mb-2">Q10: 光猫拨号未改桥接（无公网 IP 直通），为什么现在也能实现 TCP 打洞极速直连？</h3>
+                    <p class="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+                        在光猫路由拨号模式下，内网 NAS 通常通过 DMZ 或端口映射对外提供服务。当外部电脑（如公司内网）连接时，反向代理（如 Lucky）转发 TCP 连接默认会进行 SNAT（源地址转换），导致服务端获取到的客户端 IP 变成内网网段 IP（如 <code class="text-xs font-mono bg-slate-100 dark:bg-slate-950 px-1.5 py-0.5 rounded text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-800">192.168.x.x</code>），直接触发回环检测使得打洞终止。本次增强版在自建 hbbs 服务端原生引入了 <strong>ProxyProtocol v1/v2 协议自动解码</strong>。只需在 Lucky 的 STUN 规则高级设置中勾选【附加 Proxy Protocol】，ProxyProtocol 头就会自动携带真实的客户端公网 IP 及映射端口，服务端精准还原后即可在 <strong>170ms 内极速建立 TCP 端到端打洞</strong>，真正做到免公网 IP、免改桥接的高性能直连！
                     </p>
                 </div>
 
-                <div class="glow-card rounded-2xl p-6 border-l-4 border-l-emerald-400">
-                    <h3 class="font-bold text-base text-white mb-2">Q11: 中继连接如何自动升级为直连？点了“Not now”会被频繁弹窗打扰吗？</h3>
-                    <p class="text-sm text-slate-400 leading-relaxed">
+                <div class="glow-card rounded-2xl p-6 border-l-4 border-l-emerald-500">
+                    <h3 class="font-bold text-base text-slate-900 dark:text-white mb-2">Q11: 中继连接如何自动升级为直连？点了“Not now”会被频繁弹窗打扰吗？</h3>
+                    <p class="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
                         当主被控两端网络初期条件不足或 NAT 映射尚未收敛时，客户端会优先走中继服务器秒连建立会话，杜绝长时间黑屏等待。进入会话后，后台静默守护任务会在不影响操作的前提下持续进行四通道直连竞速探测。一旦检测到可用直连链路，主界面会弹出升级提示。用户点击「Upgrade now」即可在 1 秒内无感热升级到超低延迟 P2P 直连。如果用户暂时不想切换点击了「Not now」，后台探测任务在当前会话周期内会<strong>自动静默退出，绝不会每隔几分钟反复弹窗骚扰</strong>；同时升级额度会被精准保护，后续网络恢复或手动重连时仍可继续享受升级加速。
                     </p>
                 </div>
@@ -1352,16 +1373,101 @@ services:
         </div>
     </section>
 
+    <!-- 致谢与开源生态区域 Acknowledgements -->
+    <section id="acknowledgements" class="py-20 border-b border-slate-200/80 dark:border-slate-800/80 relative">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center max-w-3xl mx-auto mb-16">
+                <h2 class="text-xs uppercase tracking-widest text-brand-600 dark:text-brand-400 font-bold mb-3 font-mono">ACKNOWLEDGEMENTS</h2>
+                <p class="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-white">致谢与开源生态</p>
+                <p class="text-slate-600 dark:text-slate-400 mt-4 text-base">
+                    站在巨人的肩膀上前行，由衷感谢开源社区的卓越贡献与灵感启发，完善了目前的构想与实现
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto mb-12">
+                <!-- RustDesk 官方项目 -->
+                <div class="glow-card rounded-2xl p-8 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between mb-5">
+                            <div class="w-12 h-12 rounded-xl bg-brand-500/10 border border-brand-500/20 flex items-center justify-center">
+                                <svg class="w-7 h-7 text-brand-600 dark:text-brand-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+                                </svg>
+                            </div>
+                            <span class="text-xs font-mono font-bold px-2.5 py-1 rounded-full bg-brand-500/10 text-brand-600 dark:text-brand-400 border border-brand-500/20">Official Core</span>
+                        </div>
+                        <h3 class="text-xl font-bold text-slate-900 dark:text-white mb-2">RustDesk 官方项目</h3>
+                        <div class="text-xs font-mono text-slate-500 mb-4 flex items-center space-x-2">
+                            <span>rustdesk/rustdesk</span>
+                            <span>·</span>
+                            <span>rustdesk/rustdesk-server</span>
+                        </div>
+                        <p class="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+                            感谢 RustDesk 官方核心团队开创了卓越、现代化且安全自主可控的开源远程桌面基石。官方项目精妙的 Rendezvous 信令中继架构、Rust 高性能异步流控与跨平台 Flutter 客户端，为本增强版的 NAT 打洞算法创新与网络层拓展提供了最坚实的底座支持。
+                        </p>
+                    </div>
+                    <div class="pt-6 mt-6 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between">
+                        <a href="https://github.com/rustdesk/rustdesk" target="_blank" class="inline-flex items-center space-x-2 text-xs font-semibold text-brand-600 dark:text-brand-400 hover:underline">
+                            <span>访问 GitHub 官方仓库</span>
+                            <span>↗</span>
+                        </a>
+                        <span class="text-xs text-slate-500">70k+ Stars</span>
+                    </div>
+                </div>
+
+                <!-- lejianwen / rustdesk-api -->
+                <div class="glow-card rounded-2xl p-8 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between mb-5">
+                            <div class="w-12 h-12 rounded-xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center">
+                                <svg class="w-7 h-7 text-sky-600 dark:text-sky-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                                    <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+                                    <line x1="12" y1="22.08" x2="12" y2="12"/>
+                                </svg>
+                            </div>
+                            <span class="text-xs font-mono font-bold px-2.5 py-1 rounded-full bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20">API Ecosystem</span>
+                        </div>
+                        <h3 class="text-xl font-bold text-slate-900 dark:text-white mb-2">lejianwen / rustdesk-api</h3>
+                        <div class="text-xs font-mono text-slate-500 mb-4 flex items-center space-x-2">
+                            <span>lejianwen/rustdesk-api</span>
+                            <span>·</span>
+                            <span>Web / ID Server</span>
+                        </div>
+                        <p class="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+                            特别致谢 lejianwen 开发者开源的 rustdesk-api 项目。该项目优雅地完善了自建生态中的设备注册、在线状态管理、地址簿同步与跨域 API 交互，为家庭私有云及企业自建提供了极其出色的拓展思路，极大地启发并完善了本项目在动态 STUN、在线流与多 Profile 调度的设计构想与实现。
+                        </p>
+                    </div>
+                    <div class="pt-6 mt-6 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between">
+                        <a href="https://github.com/lejianwen/rustdesk-api" target="_blank" class="inline-flex items-center space-x-2 text-xs font-semibold text-sky-600 dark:text-sky-400 hover:underline">
+                            <span>访问 GitHub 项目仓库</span>
+                            <span>↗</span>
+                        </a>
+                        <span class="text-xs text-slate-500">Community Choice</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 补充致谢横幅 -->
+            <div class="max-w-4xl mx-auto p-6 rounded-2xl bg-white/70 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800/80 text-center text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+                <p>
+                    本项目所有动态 STUN 增强补丁、ProxyProtocol v2 解码、四通道打洞与直连热升级代码均遵循开源协议与社区精神进行维护开发，向所有为开源远程桌面生态添砖加瓦的开发者们致以最崇高的敬意！
+                </p>
+            </div>
+        </div>
+    </section>
+
     <!-- 页脚 Footer -->
-    <footer class="py-10 border-t border-slate-900 bg-slate-950 text-slate-500 text-xs text-center">
+    <footer class="py-10 bg-slate-100/80 dark:bg-slate-950 border-t border-slate-200 dark:border-slate-800/80 text-slate-500 text-xs text-center">
         <div class="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-4">
             <div>
-                © 2026 RustDesk 动态 STUN 增强版 · 基于开源项目 RustDesk 构建
+                © 2026 RustDesk 动态 STUN 增强版 · 基于开源项目 <a href="https://github.com/rustdesk/rustdesk" target="_blank" class="text-brand-600 dark:text-brand-400 hover:underline font-medium">RustDesk</a> 与 <a href="https://github.com/lejianwen/rustdesk-api" target="_blank" class="text-sky-600 dark:text-sky-400 hover:underline font-medium">rustdesk-api</a> 生态启发构建
             </div>
-            <div class="flex items-center space-x-6 text-slate-400">
-                <a href="https://github.com/cyz-domo/rustdesk" target="_blank" class="hover:text-brand-400 transition-colors">GitHub 仓库</a>
-                <a href="https://github.com/cyz-domo/rustdesk/releases" target="_blank" class="hover:text-brand-400 transition-colors">Releases 产物</a>
-                <a href="https://github.com/cyz-domo/rustdesk/blob/master/docs/LUCKY_STUN_GUIDE.md" target="_blank" class="hover:text-brand-400 transition-colors">配置文档</a>
+            <div class="flex items-center space-x-6 text-slate-600 dark:text-slate-400">
+                <a href="https://github.com/cyz-domo/rustdesk" target="_blank" class="hover:text-brand-600 dark:hover:text-brand-400 transition-colors">GitHub 仓库</a>
+                <a href="https://github.com/cyz-domo/rustdesk/releases" target="_blank" class="hover:text-brand-600 dark:hover:text-brand-400 transition-colors">Releases 产物</a>
+                <a href="https://github.com/cyz-domo/rustdesk/blob/master/docs/LUCKY_STUN_GUIDE.md" target="_blank" class="hover:text-brand-600 dark:hover:text-brand-400 transition-colors">配置文档</a>
+                <a href="#acknowledgements" class="hover:text-brand-600 dark:hover:text-brand-400 transition-colors">鸣谢生态</a>
             </div>
         </div>
     </footer>
