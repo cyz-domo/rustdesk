@@ -1,8 +1,15 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" class="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script>
+        if (localStorage.getItem('theme') === 'light' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: light)').matches)) {
+            document.documentElement.classList.remove('dark');
+        } else {
+            document.documentElement.classList.add('dark');
+        }
+    </script>
     <title>RustDesk 动态 STUN 与 P2P 穿透增强版 - 免公网 IP 自建远程桌面 | ProxyProtocol v2 / TCP打洞 / 120 FPS / Lucky NAT1 / 混合组网</title>
     <meta name="description" content="基于 Lucky NAT1 STUN 穿透、ProxyProtocol v2 真实 IP 解码与多服务器 Profile 管理的 RustDesk 增强版。支持企业级 TCP 打洞 (170ms直连)、IPv4/IPv6/WebRTC 四通道并发竞速、中继转直连无感热升级与最高 120 FPS P2P 直连。提供全平台客户端下载。">
     <meta name="keywords" content="RustDesk, Lucky, STUN, NAT1, ProxyProtocol, TCP打洞, 远程桌面, 多服务器配置, 线路显示, DNS TXT, P2P直连, 自建RustDesk, 阿里云, 腾讯云, 家宽打洞, 免公网IP, 120FPS, IPv6双栈, 中继转直连, 远程控制">
@@ -99,31 +106,52 @@
         html { scroll-behavior: smooth; }
         body { font-family: 'Inter', sans-serif; }
         .gradient-text {
+            background: linear-gradient(135deg, #16a34a 0%, #0284c7 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .dark .gradient-text {
             background: linear-gradient(135deg, #4ade80 0%, #38bdf8 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
         }
         .glow-card {
-            background: rgba(17, 24, 39, 0.75);
+            background: rgba(255, 255, 255, 0.9);
             backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(226, 232, 240, 0.9);
+            box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.05);
             transition: all 0.3s ease;
         }
+        .dark .glow-card {
+            background: rgba(17, 24, 39, 0.75);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: none;
+        }
         .glow-card:hover {
-            border-color: rgba(74, 222, 128, 0.4);
-            box-shadow: 0 0 25px -5px rgba(34, 197, 94, 0.15);
+            border-color: rgba(34, 197, 94, 0.5);
+            box-shadow: 0 10px 30px -5px rgba(34, 197, 94, 0.15);
             transform: translateY(-2px);
         }
+        .dark .glow-card:hover {
+            border-color: rgba(74, 222, 128, 0.4);
+            box-shadow: 0 0 25px -5px rgba(34, 197, 94, 0.15);
+        }
         .code-block {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            color: #0f172a;
+        }
+        .dark .code-block {
             background: #0d1117;
             border: 1px solid #30363d;
+            color: #cbd5e1;
         }
     </style>
 </head>
-<body class="bg-slate-950 text-slate-100 antialiased selection:bg-brand-500 selection:text-slate-950">
+<body class="bg-slate-100/50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 antialiased selection:bg-brand-500 selection:text-slate-950 transition-colors duration-300">
 
     <!-- 顶部导航栏 -->
-    <header class="sticky top-0 z-50 bg-slate-950/80 backdrop-blur-md border-b border-slate-800/80">
+    <header class="sticky top-0 z-50 bg-white/85 dark:bg-slate-950/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800/80 transition-colors">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
             <div class="flex items-center space-x-3">
                 <div class="w-10 h-10 rounded-xl bg-slate-900 border border-slate-700/80 p-2 flex items-center justify-center shadow-lg shadow-sky-500/10">
@@ -138,24 +166,28 @@
                     </svg>
                 </div>
                 <div>
-                    <span class="font-bold text-lg text-white">RustDesk</span>
-                    <span class="text-xs bg-brand-500/20 text-brand-400 px-2 py-0.5 rounded-full ml-1 font-semibold border border-brand-500/30">STUN & Cloud Pro</span>
+                    <span class="font-bold text-lg text-slate-900 dark:text-white">RustDesk</span>
+                    <span class="text-xs bg-brand-500/20 text-brand-600 dark:text-brand-400 px-2 py-0.5 rounded-full ml-1 font-semibold border border-brand-500/30">STUN & Cloud Pro</span>
                 </div>
             </div>
-            <nav class="hidden md:flex items-center space-x-6 text-sm font-medium text-slate-300">
-                <a href="#features" class="hover:text-brand-400 transition-colors">核心特性</a>
-                <a href="#comparison" class="hover:text-brand-400 transition-colors">技术对比</a>
-                <a href="#engineering" class="hover:text-brand-400 transition-colors">工程演进</a>
-                <a href="#architecture" class="hover:text-brand-400 transition-colors">网络架构</a>
-                <a href="#guide" class="hover:text-brand-400 transition-colors">配置教程</a>
-                <a href="#changelog" class="hover:text-brand-400 transition-colors">最新动态</a>
-                <a href="#download" class="hover:text-brand-400 transition-colors">下载客户端</a>
-                <a href="#faq" class="hover:text-brand-400 transition-colors">常见问题</a>
+            <nav class="hidden md:flex items-center space-x-6 text-sm font-medium text-slate-600 dark:text-slate-300">
+                <a href="#features" class="hover:text-brand-500 dark:hover:text-brand-400 transition-colors">核心特性</a>
+                <a href="#comparison" class="hover:text-brand-500 dark:hover:text-brand-400 transition-colors">技术对比</a>
+                <a href="#engineering" class="hover:text-brand-500 dark:hover:text-brand-400 transition-colors">工程演进</a>
+                <a href="#architecture" class="hover:text-brand-500 dark:hover:text-brand-400 transition-colors">网络架构</a>
+                <a href="#guide" class="hover:text-brand-500 dark:hover:text-brand-400 transition-colors">配置教程</a>
+                <a href="#changelog" class="hover:text-brand-500 dark:hover:text-brand-400 transition-colors">最新动态</a>
+                <a href="#download" class="hover:text-brand-500 dark:hover:text-brand-400 transition-colors">下载客户端</a>
+                <a href="#faq" class="hover:text-brand-500 dark:hover:text-brand-400 transition-colors">常见问题</a>
             </nav>
-            <div class="flex items-center space-x-4">
-                <a href="https://github.com/cyz-domo/rustdesk" target="_blank" class="flex items-center space-x-2 text-xs font-semibold px-4 py-2 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-200 transition-all">
+            <div class="flex items-center space-x-3">
+                <button id="theme-toggle" type="button" onclick="toggleTheme()" class="p-2 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-900 dark:hover:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 transition-colors" title="切换深色/浅色模式" aria-label="Toggle Theme">
+                    <svg id="theme-toggle-dark-icon" class="hidden w-4 h-4 fill-current" viewBox="0 0 20 20"><path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path></svg>
+                    <svg id="theme-toggle-light-icon" class="hidden w-4 h-4 fill-current" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clip-rule="evenodd"></path></svg>
+                </button>
+                <a href="https://github.com/cyz-domo/rustdesk" target="_blank" class="flex items-center space-x-2 text-xs font-semibold px-3 sm:px-4 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-900 dark:hover:bg-slate-800 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 transition-all">
                     <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
-                    <span>GitHub 源码</span>
+                    <span class="hidden sm:inline">GitHub 源码</span>
                 </a>
                 <a href="#download" class="hidden sm:inline-flex items-center text-xs font-semibold px-4 py-2 rounded-lg bg-brand-500 hover:bg-brand-600 text-slate-950 transition-all shadow-md shadow-brand-500/20">
                     <span>立即下载</span>
@@ -368,175 +400,175 @@
     </section>
 
     <!-- 方案与技术对比区域 -->
-    <section id="comparison" class="py-20 bg-slate-900/60 border-b border-slate-800/80">
+    <section id="comparison" class="py-20 bg-slate-50/50 dark:bg-slate-900/60 border-b border-slate-200 dark:border-slate-800/80">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="text-center max-w-3xl mx-auto mb-16">
-                <h2 class="text-xs uppercase tracking-widest text-emerald-400 font-bold mb-3 font-mono">BENCHMARKS & COMPARISON</h2>
-                <p class="text-3xl sm:text-4xl font-extrabold text-white">官方原生版 vs 深度定制增强版</p>
-                <p class="text-slate-400 mt-4 text-base">直面家庭光猫拨号与企业复杂网络打洞痛点，全方位性能与体验对比一览</p>
+                <h2 class="text-xs uppercase tracking-widest text-emerald-600 dark:text-emerald-400 font-bold mb-3 font-mono">BENCHMARKS & COMPARISON</h2>
+                <p class="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-white">标准公网版 vs 场景定制增强版</p>
+                <p class="text-slate-600 dark:text-slate-400 mt-4 text-base">直面家庭宽带 NAT1、动态端口跳变与企业反向代理网络，全方位架构与体验对比一览</p>
             </div>
 
             <!-- 对比表格卡片 -->
-            <div class="glow-card rounded-2xl overflow-hidden border border-slate-800 shadow-2xl">
+            <div class="glow-card rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 shadow-xl">
                 <div class="overflow-x-auto">
                     <table class="w-full text-left text-xs sm:text-sm">
-                        <thead class="bg-slate-950/90 text-slate-300 font-mono text-xs border-b border-slate-800 uppercase tracking-wider">
+                        <thead class="bg-slate-100 dark:bg-slate-950/90 text-slate-700 dark:text-slate-300 font-mono text-xs border-b border-slate-200 dark:border-slate-800 uppercase tracking-wider">
                             <tr>
-                                <th class="py-4 px-6 font-semibold">网络场景 / 核心能力</th>
-                                <th class="py-4 px-6 font-semibold text-slate-400">官方原生版 (Upstream)</th>
-                                <th class="py-4 px-6 font-semibold text-brand-400">深度定制增强版 (Enhanced)</th>
-                                <th class="py-4 px-6 font-semibold text-sky-400">实战收益</th>
+                                <th class="py-4 px-6 font-semibold">架构特性 / 适用场景</th>
+                                <th class="py-4 px-6 font-semibold text-slate-500 dark:text-slate-400">官方标准版（公网固定 IP / 云主机托管）</th>
+                                <th class="py-4 px-6 font-semibold text-brand-600 dark:text-brand-400">场景定制增强版（家庭宽带 / Lucky STUN / 混合穿透特化）</th>
+                                <th class="py-4 px-6 font-semibold text-sky-600 dark:text-sky-400">场景特化价值</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-slate-800/60 text-slate-300 font-light">
-                            <tr class="hover:bg-slate-800/20 transition-colors">
-                                <td class="py-4 px-6 font-medium text-white flex items-center space-x-2">
+                        <tbody class="divide-y divide-slate-200 dark:divide-slate-800/60 text-slate-600 dark:text-slate-300 font-light">
+                            <tr class="hover:bg-slate-100/50 dark:hover:bg-slate-800/20 transition-colors">
+                                <td class="py-4 px-6 font-medium text-slate-900 dark:text-white flex items-center space-x-2">
                                     <span>🌐</span>
-                                    <span>光猫拨号/反代内网穿透</span>
+                                    <span>光猫拨号/反代网络适应</span>
                                 </td>
-                                <td class="py-4 px-6 text-rose-400">
-                                    ❌ 无法打洞。反代 SNAT 导致对端 IP 变内网回环，直连中止
+                                <td class="py-4 px-6 text-slate-500 dark:text-slate-400">
+                                    基于公网直接可达或传统端口映射设计；遇反代 SNAT 时客户端显现为内网 IP，默认回退中继
                                 </td>
-                                <td class="py-4 px-6 text-brand-300 font-medium">
-                                    ✅ <strong>ProxyProtocol v2 原生解码</strong>，170ms 极速建立 TCP 直连
+                                <td class="py-4 px-6 text-brand-600 dark:text-brand-300 font-medium">
+                                    原生解码 <strong>ProxyProtocol v1/v2</strong>，精准还原真实公网 IP 与端口，170ms 建立 TCP 直连
                                 </td>
-                                <td class="py-4 px-6 text-slate-400">
-                                    免改光猫桥接，家庭 NAS 与企业对称防火墙下照常打通
+                                <td class="py-4 px-6 text-slate-500 dark:text-slate-400">
+                                    免改光猫桥接，在家庭 NAS 经 Lucky 代理或企业对称防火墙环境下依然稳定直连
                                 </td>
                             </tr>
-                            <tr class="hover:bg-slate-800/20 transition-colors">
-                                <td class="py-4 px-6 font-medium text-white flex items-center space-x-2">
+                            <tr class="hover:bg-slate-100/50 dark:hover:bg-slate-800/20 transition-colors">
+                                <td class="py-4 px-6 font-medium text-slate-900 dark:text-white flex items-center space-x-2">
                                     <span>🚀</span>
                                     <span>P2P 打洞多协议探测</span>
                                 </td>
-                                <td class="py-4 px-6 text-slate-400">
-                                    ⚠️ 串行单通道，单个通道不可达时易阻塞等待
+                                <td class="py-4 px-6 text-slate-500 dark:text-slate-400">
+                                    标准逐项串行探测，按确定性顺序依次验证可用链路
                                 </td>
-                                <td class="py-4 px-6 text-brand-300 font-medium">
-                                    ✅ <strong>IPv4/IPv6/TCP/WebRTC 四通道并发竞速 (Select-Ok)</strong>
+                                <td class="py-4 px-6 text-brand-600 dark:text-brand-300 font-medium">
+                                    <strong>IPv4/IPv6/TCP/WebRTC 四通道并发竞速 (Select-Ok)</strong>，自动抢占最优链路
                                 </td>
-                                <td class="py-4 px-6 text-slate-400">
-                                    毫秒级抢占最低延迟链路，打洞成功率翻倍
+                                <td class="py-4 px-6 text-slate-500 dark:text-slate-400">
+                                    消除串行探测等待，充分利用双栈网络优势，打洞直连成功率显著提升
                                 </td>
                             </tr>
-                            <tr class="hover:bg-slate-800/20 transition-colors">
-                                <td class="py-4 px-6 font-medium text-white flex items-center space-x-2">
+                            <tr class="hover:bg-slate-100/50 dark:hover:bg-slate-800/20 transition-colors">
+                                <td class="py-4 px-6 font-medium text-slate-900 dark:text-white flex items-center space-x-2">
                                     <span>🧬</span>
-                                    <span>对称型 NAT 端口预测</span>
+                                    <span>对称型 NAT 穿透策略</span>
                                 </td>
-                                <td class="py-4 px-6 text-slate-400">
-                                    ⚠️ 探测端口容易错位，误判直接降级中继
+                                <td class="py-4 px-6 text-slate-500 dark:text-slate-400">
+                                    标准 STUN 探测；遇端口跳变对称 NAT 时保守判定并平滑回退至中继
                                 </td>
-                                <td class="py-4 px-6 text-brand-300 font-medium">
-                                    ✅ <strong>动态源端口锁定与双向端口回填 (参考 OpenP2P)</strong>
+                                <td class="py-4 px-6 text-brand-600 dark:text-brand-300 font-medium">
+                                    <strong>动态源端口锁定与双向端口回填 (借鉴 OpenP2P 端口复用机制)</strong>
                                 </td>
-                                <td class="py-4 px-6 text-slate-400">
-                                    成功打穿复杂锥型与部分对称型 NAT 阻隔
+                                <td class="py-4 px-6 text-slate-500 dark:text-slate-400">
+                                    成功打通复杂多层锥型与部分对称型 NAT 之间的阻隔
                                 </td>
                             </tr>
-                            <tr class="hover:bg-slate-800/20 transition-colors">
-                                <td class="py-4 px-6 font-medium text-white flex items-center space-x-2">
+                            <tr class="hover:bg-slate-100/50 dark:hover:bg-slate-800/20 transition-colors">
+                                <td class="py-4 px-6 font-medium text-slate-900 dark:text-white flex items-center space-x-2">
                                     <span>🔄</span>
-                                    <span>中继会话连通体验</span>
+                                    <span>会话传输模式演进</span>
                                 </td>
-                                <td class="py-4 px-6 text-rose-400">
-                                    ❌ 开局若落入中继，整场会话永久锁死在中继节点
+                                <td class="py-4 px-6 text-slate-500 dark:text-slate-400">
+                                    初始选路固定模式，会话期间保持所选直连或中继链路直至断开
                                 </td>
-                                <td class="py-4 px-6 text-brand-300 font-medium">
-                                    ✅ <strong>中继转直连智能无感热升级</strong>，后台静默探测，就绪一键秒切
+                                <td class="py-4 px-6 text-brand-600 dark:text-brand-300 font-medium">
+                                    <strong>中继无感保底秒连 + 后台静默嗅探 + 智能热升级至 P2P 直连</strong>
                                 </td>
-                                <td class="py-4 px-6 text-slate-400">
-                                    先中继秒连保障可用，条件具备即享零延迟直连
+                                <td class="py-4 px-6 text-slate-500 dark:text-slate-400">
+                                    兼顾“开局秒开零等待”与“就绪后零中继流量消耗、超低延迟”的双重诉求
                                 </td>
                             </tr>
-                            <tr class="hover:bg-slate-800/20 transition-colors">
-                                <td class="py-4 px-6 font-medium text-white flex items-center space-x-2">
+                            <tr class="hover:bg-slate-100/50 dark:hover:bg-slate-800/20 transition-colors">
+                                <td class="py-4 px-6 font-medium text-slate-900 dark:text-white flex items-center space-x-2">
                                     <span>🎛️</span>
                                     <span>多服务器配置管理</span>
                                 </td>
-                                <td class="py-4 px-6 text-slate-400">
-                                    ❌ 仅能填单服务器地址，切换节点需反复手动修改
+                                <td class="py-4 px-6 text-slate-500 dark:text-slate-400">
+                                    支持单组 ID / Relay 自建服务器或官方公共网络配置
                                 </td>
-                                <td class="py-4 px-6 text-brand-300 font-medium">
-                                    ✅ <strong>多 Profile 线路管理</strong>，独立延迟测速，全关自动回退官方
+                                <td class="py-4 px-6 text-brand-600 dark:text-brand-300 font-medium">
+                                    <strong>多 Profile 线路管理</strong>，独立延迟测速，一键动态切换，全关自动回退官方
                                 </td>
-                                <td class="py-4 px-6 text-slate-400">
-                                    家庭 STUN、公司专线、公网 VPS 一键测速切换
+                                <td class="py-4 px-6 text-slate-500 dark:text-slate-400">
+                                    灵活穿梭于公司内网专线、家庭 NAS 与云端中继的复杂多网络漫游场景
                                 </td>
                             </tr>
-                            <tr class="hover:bg-slate-800/20 transition-colors">
-                                <td class="py-4 px-6 font-medium text-white flex items-center space-x-2">
+                            <tr class="hover:bg-slate-100/50 dark:hover:bg-slate-800/20 transition-colors">
+                                <td class="py-4 px-6 font-medium text-slate-900 dark:text-white flex items-center space-x-2">
                                     <span>🧭</span>
-                                    <span>连接线路透传感知</span>
+                                    <span>链路状态与路径透传</span>
                                 </td>
-                                <td class="py-4 px-6 text-slate-400">
-                                    ⚠️ 仅简单显示加密锁图标，无法得知实际走哪条线路
+                                <td class="py-4 px-6 text-slate-500 dark:text-slate-400">
+                                    状态栏提供基础加密指示图标
                                 </td>
-                                <td class="py-4 px-6 text-brand-300 font-medium">
-                                    ✅ <strong>全透明线路感知</strong>，显示节点名称、🟢直连/🟣中继模式与 RTT
+                                <td class="py-4 px-6 text-brand-600 dark:text-brand-300 font-medium">
+                                    <strong>全透明链路透传感知</strong>，显示节点别名、直连/中继模式标识及端到端 RTT 时延
                                 </td>
-                                <td class="py-4 px-6 text-slate-400">
-                                    清楚掌握当前流量走家庭 NAS 还是云主机中继
+                                <td class="py-4 px-6 text-slate-500 dark:text-slate-400">
+                                    清晰掌握流量走向是家庭 NAS 还是云主机中继，便于快速网络排障
                                 </td>
                             </tr>
-                            <tr class="hover:bg-slate-800/20 transition-colors">
-                                <td class="py-4 px-6 font-medium text-white flex items-center space-x-2">
+                            <tr class="hover:bg-slate-100/50 dark:hover:bg-slate-800/20 transition-colors">
+                                <td class="py-4 px-6 font-medium text-slate-900 dark:text-white flex items-center space-x-2">
                                     <span>🪟</span>
-                                    <span>Windows IPv6 双栈打洞</span>
+                                    <span>平台套接字与双栈兼容</span>
                                 </td>
-                                <td class="py-4 px-6 text-rose-400">
-                                    ❌ 未连接套接字调 peer_addr 报 10014/10049 误杀候选
+                                <td class="py-4 px-6 text-slate-500 dark:text-slate-400">
+                                    通用跨平台套接字网络抽象
                                 </td>
-                                <td class="py-4 px-6 text-brand-300 font-medium">
-                                    ✅ <strong>底层解耦套接字直传与路由有效性过滤</strong>
+                                <td class="py-4 px-6 text-brand-600 dark:text-brand-300 font-medium">
+                                    <strong>底层解耦未连接套接字 peer_addr 边界</strong>，Windows 10014/10049 异常过滤
                                 </td>
-                                <td class="py-4 px-6 text-slate-400">
-                                    Windows/Android/macOS 全平台 IPv6 直连率大幅提升
+                                <td class="py-4 px-6 text-slate-500 dark:text-slate-400">
+                                    消除特定平台双栈环境下未握手套接字的误判崩溃，Windows IPv6 直连率大幅提升
                                 </td>
                             </tr>
-                            <tr class="hover:bg-slate-800/20 transition-colors">
-                                <td class="py-4 px-6 font-medium text-white flex items-center space-x-2">
+                            <tr class="hover:bg-slate-100/50 dark:hover:bg-slate-800/20 transition-colors">
+                                <td class="py-4 px-6 font-medium text-slate-900 dark:text-white flex items-center space-x-2">
                                     <span>🛡️</span>
-                                    <span>服务端强制中继策略联动</span>
+                                    <span>服务端策略联动与安全闭环</span>
                                 </td>
-                                <td class="py-4 px-6 text-slate-400">
-                                    ⚠️ IPv6 容易形成侧漏直连，绕过 ALWAYS_USE_RELAY 策略
+                                <td class="py-4 px-6 text-slate-500 dark:text-slate-400">
+                                    标准 hbbs 策略信令下发
                                 </td>
-                                <td class="py-4 px-6 text-brand-300 font-medium">
-                                    ✅ <strong>IPv4 与 IPv6 双通道严密闭环</strong>，绝对遵从服务端中继门禁
+                                <td class="py-4 px-6 text-brand-600 dark:text-brand-300 font-medium">
+                                    <strong>服务端强制中继策略贯穿 IPv4 与 IPv6 全通道</strong>，严防 IPv6 旁路侧漏
                                 </td>
-                                <td class="py-4 px-6 text-slate-400">
-                                    保障企业合规与安全隔离网络的数据流向可控
+                                <td class="py-4 px-6 text-slate-500 dark:text-slate-400">
+                                    满足企业安全合规与内外网审计隔离要求，确保数据流向严格可控
                                 </td>
                             </tr>
-                            <tr class="hover:bg-slate-800/20 transition-colors">
-                                <td class="py-4 px-6 font-medium text-white flex items-center space-x-2">
+                            <tr class="hover:bg-slate-100/50 dark:hover:bg-slate-800/20 transition-colors">
+                                <td class="py-4 px-6 font-medium text-slate-900 dark:text-white flex items-center space-x-2">
                                     <span>⏱️</span>
-                                    <span>打洞超时与中继回退时延</span>
+                                    <span>打洞超时与动态弹性保底</span>
                                 </td>
-                                <td class="py-4 px-6 text-slate-400">
-                                    ⚠️ 固定硬等 3 秒或过早 1 秒超时，打不通时黑屏卡顿
+                                <td class="py-4 px-6 text-slate-500 dark:text-slate-400">
+                                    通用固定周期超时时钟
                                 </td>
-                                <td class="py-4 px-6 text-brand-300 font-medium">
-                                    ✅ <strong>局域网自适应 + 公网 2.0s 深度保底</strong>，失败瞬时平滑切中继
+                                <td class="py-4 px-6 text-brand-600 dark:text-brand-300 font-medium">
+                                    <strong>局域网毫秒级直通 + 广域网 2.0s 动态弹性窗口</strong>，失败瞬时无感降级中继
                                 </td>
-                                <td class="py-4 px-6 text-slate-400">
-                                    慢网打洞不被提前掐断，打不通快速降级零黑屏
+                                <td class="py-4 px-6 text-slate-500 dark:text-slate-400">
+                                    慢速网络抖动不被过早掐断，打洞不可达时绝不黑屏卡顿，体验顺畅
                                 </td>
                             </tr>
-                            <tr class="hover:bg-slate-800/20 transition-colors">
-                                <td class="py-4 px-6 font-medium text-white flex items-center space-x-2">
+                            <tr class="hover:bg-slate-100/50 dark:hover:bg-slate-800/20 transition-colors">
+                                <td class="py-4 px-6 font-medium text-slate-900 dark:text-white flex items-center space-x-2">
                                     <span>🔀</span>
-                                    <span>Lucky / 端口分裂适配</span>
+                                    <span>动态端口漂移与服务发现</span>
                                 </td>
-                                <td class="py-4 px-6 text-rose-400">
-                                    ❌ 强假设连续端口，TCP/UDP 分裂时信令握手假死超时
+                                <td class="py-4 px-6 text-slate-500 dark:text-slate-400">
+                                    基于静态连续端口规划（21115-21119）
                                 </td>
-                                <td class="py-4 px-6 text-brand-300 font-medium">
-                                    ✅ <strong>套接字精准分流 + 纯域名自适应 + DNS TXT 动态自动寻址</strong>
+                                <td class="py-4 px-6 text-brand-600 dark:text-brand-300 font-medium">
+                                    <strong>套接字精准分流 + 纯域名自适应 + DNS TXT 动态离散端口热重载</strong>
                                 </td>
-                                <td class="py-4 px-6 text-slate-400">
-                                    家宽重新拨号自动热重载，彻底告别信令假死
+                                <td class="py-4 px-6 text-slate-500 dark:text-slate-400">
+                                    完美适配家庭宽带拨号导致的端口离散漂移，光猫重拨时自动热重载无需人工维护
                                 </td>
                             </tr>
                         </tbody>
@@ -652,10 +684,10 @@
                     <span class="px-3 py-1 rounded-full text-xs font-mono font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 w-fit">实测通过 · 170ms 直连</span>
                 </div>
                 <div class="code-block rounded-xl p-4 font-mono text-xs text-slate-300 overflow-x-auto space-y-1.5 leading-relaxed bg-slate-950 border border-slate-800">
-                    <div class="text-slate-500"># 1. 服务端原生自动解码 ProxyProtocol v2，精准还原被 Lucky SNAT 掩盖的客户端公网真实 IP</div>
-                    <div><span class="text-slate-400">[2026-09-21 20:42:26]</span> <span class="text-sky-400 font-bold">INFO</span> [rendezvous_server.rs] <span class="text-brand-300 font-semibold">ProxyProtocol v2: updated client [::ffff:192.168.100.134]:42622 -> 218.89.53.241:12242</span></div>
-                    <div><span class="text-slate-400">[2026-09-21 20:42:28]</span> <span class="text-sky-400 font-bold">INFO</span> [rendezvous_server.rs] <span class="text-brand-300 font-semibold">ProxyProtocol v2: updated client [::ffff:192.168.100.134]:42632 -> 218.89.53.241:12251</span></div>
-                    <div class="text-slate-500 pt-2"># 2. 客户端利用精准公网地址执行 TCP 端口复用打洞，毫秒级跨越企业严苛对称防火墙</div>
+                    <div class="text-slate-500"># 示例调试日志（IP与端口已脱敏）：服务端自动解码 ProxyProtocol v2，精准还原被 Lucky SNAT 掩盖的客户端真实公网 IP</div>
+                    <div><span class="text-slate-400">[2026-09-21 20:42:26]</span> <span class="text-sky-400 font-bold">INFO</span> [rendezvous_server.rs] <span class="text-brand-300 font-semibold">ProxyProtocol v2: updated client [::ffff:192.168.1.100]:42622 -> 203.0.113.88:12242</span></div>
+                    <div><span class="text-slate-400">[2026-09-21 20:42:28]</span> <span class="text-sky-400 font-bold">INFO</span> [rendezvous_server.rs] <span class="text-brand-300 font-semibold">ProxyProtocol v2: updated client [::ffff:192.168.1.100]:42632 -> 203.0.113.88:12251</span></div>
+                    <div class="text-slate-500 pt-2"># 客户端利用精准公网映射地址执行 TCP 端口复用打洞，毫秒级穿透企业严苛对称型防火墙</div>
                     <div><span class="text-slate-400">[2026-09-21 20:42:30]</span> <span class="text-emerald-400 font-bold">INFO</span> [client.rs] <span class="text-emerald-300 font-bold">TCP Hole Punched id=1872077265, time_used=170ms</span></div>
                     <div><span class="text-slate-400">[2026-09-21 20:42:30]</span> <span class="text-emerald-400 font-bold">INFO</span> [client.rs] <span class="text-white font-medium">Session 1872077265 direct connected (Path: Direct TCP P2P, Latency: 12ms)</span></div>
                 </div>
@@ -783,20 +815,62 @@
                             1
                         </div>
                         <div class="flex-1">
-                            <h3 class="text-lg font-bold text-white">服务端部署 (运行 hbbs 与 hbbr)</h3>
-                            <p class="text-sm text-slate-400 mt-1 mb-3">在你的内网 NAS / Linux / 软路由上启动服务并生成密钥：</p>
-                            <div class="code-block rounded-xl p-4 font-mono text-xs text-slate-300 overflow-x-auto">
-                                <span class="text-slate-500"># 启动 hbbs (指定中继并生成 Key)</span><br>
-                                hbbs -r 0.0.0.0:21117 -k _<br><br>
-                                <span class="text-slate-500"># 启动 hbbr (指定 Key)</span><br>
-                                hbbr -k _
+                            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
+                                <h3 class="text-lg font-bold text-white">服务端部署 (推荐 Docker Compose 整合版 / 原生二进制)</h3>
+                                <span class="px-2.5 py-0.5 rounded text-[11px] font-mono font-bold bg-brand-500/20 text-brand-400 border border-brand-500/30 w-fit">S6 进程托管 & Web控制台</span>
                             </div>
-                            <p class="text-xs text-slate-400 mt-2">
-                                提示：在启动目录下会生成 <code class="text-brand-400">id_ed25519.pub</code> 文件，复制其内容作为密钥备用。
+                            <p class="text-sm text-slate-400 mt-1 mb-4 leading-relaxed">
+                                在你的内网 NAS、Linux 服务器或软路由上部署。强烈推荐使用我们维护的 S6 整合镜像 <code class="text-brand-300 font-mono">cyzdomo/rustdesk-server-s6:latest</code>，单容器集成 hbbs、hbbr、Web 管理控制台与 ProxyProtocol v2 自动解码。
                             </p>
-                        </div>
-                    </div>
-                </div>
+
+                            <!-- 方式 A: Docker Compose -->
+                            <div class="mb-5">
+                                <div class="flex items-center space-x-2 text-xs font-bold text-slate-200 mb-2">
+                                    <span class="text-brand-400 font-mono">▶ 推荐方案 A：Docker Compose 极简配置 (docker-compose.yml)</span>
+                                </div>
+                                <div class="code-block rounded-xl p-4 font-mono text-xs text-slate-300 overflow-x-auto leading-relaxed">
+version: '3.8'
+
+# 若使用 bridge 桥接模式，取消注释以下 networks 及 ports
+# networks:
+#   rustdesk-net:
+#     driver: bridge
+
+services:
+  rustdesk:
+    image: cyzdomo/rustdesk-server-s6:latest
+    container_name: rustdesk-server
+    network_mode: "host"  # 推荐 host 模式（直接绑定宿主机网卡）；若改用 bridge 模式请取消注释 ports 映射
+    restart: unless-stopped
+    # ports:
+    #   - "21114:21114"      # HTTP API & Web 控制台后台
+    #   - "21115:21115"      # NAT 类型探测 (TCP)
+    #   - "21116:21116"      # 信令注册 (TCP)
+    #   - "21116:21116/udp"  # 信令注册 & STUN 穿透 (UDP) —— 必须开启
+    #   - "21117:21117"      # 中继转发服务 (TCP)
+    #   - "21118:21118"      # Web 客户端 WebSocket (可选)
+    #   - "21119:21119"      # Web 客户端中继 WebSocket (可选)
+    environment:
+      # 1. 默认下发中继地址（客户端若匹配到 DNS TXT，会优先自动提取 TXT 内的动态 relay 端口）
+      - RELAY=rustdesk.example.com:21117
+      - ENCRYPTED_ONLY=1
+      # 2. 强制登录：建议初次部署设为 N，待网页端创建用户并测试通过后再改为 Y
+      - MUST_LOGIN=N
+      - TZ=Asia/Shanghai
+
+      # 3. 内部服务与前端交互绑定（请替换为你的实际域名或 DDNS 域名）
+      - RUSTDESK_API_RUSTDESK_ID_SERVER=rustdesk.example.com:21116
+      - RUSTDESK_API_RUSTDESK_RELAY_SERVER=rustdesk.example.com:21117
+      # 外部访问 Web 控制台与 API 接口的完整 URL（若通过 Lucky 反代或修改了外网端口，请对应修改）
+      - RUSTDESK_API_RUSTDESK_API_SERVER=https://rustdesk-api.example.com
+      # 容器内公钥文件路径（指向挂载到 /data 的 id_ed25519.pub）
+      - RUSTDESK_API_KEY_FILE=/data/id_ed25519.pub
+      # 4. JWT 鉴权密钥（可自行替换为 32 位随机字符）
+      - RUSTDESK_API_JWT_KEY=7c9b8e21a4f0d635c2e1987ba45e6f3d
+    volumes:
+      # 宿主机数据持久化挂载（请替换为你的实际 NAS/服务器路径）
+      - /vol2/1000/docker-data/rustdesk/server:/data     # 存放服务通信密钥及 hbbs 数据
+      - /vol2/1000/docker-data/rustdesk/api:/app/data   # 存放 SQLite 数据库及 Web 后台配置
 
                 <!-- 步骤 2 -->
                 <div class="glow-card rounded-2xl p-6 sm:p-8">
@@ -1248,16 +1322,16 @@
                 </div>
 
                 <div class="glow-card rounded-2xl p-6">
-                    <h3 class="font-bold text-base text-white mb-2">Q9: 以前的版本会从 TXT 自动填入 Key，升级后需要重新设置吗？</h3>
+                    <h3 class="font-bold text-base text-white mb-2">Q8: DNS TXT 记录里的 online 字段有什么用？需要单独配置吗？</h3>
                     <p class="text-sm text-slate-400 leading-relaxed">
-                        需要。出于安全考虑（DNS TXT 通道未签名，可能被篡改），新版本解析 TXT 时不再写入或覆盖客户端的 Key 配置。请在「网络设置」的「Key」一栏手动填写一次服务端 <code class="text-xs font-mono bg-slate-950 px-1.5 py-0.5 rounded text-brand-300 border border-slate-800">id_ed25519.pub</code> 公钥即可，之后无需再改动；旧 TXT 记录中残留的 <code class="text-xs font-mono bg-slate-950 px-1.5 py-0.5 rounded text-slate-300 border border-slate-800">key=</code> 字段会被直接忽略，不影响连接。
+                        <code class="text-xs font-mono bg-slate-950 px-1.5 py-0.5 rounded text-teal-300 border border-slate-800">online</code> 字段对应 RustDesk 原生 <code class="text-xs font-mono text-slate-300">hbbs</code> 的 TCP 21115 在线探测与状态同步端口。在客户端地址簿或近期连接列表中，用于快速轮询并高亮显示远端设备是否在线（红/绿指示灯）。若在 Lucky 中为 21115 创建了 STUN 穿透规则并将其公网地址填入 TXT 的 <code class="text-xs font-mono bg-slate-950 px-1.5 py-0.5 rounded text-teal-300 border border-slate-800">online=host:port</code> 中，客户端将通过该专用通道刷新状态；如果省略该字段，客户端会自动平滑回退至 21116 信令心跳探测，<strong>完全不影响远程控制打洞、中继和音视频流连接</strong>。
                     </p>
                 </div>
 
                 <div class="glow-card rounded-2xl p-6">
-                    <h3 class="font-bold text-base text-white mb-2">Q8: DNS TXT 记录里的 online 字段有什么用？需要单独配置吗？</h3>
+                    <h3 class="font-bold text-base text-white mb-2">Q9: 以前的版本会从 TXT 自动填入 Key，升级后需要重新设置吗？</h3>
                     <p class="text-sm text-slate-400 leading-relaxed">
-                        <code class="text-xs font-mono bg-slate-950 px-1.5 py-0.5 rounded text-teal-300 border border-slate-800">online</code> 字段对应 RustDesk 原生 <code class="text-xs font-mono text-slate-300">hbbs</code> 的 TCP 21115 在线探测与状态同步端口。在客户端地址簿或近期连接列表中，用于快速轮询并高亮显示远端设备是否在线（红/绿指示灯）。若在 Lucky 中为 21115 创建了 STUN 穿透规则并将其公网地址填入 TXT 的 <code class="text-xs font-mono bg-slate-950 px-1.5 py-0.5 rounded text-teal-300 border border-slate-800">online=host:port</code> 中，客户端将通过该专用通道刷新状态；如果省略该字段，客户端会自动平滑回退至 21116 信令心跳探测，<strong>完全不影响远程控制打洞、中继和音视频流连接</strong>。
+                        需要。出于安全考虑（DNS TXT 通道未签名，可能被篡改），新版本解析 TXT 时不再写入或覆盖客户端的 Key 配置。请在「网络设置」的「Key」一栏手动填写一次服务端 <code class="text-xs font-mono bg-slate-950 px-1.5 py-0.5 rounded text-brand-300 border border-slate-800">id_ed25519.pub</code> 公钥即可，之后无需再改动；旧 TXT 记录中残留的 <code class="text-xs font-mono bg-slate-950 px-1.5 py-0.5 rounded text-slate-300 border border-slate-800">key=</code> 字段会被直接忽略，不影响连接。
                     </p>
                 </div>
 
@@ -1292,5 +1366,32 @@
         </div>
     </footer>
 
+    <script>
+        function updateThemeIcons() {
+            var isDark = document.documentElement.classList.contains('dark');
+            var darkIcon = document.getElementById('theme-toggle-dark-icon');
+            var lightIcon = document.getElementById('theme-toggle-light-icon');
+            if (darkIcon && lightIcon) {
+                if (isDark) {
+                    darkIcon.classList.add('hidden');
+                    lightIcon.classList.remove('hidden');
+                } else {
+                    lightIcon.classList.add('hidden');
+                    darkIcon.classList.remove('hidden');
+                }
+            }
+        }
+        function toggleTheme() {
+            if (document.documentElement.classList.contains('dark')) {
+                document.documentElement.classList.remove('dark');
+                localStorage.setItem('theme', 'light');
+            } else {
+                document.documentElement.classList.add('dark');
+                localStorage.setItem('theme', 'dark');
+            }
+            updateThemeIcons();
+        }
+        updateThemeIcons();
+    </script>
 </body>
 </html>
