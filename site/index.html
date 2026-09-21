@@ -142,8 +142,10 @@
                     <span class="text-xs bg-brand-500/20 text-brand-400 px-2 py-0.5 rounded-full ml-1 font-semibold border border-brand-500/30">STUN & Cloud Pro</span>
                 </div>
             </div>
-            <nav class="hidden md:flex items-center space-x-7 text-sm font-medium text-slate-300">
+            <nav class="hidden md:flex items-center space-x-6 text-sm font-medium text-slate-300">
                 <a href="#features" class="hover:text-brand-400 transition-colors">核心特性</a>
+                <a href="#comparison" class="hover:text-brand-400 transition-colors">技术对比</a>
+                <a href="#engineering" class="hover:text-brand-400 transition-colors">工程演进</a>
                 <a href="#architecture" class="hover:text-brand-400 transition-colors">网络架构</a>
                 <a href="#guide" class="hover:text-brand-400 transition-colors">配置教程</a>
                 <a href="#changelog" class="hover:text-brand-400 transition-colors">最新动态</a>
@@ -362,6 +364,303 @@
                     </div>
                 </div>
             </div>
+        </div>
+    </section>
+
+    <!-- 方案与技术对比区域 -->
+    <section id="comparison" class="py-20 bg-slate-900/60 border-b border-slate-800/80">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center max-w-3xl mx-auto mb-16">
+                <h2 class="text-xs uppercase tracking-widest text-emerald-400 font-bold mb-3 font-mono">BENCHMARKS & COMPARISON</h2>
+                <p class="text-3xl sm:text-4xl font-extrabold text-white">官方原生版 vs 深度定制增强版</p>
+                <p class="text-slate-400 mt-4 text-base">直面家庭光猫拨号与企业复杂网络打洞痛点，全方位性能与体验对比一览</p>
+            </div>
+
+            <!-- 对比表格卡片 -->
+            <div class="glow-card rounded-2xl overflow-hidden border border-slate-800 shadow-2xl">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs sm:text-sm">
+                        <thead class="bg-slate-950/90 text-slate-300 font-mono text-xs border-b border-slate-800 uppercase tracking-wider">
+                            <tr>
+                                <th class="py-4 px-6 font-semibold">网络场景 / 核心能力</th>
+                                <th class="py-4 px-6 font-semibold text-slate-400">官方原生版 (Upstream)</th>
+                                <th class="py-4 px-6 font-semibold text-brand-400">深度定制增强版 (Enhanced)</th>
+                                <th class="py-4 px-6 font-semibold text-sky-400">实战收益</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-800/60 text-slate-300 font-light">
+                            <tr class="hover:bg-slate-800/20 transition-colors">
+                                <td class="py-4 px-6 font-medium text-white flex items-center space-x-2">
+                                    <span>🌐</span>
+                                    <span>光猫拨号/反代内网穿透</span>
+                                </td>
+                                <td class="py-4 px-6 text-rose-400">
+                                    ❌ 无法打洞。反代 SNAT 导致对端 IP 变内网回环，直连中止
+                                </td>
+                                <td class="py-4 px-6 text-brand-300 font-medium">
+                                    ✅ <strong>ProxyProtocol v2 原生解码</strong>，170ms 极速建立 TCP 直连
+                                </td>
+                                <td class="py-4 px-6 text-slate-400">
+                                    免改光猫桥接，家庭 NAS 与企业对称防火墙下照常打通
+                                </td>
+                            </tr>
+                            <tr class="hover:bg-slate-800/20 transition-colors">
+                                <td class="py-4 px-6 font-medium text-white flex items-center space-x-2">
+                                    <span>🚀</span>
+                                    <span>P2P 打洞多协议探测</span>
+                                </td>
+                                <td class="py-4 px-6 text-slate-400">
+                                    ⚠️ 串行单通道，单个通道不可达时易阻塞等待
+                                </td>
+                                <td class="py-4 px-6 text-brand-300 font-medium">
+                                    ✅ <strong>IPv4/IPv6/TCP/WebRTC 四通道并发竞速 (Select-Ok)</strong>
+                                </td>
+                                <td class="py-4 px-6 text-slate-400">
+                                    毫秒级抢占最低延迟链路，打洞成功率翻倍
+                                </td>
+                            </tr>
+                            <tr class="hover:bg-slate-800/20 transition-colors">
+                                <td class="py-4 px-6 font-medium text-white flex items-center space-x-2">
+                                    <span>🧬</span>
+                                    <span>对称型 NAT 端口预测</span>
+                                </td>
+                                <td class="py-4 px-6 text-slate-400">
+                                    ⚠️ 探测端口容易错位，误判直接降级中继
+                                </td>
+                                <td class="py-4 px-6 text-brand-300 font-medium">
+                                    ✅ <strong>动态源端口锁定与双向端口回填 (参考 OpenP2P)</strong>
+                                </td>
+                                <td class="py-4 px-6 text-slate-400">
+                                    成功打穿复杂锥型与部分对称型 NAT 阻隔
+                                </td>
+                            </tr>
+                            <tr class="hover:bg-slate-800/20 transition-colors">
+                                <td class="py-4 px-6 font-medium text-white flex items-center space-x-2">
+                                    <span>🔄</span>
+                                    <span>中继会话连通体验</span>
+                                </td>
+                                <td class="py-4 px-6 text-rose-400">
+                                    ❌ 开局若落入中继，整场会话永久锁死在中继节点
+                                </td>
+                                <td class="py-4 px-6 text-brand-300 font-medium">
+                                    ✅ <strong>中继转直连智能无感热升级</strong>，后台静默探测，就绪一键秒切
+                                </td>
+                                <td class="py-4 px-6 text-slate-400">
+                                    先中继秒连保障可用，条件具备即享零延迟直连
+                                </td>
+                            </tr>
+                            <tr class="hover:bg-slate-800/20 transition-colors">
+                                <td class="py-4 px-6 font-medium text-white flex items-center space-x-2">
+                                    <span>🎛️</span>
+                                    <span>多服务器配置管理</span>
+                                </td>
+                                <td class="py-4 px-6 text-slate-400">
+                                    ❌ 仅能填单服务器地址，切换节点需反复手动修改
+                                </td>
+                                <td class="py-4 px-6 text-brand-300 font-medium">
+                                    ✅ <strong>多 Profile 线路管理</strong>，独立延迟测速，全关自动回退官方
+                                </td>
+                                <td class="py-4 px-6 text-slate-400">
+                                    家庭 STUN、公司专线、公网 VPS 一键测速切换
+                                </td>
+                            </tr>
+                            <tr class="hover:bg-slate-800/20 transition-colors">
+                                <td class="py-4 px-6 font-medium text-white flex items-center space-x-2">
+                                    <span>🧭</span>
+                                    <span>连接线路透传感知</span>
+                                </td>
+                                <td class="py-4 px-6 text-slate-400">
+                                    ⚠️ 仅简单显示加密锁图标，无法得知实际走哪条线路
+                                </td>
+                                <td class="py-4 px-6 text-brand-300 font-medium">
+                                    ✅ <strong>全透明线路感知</strong>，显示节点名称、🟢直连/🟣中继模式与 RTT
+                                </td>
+                                <td class="py-4 px-6 text-slate-400">
+                                    清楚掌握当前流量走家庭 NAS 还是云主机中继
+                                </td>
+                            </tr>
+                            <tr class="hover:bg-slate-800/20 transition-colors">
+                                <td class="py-4 px-6 font-medium text-white flex items-center space-x-2">
+                                    <span>🪟</span>
+                                    <span>Windows IPv6 双栈打洞</span>
+                                </td>
+                                <td class="py-4 px-6 text-rose-400">
+                                    ❌ 未连接套接字调 peer_addr 报 10014/10049 误杀候选
+                                </td>
+                                <td class="py-4 px-6 text-brand-300 font-medium">
+                                    ✅ <strong>底层解耦套接字直传与路由有效性过滤</strong>
+                                </td>
+                                <td class="py-4 px-6 text-slate-400">
+                                    Windows/Android/macOS 全平台 IPv6 直连率大幅提升
+                                </td>
+                            </tr>
+                            <tr class="hover:bg-slate-800/20 transition-colors">
+                                <td class="py-4 px-6 font-medium text-white flex items-center space-x-2">
+                                    <span>🛡️</span>
+                                    <span>服务端强制中继策略联动</span>
+                                </td>
+                                <td class="py-4 px-6 text-slate-400">
+                                    ⚠️ IPv6 容易形成侧漏直连，绕过 ALWAYS_USE_RELAY 策略
+                                </td>
+                                <td class="py-4 px-6 text-brand-300 font-medium">
+                                    ✅ <strong>IPv4 与 IPv6 双通道严密闭环</strong>，绝对遵从服务端中继门禁
+                                </td>
+                                <td class="py-4 px-6 text-slate-400">
+                                    保障企业合规与安全隔离网络的数据流向可控
+                                </td>
+                            </tr>
+                            <tr class="hover:bg-slate-800/20 transition-colors">
+                                <td class="py-4 px-6 font-medium text-white flex items-center space-x-2">
+                                    <span>⏱️</span>
+                                    <span>打洞超时与中继回退时延</span>
+                                </td>
+                                <td class="py-4 px-6 text-slate-400">
+                                    ⚠️ 固定硬等 3 秒或过早 1 秒超时，打不通时黑屏卡顿
+                                </td>
+                                <td class="py-4 px-6 text-brand-300 font-medium">
+                                    ✅ <strong>局域网自适应 + 公网 2.0s 深度保底</strong>，失败瞬时平滑切中继
+                                </td>
+                                <td class="py-4 px-6 text-slate-400">
+                                    慢网打洞不被提前掐断，打不通快速降级零黑屏
+                                </td>
+                            </tr>
+                            <tr class="hover:bg-slate-800/20 transition-colors">
+                                <td class="py-4 px-6 font-medium text-white flex items-center space-x-2">
+                                    <span>🔀</span>
+                                    <span>Lucky / 端口分裂适配</span>
+                                </td>
+                                <td class="py-4 px-6 text-rose-400">
+                                    ❌ 强假设连续端口，TCP/UDP 分裂时信令握手假死超时
+                                </td>
+                                <td class="py-4 px-6 text-brand-300 font-medium">
+                                    ✅ <strong>套接字精准分流 + 纯域名自适应 + DNS TXT 动态自动寻址</strong>
+                                </td>
+                                <td class="py-4 px-6 text-slate-400">
+                                    家宽重新拨号自动热重载，彻底告别信令假死
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 硬核工程演进与深度问题修复实录 -->
+    <section id="engineering" class="py-20 bg-slate-950 border-b border-slate-800/80">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center max-w-3xl mx-auto mb-16">
+                <h2 class="text-xs uppercase tracking-widest text-sky-400 font-bold mb-3 font-mono">ENGINEERING EXCELLENCE</h2>
+                <p class="text-3xl sm:text-4xl font-extrabold text-white">硬核工程演进与问题修复实录</p>
+                <p class="text-slate-400 mt-4 text-base">代码不仅停留在“能跑”，更经得起严格的底层协议审计、边界测试与持续精进</p>
+            </div>
+
+            <!-- 案例网格 -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
+                
+                <!-- Case 1: 策略闭环与 IPv6 旁路修复 -->
+                <div class="glow-card rounded-2xl p-7 border border-slate-800 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between mb-4">
+                            <span class="px-2.5 py-1 rounded-full text-xs font-mono font-bold bg-rose-500/20 text-rose-400 border border-rose-500/30">Case 1 · 安全闭环</span>
+                            <span class="text-xs text-slate-500 font-mono">rendezvous_mediator.rs</span>
+                        </div>
+                        <h3 class="text-lg font-bold text-white mb-2.5">服务端强制中继策略与 IPv6 旁路泄漏修复</h3>
+                        <div class="space-y-2 text-xs text-slate-400 leading-relaxed mb-4">
+                            <p><strong class="text-slate-300">现场痛点：</strong> 服务端通过 <code class="text-slate-200">ph.nat_type = SYMMETRIC</code> 表达 <code class="text-slate-200">ALWAYS_USE_RELAY</code> 与跨局域网隔离策略。被控端此前为规避本地 NAT 超时投毒跳过了此检查，导致服务端强制中继被架空；且 IPv6 候选未受策略门禁，使双栈客户端仍能绕道直连。</p>
+                            <p><strong class="text-brand-300">工业级解法：</strong> 恢复信令中的服务端 SYMMETRIC 判定，同时坚决不引入本地易超时的 <code class="text-slate-200">Config::get_nat_type()</code>；将 <code class="text-slate-200">policy_relay</code> 检查前置到 <code class="text-slate-200">start_ipv6</code> 之前，当策略要求中继时彻底关闭 IPv6 候选供给，达成 IPv4/IPv6 双通道 100% 安全闭环。</p>
+                        </div>
+                    </div>
+                    <div class="p-3 bg-slate-900/80 rounded-xl border border-slate-800 text-[11px] font-mono text-slate-300">
+                        <span class="text-slate-500">// 策略中继严禁向对端暴露 v6 候选竞速</span><br>
+                        <span class="text-sky-400">let</span> policy_relay = ph.nat_type.enum_value() == Ok(NatType::SYMMETRIC) || relay;<br>
+                        <span class="text-sky-400">if</span> peer_addr_v6.port() > 0 && !policy_relay { start_ipv6(...).await; }
+                    </div>
+                </div>
+
+                <!-- Case 2: Windows IPv6 套接字误杀修复 -->
+                <div class="glow-card rounded-2xl p-7 border border-slate-800 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between mb-4">
+                            <span class="px-2.5 py-1 rounded-full text-xs font-mono font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30">Case 2 · 系统兼容</span>
+                            <span class="text-xs text-slate-500 font-mono">client.rs / udp_nat_connect</span>
+                        </div>
+                        <h3 class="text-lg font-bold text-white mb-2.5">Windows 10014/10049 错误导致 IPv6 候选误杀修复</h3>
+                        <div class="space-y-2 text-xs text-slate-400 leading-relaxed mb-4">
+                            <p><strong class="text-slate-300">现场痛点：</strong> Windows 系统上对未调用 <code class="text-slate-200">connect()</code> 的 UDP 套接字调用 <code class="text-slate-200">peer_addr()</code> 会抛出操作系统内核级错误 <code class="text-slate-200">os error 10014 (WSAEFAULT)</code> 或 <code class="text-slate-200">10049 (WSAEADDRNOTAVAIL)</code>，导致可用 IPv6 候选在并发竞速前被静默丢弃。</p>
+                            <p><strong class="text-brand-300">工业级解法：</strong> 解耦运行时系统查询，将套接字与解码地址以元组 <code class="text-slate-200">Option&lt;(Arc&lt;UdpSocket&gt;, SocketAddr)&gt;</code> 直接注入打洞引擎；并在底层测试路由成功时才登记候选，既不误杀可用 IPv6，又避免无路由主机浪费 2~3 秒竞速窗口。</p>
+                        </div>
+                    </div>
+                    <div class="p-3 bg-slate-900/80 rounded-xl border border-slate-800 text-[11px] font-mono text-slate-300">
+                        <span class="text-slate-500">// 绕过系统 peer_addr 陷阱，元组直接供给竞速池</span><br>
+                        <span class="text-sky-400">if let</span> Some((udp_socket_v6, v6_target)) = udp_socket_v6 {<br>
+                        &nbsp;&nbsp;direct_futures.push(udp_nat_connect(udp_socket_v6, v6_target, <span class="text-emerald-400">"IPv6"</span>, udp_timeout).boxed());<br>
+                        }
+                    </div>
+                </div>
+
+                <!-- Case 3: 中继转直连升级状态机与防打扰重构 -->
+                <div class="glow-card rounded-2xl p-7 border border-slate-800 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between mb-4">
+                            <span class="px-2.5 py-1 rounded-full text-xs font-mono font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">Case 3 · 交互体验</span>
+                            <span class="text-xs text-slate-500 font-mono">direct_upgrade.rs / ui_session</span>
+                        </div>
+                        <h3 class="text-lg font-bold text-white mb-2.5">中继转直连升级计数解耦与优雅防打扰重构</h3>
+                        <div class="space-y-2 text-xs text-slate-400 leading-relaxed mb-4">
+                            <p><strong class="text-slate-300">现场痛点：</strong> 早期升级弹窗展示时立即递增配额并退出循环，用户点击“Not now”后重试机会被提前烧毁；若将计数挪至重连入口，离线自动重试定时器与对端重启也会误吞配额；若不退出又会导致每隔 5 分钟反复弹窗轰炸。</p>
+                            <p><strong class="text-brand-300">工业级解法：</strong> 将配额严格定义为单会话提示上限（<code class="text-slate-200">MAX_UPGRADE_PROMPTS = 1</code>），弹出后探测任务主动退出当前会话，绝不二次骚扰；常规会话重连与升级流程完全独立，保障升级机会精准生效。</p>
+                        </div>
+                    </div>
+                    <div class="p-3 bg-slate-900/80 rounded-xl border border-slate-800 text-[11px] font-mono text-slate-300">
+                        <span class="text-slate-500">// 弹窗展示精准计数并优雅退出，常规重连不受任何牵连</span><br>
+                        <span class="text-sky-400">let</span> attempts = handler.upgrade_attempts.fetch_add(1, Ordering::SeqCst) + 1;<br>
+                        handler.ui_handler.msgbox(<span class="text-emerald-400">"upgrade-direct"</span>, ...);<br>
+                        <span class="text-sky-400">return;</span> <span class="text-slate-500">// 本轮退出，不重复打扰</span>
+                    </div>
+                </div>
+
+                <!-- Case 4: 打洞超时自适应与 2000ms 深度保底 -->
+                <div class="glow-card rounded-2xl p-7 border border-slate-800 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between mb-4">
+                            <span class="px-2.5 py-1 rounded-full text-xs font-mono font-bold bg-indigo-500/20 text-indigo-400 border border-indigo-500/30">Case 4 · 性能自适应</span>
+                            <span class="text-xs text-slate-500 font-mono">client.rs / punch_udp</span>
+                        </div>
+                        <h3 class="text-lg font-bold text-white mb-2.5">打破打洞硬等瓶颈，构建 2000ms 深度保底</h3>
+                        <div class="space-y-2 text-xs text-slate-400 leading-relaxed mb-4">
+                            <p><strong class="text-slate-300">现场痛点：</strong> 原版打洞硬等 3 秒乃至 20 秒，打不通时长时间黑屏卡顿；而在无中继配置时超时时间又被强压至 1000ms，导致慢网环境下原本 1.5s~2s 才能回音的有效打洞被掐断判定为失败。</p>
+                            <p><strong class="text-brand-300">工业级解法：</strong> 区分局域网与公网打洞预算：局域网保持毫秒级极速响应，非局域网设立 <code class="text-slate-200">PUNCH_MIN_MS = 2000ms</code> 深度探测窗口并绑定 <code class="text-slate-200">min(3s)</code> 上限，超时毫秒级平滑降级中继，真正兼顾打通率与回退时延。</p>
+                        </div>
+                    </div>
+                    <div class="p-3 bg-slate-900/80 rounded-xl border border-slate-800 text-[11px] font-mono text-slate-300">
+                        <span class="text-slate-500">// 局域网极速响应，公网打洞给予 2000ms 充足往返预算</span><br>
+                        <span class="text-sky-400">const</span> PUNCH_MIN_MS: u64 = 2000;<br>
+                        <span class="text-sky-400">let</span> udp_timeout = <span class="text-sky-400">if</span> is_local { connect_timeout } <span class="text-sky-400">else</span> { connect_timeout.max(Self::PUNCH_MIN_MS) };
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- 实战检验：生产日志透视 -->
+            <div class="glow-card rounded-2xl p-6 sm:p-8 border border-slate-800 bg-slate-900/40">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4 pb-4 border-b border-slate-800">
+                    <div>
+                        <div class="text-xs font-mono uppercase tracking-widest text-brand-400 font-bold">PRODUCTION VERIFICATION</div>
+                        <h3 class="text-base sm:text-lg font-bold text-white mt-1">光猫拨号反向代理下的 TCP 极速打洞日志实录</h3>
+                    </div>
+                    <span class="px-3 py-1 rounded-full text-xs font-mono font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 w-fit">实测通过 · 170ms 直连</span>
+                </div>
+                <div class="code-block rounded-xl p-4 font-mono text-xs text-slate-300 overflow-x-auto space-y-1.5 leading-relaxed bg-slate-950 border border-slate-800">
+                    <div class="text-slate-500"># 1. 服务端原生自动解码 ProxyProtocol v2，精准还原被 Lucky SNAT 掩盖的客户端公网真实 IP</div>
+                    <div><span class="text-slate-400">[2026-09-21 20:42:26]</span> <span class="text-sky-400 font-bold">INFO</span> [rendezvous_server.rs] <span class="text-brand-300 font-semibold">ProxyProtocol v2: updated client [::ffff:192.168.100.134]:42622 -> 218.89.53.241:12242</span></div>
+                    <div><span class="text-slate-400">[2026-09-21 20:42:28]</span> <span class="text-sky-400 font-bold">INFO</span> [rendezvous_server.rs] <span class="text-brand-300 font-semibold">ProxyProtocol v2: updated client [::ffff:192.168.100.134]:42632 -> 218.89.53.241:12251</span></div>
+                    <div class="text-slate-500 pt-2"># 2. 客户端利用精准公网地址执行 TCP 端口复用打洞，毫秒级跨越企业严苛对称防火墙</div>
+                    <div><span class="text-slate-400">[2026-09-21 20:42:30]</span> <span class="text-emerald-400 font-bold">INFO</span> [client.rs] <span class="text-emerald-300 font-bold">TCP Hole Punched id=1872077265, time_used=170ms</span></div>
+                    <div><span class="text-slate-400">[2026-09-21 20:42:30]</span> <span class="text-emerald-400 font-bold">INFO</span> [client.rs] <span class="text-white font-medium">Session 1872077265 direct connected (Path: Direct TCP P2P, Latency: 12ms)</span></div>
+                </div>
+            </div>
+
         </div>
     </section>
 
