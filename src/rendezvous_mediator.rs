@@ -1208,7 +1208,11 @@ impl RendezvousMediator {
         // connection this branch has already called relay-only. Do not gate the answerer on
         // nat_type to make the two agree.
         let can_punch_udp = ph.udp_port > 0;
-        if relay
+        // ph.nat_type == SYMMETRIC reflects both client NAT and server-enforced relay policies
+        // (ALWAYS_USE_RELAY / LAN-WAN mismatch). We intentionally omit local Config::get_nat_type()
+        // here to prevent local NAT evaluation timeouts from poisoning punch.
+        if ph.nat_type.enum_value() == Ok(NatType::SYMMETRIC)
+            || relay
             || (config::is_disable_tcp_listen() && !can_punch_udp)
         {
             let uuid = Uuid::new_v4().to_string();
@@ -1238,7 +1242,7 @@ impl RendezvousMediator {
             webrtc_sdp_answer,
             ..Default::default()
         };
-        if ph.udp_port > 0 {
+        if can_punch_udp {
             peer_addr.set_port(ph.udp_port as u16);
             self.punch_udp_hole(peer_addr, server, msg_punch, meta)
                 .await?;
@@ -1508,7 +1512,7 @@ async fn udp_nat_listen(
     let tm = Instant::now();
     let socket_cloned = socket.clone();
     let func = async {
-        let init_packet = crate::punch_udp(socket.clone(), peer_addr, true).await?;
+        let init_packet = crate::punch_udp(socket.clone(), peer_addr, true, None).await?;
         let stream = crate::kcp_stream::KcpStream::accept(
             socket,
             Duration::from_millis(CONNECT_TIMEOUT as _),

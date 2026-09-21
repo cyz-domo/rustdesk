@@ -896,6 +896,7 @@ impl Client {
             .clone()
             .unwrap_or_else(|| Config::get_option("relay-server"));
         let mut peer_addr = Config::get_any_listen_addr(true);
+        let mut peer_addr_v6: Option<SocketAddr> = None;
         let mut peer_nat_type = NatType::UNKNOWN_NAT;
         let my_nat_type = crate::get_nat_type(100).await;
         let mut is_local = false;
@@ -1068,6 +1069,7 @@ impl Client {
                                             );
                                         }
                                         ipv6.0 = Some(s);
+                                        peer_addr_v6 = Some(addr);
                                     }
                                 }
                             }
@@ -1438,15 +1440,13 @@ impl Client {
                 &relay_server,
                 &rendezvous_server,
                 time_used,
-                peer_nat_type,
-                my_nat_type,
                 is_local,
                 &key,
                 &token,
                 conn_type,
                 interface,
                 udp.0,
-                ipv6.0,
+                ipv6.0.zip(peer_addr_v6),
                 webrtc_for_connect,
                 webrtc_bridge_stop,
                 allow_tcp_punch,
@@ -1467,15 +1467,13 @@ impl Client {
         relay_server: &str,
         rendezvous_server: &str,
         punch_time_used: u64,
-        _peer_nat_type: NatType,
-        _my_nat_type: i32,
         is_local: bool,
         key: &str,
         token: &str,
         conn_type: ConnType,
         interface: impl Interface,
         udp_socket_nat: Option<Arc<UdpSocket>>,
-        udp_socket_v6: Option<Arc<UdpSocket>>,
+        udp_socket_v6: Option<(Arc<UdpSocket>, SocketAddr)>,
         webrtc_offerer: Option<WebRTCStream>,
         webrtc_bridge_stop: Option<oneshot::Sender<()>>,
         allow_tcp_punch: bool,
@@ -1533,17 +1531,15 @@ impl Client {
                 .boxed(),
             );
         }
-        if let Some(udp_socket_v6) = udp_socket_v6 {
-            if let Ok(v6_target) = udp_socket_v6.peer_addr() {
-                direct_futures.push(
-                    async move {
-                        let (conn, kcp, typ) =
-                            udp_nat_connect(udp_socket_v6, v6_target, "IPv6", connect_timeout).await?;
-                        Ok((conn, kcp, typ, true))
-                    }
-                    .boxed(),
-                );
-            }
+        if let Some((udp_socket_v6, v6_target)) = udp_socket_v6 {
+            direct_futures.push(
+                async move {
+                    let (conn, kcp, typ) =
+                        udp_nat_connect(udp_socket_v6, v6_target, "IPv6", connect_timeout).await?;
+                    Ok((conn, kcp, typ, true))
+                }
+                .boxed(),
+            );
         }
         // Race a clone of the offerer; the guard retains its own clone so a losing/cancelled race
         // still closes the pc (select_ok drops the future's clone without closing).
@@ -5599,7 +5595,7 @@ async fn udp_nat_connect(
     typ: &'static str,
     ms_timeout: u64,
 ) -> ResultType<(Stream, Option<KcpStream>, &'static str)> {
-    crate::punch_udp(socket.clone(), peer_addr, false)
+    crate::punch_udp(socket.clone(), peer_addr, false, Some(Duration::from_millis(ms_timeout)))
         .await
         .map_err(|err| {
             log::debug!("{err}");

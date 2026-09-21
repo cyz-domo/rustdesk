@@ -168,8 +168,7 @@ async fn run_probe<T: InvokeUiSession>(
                 if !round_is_live(&handler, round) {
                     return;
                 }
-                let attempts = handler.upgrade_attempts.fetch_add(1, Ordering::SeqCst) + 1;
-                log::info!("direct path available, prompting relay-to-direct upgrade (attempt {attempts})");
+                log::info!("direct path available, prompting relay-to-direct upgrade");
                 handler.lc.write().unwrap().set_direct_failure(0);
                 handler.ui_handler.msgbox(
                     "upgrade-direct",
@@ -178,7 +177,6 @@ async fn run_probe<T: InvokeUiSession>(
                     "",
                     false,
                 );
-                return;
             }
             Ok(((_stream, false, _pk, _kcp, _typ), _feedback)) => {
                 log::debug!("direct upgrade probe landed on relay again");

@@ -2849,6 +2849,7 @@ pub async fn punch_udp(
     socket: Arc<UdpSocket>,
     peer_addr: SocketAddr,
     listen: bool,
+    max_time: Option<Duration>,
 ) -> ResultType<Option<bytes::BytesMut>> {
     let tid = ((hbb_common::time_based_rand() as u64) << 32) | hbb_common::time_based_rand() as u64;
     let probe = punch_packet(&PUNCH_PROBE, tid);
@@ -2861,7 +2862,7 @@ pub async fn punch_udp(
     // Both ends start within one rendezvous round trip of each other and the acknowledgement is
     // one peer round trip, so a pair that has not answered in this long is not going to. The old
     // 20s came from having no way to tell "not yet" from "never".
-    const MAX_TIME: Duration = Duration::from_secs(3);
+    let max_time = max_time.unwrap_or(Duration::from_secs(3)).min(Duration::from_secs(3));
     let mut probes_sent = 0u32;
     let mut probes_seen = 0u32;
     let mut acked = false;
@@ -2877,9 +2878,9 @@ pub async fn punch_udp(
     let tm = Instant::now();
     // Absolute instants, not relative sleeps: `select!` rebuilds every arm each iteration, so a
     // peer that keeps the receive side ready restarts a relative timer before it can fire. That
-    // both defeats MAX_TIME and starves the retransmit, and the peer decides the rate - an
+    // both defeats max_time and starves the retransmit, and the peer decides the rate - an
     // old-build peer's empty datagrams match no arm below and loop without even a pause.
-    let deadline = tm + MAX_TIME;
+    let deadline = tm + max_time;
     let mut next_probe = tm + retry_interval;
 
     loop {
@@ -3095,7 +3096,7 @@ mod tests {
             }
         });
         let start = Instant::now();
-        let res = punch_udp(Arc::new(a), b_addr, false).await;
+        let res = punch_udp(Arc::new(a), b_addr, false, None).await;
         let elapsed = start.elapsed();
         flooder.abort();
         assert!(res.is_err(), "the punch should have timed out");

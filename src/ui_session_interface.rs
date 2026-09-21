@@ -1304,6 +1304,8 @@ impl<T: InvokeUiSession> Session<T> {
             // and it is the one kind of relay that belongs in the peer's saved config.
             lc.policy_relay = true;
             lc.peer_relay = true;
+        } else {
+            self.upgrade_attempts.fetch_add(1, Ordering::SeqCst);
         }
         self.lc.write().unwrap().peer_info = None;
         self.reconnect_count.fetch_add(1, Ordering::SeqCst);
