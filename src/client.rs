@@ -2919,6 +2919,8 @@ impl Deref for LoginConfigHandler {
 
 impl LoginConfigHandler {
     pub fn clone_for_probe(&self) -> Self {
+        let mut config = self.config.clone();
+        config.direct_failures = 0;
         Self {
             id: self.id.clone(),
             conn_type: self.conn_type,
@@ -2927,7 +2929,7 @@ impl LoginConfigHandler {
             policy_relay: false,
             peer_relay: false,
             switch_uuid: self.switch_uuid.clone(),
-            direct_failures: 0,
+            config,
             ..Default::default()
         }
     }

@@ -6,17 +6,19 @@ use std::{
     time::{Duration, Instant},
 };
 
+use async_trait::async_trait;
+
 use hbb_common::{
     config::LocalConfig,
     log,
-    rendezvous_proto::{ConnType, PeerInfo},
+    rendezvous_proto::ConnType,
     tokio::{self, time::sleep},
     Stream,
 };
 
 use base::{
     config::keys,
-    message_proto::{Hash, TestDelay, WindowsSession},
+    message_proto::{Hash, PeerInfo, TestDelay, WindowsSession},
 };
 
 use crate::{
@@ -36,7 +38,7 @@ struct ProbeInterface {
     lch: Arc<RwLock<LoginConfigHandler>>,
 }
 
-#[hbb_common::tokio::async_trait]
+#[async_trait]
 impl Interface for ProbeInterface {
     fn send(&self, _data: crate::client::Data) {}
     fn msgbox(&self, _msgtype: &str, _title: &str, _text: &str, _link: &str) {}
