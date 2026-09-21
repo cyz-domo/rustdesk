@@ -553,6 +553,7 @@ impl Client {
                 profile_key
             }
         };
+        let has_ipv6_candidate = ipv6.is_some();
         let fut = Self::_start_inner(
             peer.to_owned(),
             key.clone(),
@@ -601,6 +602,18 @@ impl Client {
                 preferred_fut,
                 vec![fallback_fut],
                 Self::relay_fallback_delay_ms(),
+                |result| result.0 .1,
+            )
+            .await;
+        }
+        if has_ipv6_candidate {
+            // The fallback owns no v6 socket and a RelayResponse gives it no v4 target, so a relay
+            // is its only possible outcome — and its bare TCP connect beats a cold IPv6 path by
+            // tens of milliseconds, taking sessions where direct was reachable.
+            return race_transports_prefer_p2p(
+                preferred_fut,
+                vec![fallback_fut],
+                Self::IPV6_PREFER_WINDOW_MS,
                 |result| result.0 .1,
             )
             .await;
@@ -1049,7 +1062,12 @@ impl Client {
                                 let addr = AddrMangle::decode(&ph.socket_addr_v6);
                                 if addr.port() > 0 {
                                     if let Some(s) = s {
-                                        allow_err!(s.connect(addr).await);
+                                        if let Err(err) = s.connect(addr).await {
+                                            log::warn!(
+                                                "IPv6 punch candidate {addr} unusable from {:?}: {err}",
+                                                s.local_addr().ok()
+                                            );
+                                        }
                                         ipv6.0 = Some(s);
                                     }
                                 }
@@ -1081,7 +1099,14 @@ impl Client {
                         if let Some(s) = ipv6.0 {
                             let addr = AddrMangle::decode(&rr.socket_addr_v6);
                             if addr.port() > 0 {
-                                if s.connect(addr).await.is_ok() {
+                                let connected = s.connect(addr).await;
+                                if let Err(err) = &connected {
+                                    log::warn!(
+                                        "IPv6 relay candidate {addr} unusable from {:?}: {err}",
+                                        s.local_addr().ok()
+                                    );
+                                }
+                                if connected.is_ok() {
                                     ipv6_fut = Some(
                                         async move {
                                             let (conn, kcp, typ) =
