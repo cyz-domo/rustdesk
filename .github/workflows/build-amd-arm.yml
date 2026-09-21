@@ -252,6 +252,13 @@ jobs:
         run: |
           & "$env:VCPKG_ROOT\vcpkg" install --triplet ${{ matrix.job.vcpkg-triplet }} --x-install-root="$env:VCPKG_ROOT\installed"
 
+      - name: Set SODIUM_LIB_DIR (arm64)
+        # libsodium-sys ships no arm64 Windows prebuilt lib and would link its x64 one;
+        # vcpkg.json builds libsodium for this triplet, so point the crate at it.
+        if: steps.check_selection.outputs.run_job == 'true' && matrix.job.arch == 'aarch64'
+        shell: bash
+        run: echo "SODIUM_LIB_DIR=$VCPKG_ROOT/installed/${{ matrix.job.vcpkg-triplet }}/lib" >> "$GITHUB_ENV"
+
       - name: Build rustdesk
         if: steps.check_selection.outputs.run_job == 'true'
         run: |
