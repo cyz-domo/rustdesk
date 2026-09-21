@@ -162,6 +162,11 @@
             border: 1px solid #30363d;
             color: #cbd5e1;
         }
+        pre code {
+            white-space: pre;
+            word-wrap: normal;
+            font-family: 'Fira Code', monospace;
+        }
     </style>
 </head>
 <body class="bg-slate-50 dark:bg-[#0b0f19] text-slate-800 dark:text-slate-100 antialiased selection:bg-brand-500 selection:text-slate-950 transition-colors duration-300 bg-grid-pattern min-h-screen">
@@ -844,8 +849,25 @@
                                 <div class="flex items-center space-x-2 text-xs font-bold text-slate-700 dark:text-slate-200 mb-2">
                                     <span class="text-brand-600 dark:text-brand-400 font-mono">▶ 推荐方案 A：Docker Compose 极简配置 (docker-compose.yml)</span>
                                 </div>
-                                <div class="code-block rounded-xl p-4 font-mono text-xs overflow-x-auto leading-relaxed">
-version: '3.8'
+                                <div class="code-block rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800">
+                                    <!-- 顶部标题与一键复制栏 -->
+                                    <div class="flex items-center justify-between px-4 py-2 bg-slate-100/90 dark:bg-slate-900/90 border-b border-slate-200 dark:border-slate-800 text-xs font-mono">
+                                        <div class="flex items-center space-x-2 text-slate-600 dark:text-slate-400">
+                                            <span class="w-2.5 h-2.5 rounded-full bg-rose-500/80 inline-block"></span>
+                                            <span class="w-2.5 h-2.5 rounded-full bg-amber-500/80 inline-block"></span>
+                                            <span class="w-2.5 h-2.5 rounded-full bg-emerald-500/80 inline-block"></span>
+                                            <span class="ml-2 font-semibold text-slate-700 dark:text-slate-300">docker-compose.yml</span>
+                                        </div>
+                                        <button onclick="copyCode('docker-compose-code', this)" class="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded bg-white hover:bg-slate-50 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700 text-[11px] font-sans font-medium transition-all shadow-sm active:scale-95" title="点击复制完整配置">
+                                            <svg class="w-3.5 h-3.5 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                                            </svg>
+                                            <span>一键复制</span>
+                                        </button>
+                                    </div>
+                                    <!-- 标准代码展示区，使用 pre/code 严格保留缩进与换行 -->
+                                    <pre class="p-4 font-mono text-xs overflow-x-auto leading-relaxed text-slate-800 dark:text-slate-200"><code id="docker-compose-code">version: '3.8'
 
 # 若使用 bridge 桥接模式，取消注释以下 networks 及 ports
 # networks:
@@ -886,7 +908,7 @@ services:
     volumes:
       # 宿主机数据持久化挂载（请替换为你的实际 NAS/服务器路径）
       - /vol2/1000/docker-data/rustdesk/server:/data     # 存放服务通信密钥及 hbbs 数据
-      - /vol2/1000/docker-data/rustdesk/api:/app/data   # 存放 SQLite 数据库及 Web 后台配置
+      - /vol2/1000/docker-data/rustdesk/api:/app/data   # 存放 SQLite 数据库及 Web 后台配置</code></pre>
                                 </div>
                             </div>
                         </div>
@@ -943,8 +965,15 @@ services:
                             <h3 class="text-lg font-bold text-slate-900 dark:text-white">配置 Lucky WebHook 或 DNS TXT 记录</h3>
                             <p class="text-sm text-slate-600 dark:text-slate-400 mt-1 mb-3">将各 STUN 隧道的公网映射结果拼接为 TXT 记录（包含信令、中继及在线检测通道）：</p>
                             
-                            <div class="code-block rounded-xl p-4 font-mono text-xs text-brand-600 dark:text-brand-300 break-all select-all">
-                                host=198.51.100.123:24869,tcp=198.51.100.123:24439,relay=198.51.100.123:24867,online=198.51.100.123:24115,api=https://api.example.com
+                            <div class="code-block rounded-xl p-3.5 flex items-center justify-between gap-3 border border-slate-200 dark:border-slate-800">
+                                <div id="txt-record-code" class="font-mono text-xs text-brand-600 dark:text-brand-300 break-all select-all flex-1">host=198.51.100.123:24869,tcp=198.51.100.123:24439,relay=198.51.100.123:24867,online=198.51.100.123:24115,api=https://api.example.com</div>
+                                <button onclick="copyCode('txt-record-code', this)" class="flex-shrink-0 inline-flex items-center space-x-1.5 px-2.5 py-1.5 rounded bg-white hover:bg-slate-50 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700 text-[11px] font-sans font-medium transition-all shadow-sm active:scale-95" title="点击复制 TXT 示例">
+                                    <svg class="w-3.5 h-3.5 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                                    </svg>
+                                    <span>复制</span>
+                                </button>
                             </div>
 
                             <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs text-slate-700 dark:text-slate-300">
@@ -1498,6 +1527,48 @@ services:
             updateThemeIcons();
         }
         updateThemeIcons();
+
+        function copyCode(elementId, btn) {
+            var el = document.getElementById(elementId);
+            if (!el) return;
+            var text = el.innerText || el.textContent;
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(text).then(function() {
+                    showCopySuccess(btn);
+                }).catch(function() {
+                    fallbackCopy(text, btn);
+                });
+            } else {
+                fallbackCopy(text, btn);
+            }
+        }
+
+        function fallbackCopy(text, btn) {
+            var textarea = document.createElement('textarea');
+            textarea.value = text;
+            textarea.style.position = 'fixed';
+            textarea.style.opacity = '0';
+            document.body.appendChild(textarea);
+            textarea.select();
+            try {
+                document.execCommand('copy');
+                showCopySuccess(btn);
+            } catch (e) {
+                console.error('Copy failed', e);
+            }
+            document.body.removeChild(textarea);
+        }
+
+        function showCopySuccess(btn) {
+            if (!btn) return;
+            var originalHTML = btn.innerHTML;
+            btn.innerHTML = '<svg class="w-3.5 h-3.5 text-emerald-500" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg><span class="text-emerald-600 dark:text-emerald-400 font-semibold">已复制!</span>';
+            btn.classList.add('border-emerald-500');
+            setTimeout(function() {
+                btn.innerHTML = originalHTML;
+                btn.classList.remove('border-emerald-500');
+            }, 2000);
+        }
     </script>
 </body>
 </html>
