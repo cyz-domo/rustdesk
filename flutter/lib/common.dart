@@ -3796,6 +3796,35 @@ Future<bool> setServerConfig(
   return true;
 }
 
+/// The profiles saved in the `server-profiles` option, in list order.
+Future<List<ServerProfileItem>> loadServerProfiles() async {
+  return ServerProfileItem.decodeProfiles(
+      await bind.mainGetOption(key: 'server-profiles'));
+}
+
+/// Make [target] the server the app uses from now on. The choice is stored as
+/// `custom-rendezvous-server` -- the value every reader treats as the current server -- so it
+/// keeps working after a restart, and only a later explicit switch changes it. The rest of the
+/// list is left alone unless [target] was disabled, in which case it has to be enabled to be of
+/// any use.
+Future<bool> activateServerProfile(
+    List<ServerProfileItem> profiles, ServerProfileItem target) async {
+  if (!target.enabled) {
+    target.enabled = true;
+    await bind.mainSetOption(
+        key: 'server-profiles',
+        value: jsonEncode(profiles.map((p) => p.toJson()).toList()));
+  }
+  return setServerConfig(
+      null,
+      null,
+      ServerConfig(
+          idServer: target.host,
+          relayServer: target.relay,
+          apiServer: target.api,
+          key: target.key));
+}
+
 ColorFilter? svgColor(Color? color) {
   if (color == null) {
     return null;

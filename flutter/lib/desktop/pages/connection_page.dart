@@ -215,14 +215,75 @@ class _OnlineStatusWidgetState extends State<OnlineStatusWidget> {
       style: TextStyle(fontSize: em),
     );
 
-    if (tooltipLines.isNotEmpty) {
-      return Tooltip(
-        richMessage: TextSpan(children: tooltipLines),
-        waitDuration: const Duration(milliseconds: 200),
-        child: widgetText,
-      );
+    if (tooltipLines.isEmpty) {
+      return widgetText;
     }
-    return widgetText;
+
+    // Click or right-click the status to move the app onto another saved server. Only worth
+    // wiring up when there is a choice to make.
+    final statusText = Tooltip(
+      richMessage: TextSpan(children: tooltipLines),
+      waitDuration: const Duration(milliseconds: 200),
+      child: widgetText,
+    );
+    final switchable = stateGlobal.serverStatuses.length > 1;
+    if (!switchable) {
+      return statusText;
+    }
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTapUp: (e) => _showServerSwitchMenu(e.globalPosition),
+        onSecondaryTapUp: (e) => _showServerSwitchMenu(e.globalPosition),
+        child: statusText,
+      ),
+    );
+  }
+
+  /// Lists the saved server profiles and makes the picked one the app's current server. The
+  /// choice is written to `custom-rendezvous-server`, so it keeps holding across restarts until
+  /// the user picks again.
+  void _showServerSwitchMenu(Offset offset) async {
+    final profiles = await loadServerProfiles();
+    final entries = {
+      for (var i = 0; i < profiles.length; i++)
+        if (profiles[i].host.trim().isNotEmpty) i: profiles[i],
+    };
+    if (entries.length < 2) {
+      return;
+    }
+    final cur = (await bind.mainGetOption(key: 'custom-rendezvous-server'))
+        .trim()
+        .toLowerCase();
+    final picked = await showMenu<String>(
+      context: context,
+      position:
+          RelativeRect.fromLTRB(offset.dx, offset.dy, offset.dx, offset.dy),
+      items: [
+        for (final e in entries.entries)
+          PopupMenuItem<String>(
+            value: '${e.key}',
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 18,
+                  child: e.value.host.trim().toLowerCase() == cur
+                      ? const Icon(Icons.check, size: 14)
+                      : null,
+                ),
+                Text(e.value.name.isNotEmpty ? e.value.name : e.value.host),
+              ],
+            ),
+          ),
+      ],
+    );
+    final idx = int.tryParse(picked ?? '');
+    if (idx == null || !entries.containsKey(idx) || !mounted) {
+      return;
+    }
+    await activateServerProfile(profiles, profiles[idx]);
+    updateStatus();
   }
 
   updateStatus() async {

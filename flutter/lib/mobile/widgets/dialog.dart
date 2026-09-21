@@ -56,17 +56,6 @@ void setTemporaryPasswordLengthDialog(
   }, backDismiss: true, clickMaskDismiss: true);
 }
 
-/// Same server, ignoring case and an optional `:port` that one side may have left out.
-bool _isSameServerHost(String a, String b) {
-  String withoutPort(String s) {
-    s = s.trim().toLowerCase();
-    final i = s.lastIndexOf(':');
-    if (i > 0 && int.tryParse(s.substring(i + 1)) != null) s = s.substring(0, i);
-    return s;
-  }
-  return a.trim().isNotEmpty && b.trim().isNotEmpty && withoutPort(a) == withoutPort(b);
-}
-
 void showServerSettings(OverlayDialogManager dialogManager,
     void Function(VoidCallback) setState) async {
   Map<String, dynamic> options = {};
@@ -165,38 +154,27 @@ void showServerSettingsWithOptions(
   }
 
   int selectedIndex = 0;
+  // Which profile becomes `custom-rendezvous-server` on submit. Seeded with the entry list order
+  // would have picked, so nothing changes until the user marks another one as current.
+  int primaryIndex =
+      profiles.indexWhere((p) => p.enabled && p.host.isNotEmpty);
   final tabScrollController = ScrollController();
 
-  // Upstream prefilled the dialog from a scanned/shared config; reading the fields off
-  // `server-profiles` alone made a QR scan look accepted while it changed nothing. It goes
-  // in front because submit() activates the first enabled profile.
-  final scannedHost = scanned?.idServer.trim() ?? '';
-  if (scannedHost.isNotEmpty) {
-    final existing =
-        profiles.indexWhere((p) => _isSameServerHost(p.host, scannedHost));
-    if (existing >= 0) {
-      selectedIndex = existing;
-    } else {
-      profiles.insert(
-          0,
-          ServerProfileItem(
-            id: 'profile-${DateTime.now().millisecondsSinceEpoch}',
-            name: scannedHost,
-            host: scannedHost,
-            relay: scanned?.relayServer ?? '',
-            api: scanned?.apiServer ?? '',
-            key: scanned?.key ?? '',
-            enabled: true,
-          ));
-      selectedIndex = 0;
-    }
-  }
-
+  // Upstream prefills the dialog from a scanned/shared config; reading the fields off
+  // `server-profiles` alone made a QR scan look accepted while it changed nothing. The scanned
+  // values overwrite the selected profile on submit, exactly like upstream overwrites the one
+  // server it has. The name stays the profile's own: it labels the tab, not the server.
+  final hasScanned = (scanned?.idServer.trim().isNotEmpty) ?? false;
   final nameCtrl = TextEditingController(text: profiles[selectedIndex].name);
-  final idCtrl = TextEditingController(text: profiles[selectedIndex].host);
-  final relayCtrl = TextEditingController(text: profiles[selectedIndex].relay);
-  final apiCtrl = TextEditingController(text: profiles[selectedIndex].api);
-  final keyCtrl = TextEditingController(text: profiles[selectedIndex].key);
+  final idCtrl = TextEditingController(text: hasScanned
+      ? scanned!.idServer.trim()
+      : profiles[selectedIndex].host);
+  final relayCtrl = TextEditingController(
+      text: hasScanned ? scanned!.relayServer : profiles[selectedIndex].relay);
+  final apiCtrl = TextEditingController(
+      text: hasScanned ? scanned!.apiServer : profiles[selectedIndex].api);
+  final keyCtrl = TextEditingController(
+      text: hasScanned ? scanned!.key : profiles[selectedIndex].key);
 
   void syncCurrentProfileFromControllers() {
     if (selectedIndex >= 0 && selectedIndex < profiles.length) {
@@ -241,7 +219,11 @@ void showServerSettingsWithOptions(
       await bind.mainSetOption(key: 'server-profiles', value: profilesJson);
 
       // Save primary active profile to traditional options for backward compatibility
-      final primary = profiles.firstWhereOrNull((p) => p.enabled && p.host.isNotEmpty);
+      final primary = (primaryIndex >= 0 &&
+              primaryIndex < profiles.length &&
+              profiles[primaryIndex].host.trim().isNotEmpty)
+          ? profiles[primaryIndex]
+          : profiles.firstWhereOrNull((p) => p.enabled && p.host.isNotEmpty);
 
       bool ret = await setServerConfig(
           null,
@@ -456,11 +438,15 @@ void showServerSettingsWithOptions(
                                                       stat.latencyMs > 0)
                                                   ? '${stat.latencyMs}ms'
                                                   : '';
-                                              final title = profiles[i]
+                                              final label = profiles[i]
                                                       .name
                                                       .isNotEmpty
                                                   ? profiles[i].name
                                                   : 'Server ${i + 1}';
+                                              // Not a colour emoji: ★ renders on Windows too.
+                                              final title = i == primaryIndex
+                                                  ? '★ $label'
+                                                  : label;
                                               return Row(
                                                 mainAxisSize: MainAxisSize.min,
                                                 children: [
@@ -527,12 +513,21 @@ void showServerSettingsWithOptions(
                                               InkWell(
                                                 onTap: () {
                                                   setState(() {
+                                                    final wasPrimary =
+                                                        primaryIndex == i;
                                                     profiles.removeAt(i);
                                                     if (selectedIndex >=
                                                         profiles.length) {
                                                       selectedIndex =
                                                           profiles.length - 1;
                                                     }
+                                                    primaryIndex = wasPrimary
+                                                        ? profiles.indexWhere((p) =>
+                                                            p.enabled &&
+                                                            p.host.isNotEmpty)
+                                                        : (primaryIndex > i
+                                                            ? primaryIndex - 1
+                                                            : primaryIndex);
                                                     loadControllersFromProfile(
                                                         selectedIndex);
                                                   });
@@ -570,6 +565,25 @@ void showServerSettingsWithOptions(
                               child: Icon(Icons.chevron_right, size: 20, color: Colors.grey),
                             ),
                           ),
+                        // Which profile becomes the app's current server; the tab of the chosen
+                        // one carries the star.
+                        IconButton(
+                          icon: Icon(Icons.push_pin,
+                              size: 22,
+                              color: primaryIndex == selectedIndex
+                                  ? Theme.of(context).colorScheme.primary
+                                  : Colors.grey),
+                          tooltip: translate('Set as current server'),
+                          padding: const EdgeInsets.all(4),
+                          constraints: const BoxConstraints(),
+                          onPressed: () {
+                            setState(() {
+                              syncCurrentProfileFromControllers();
+                              profiles[selectedIndex].enabled = true;
+                              primaryIndex = selectedIndex;
+                            });
+                          },
+                        ),
                         // Fixed Add Button
                         IconButton(
                           icon: Icon(Icons.add_circle,

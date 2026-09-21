@@ -784,5 +784,7 @@ pub static ref T: std::collections::HashMap<&'static str, &'static str> =
         ("Offline", "离线"),
         ("Disabled", "已禁用"),
         ("Profile name", "配置名称"),
+        ("Online", "在线"),
+        ("Set as current server", "设为当前服务器"),
     ].iter().cloned().collect();
 }

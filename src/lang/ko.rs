@@ -784,5 +784,7 @@ pub static ref T: std::collections::HashMap<&'static str, &'static str> =
         ("Offline", ""),
         ("Disabled", ""),
         ("Profile name", ""),
+        ("Online", ""),
+        ("Set as current server", ""),
     ].iter().cloned().collect();
 }
