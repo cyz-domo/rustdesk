@@ -2847,13 +2847,14 @@ fn punch_tid(packet: &[u8], tag: &[u8; 4]) -> Option<u64> {
 /// endpoint that works, until it timed out. So the listener stops on the peer's first real packet.
 pub async fn punch_udp(
     socket: Arc<UdpSocket>,
+    peer_addr: SocketAddr,
     listen: bool,
 ) -> ResultType<Option<bytes::BytesMut>> {
     let tid = ((hbb_common::time_based_rand() as u64) << 32) | hbb_common::time_based_rand() as u64;
     let probe = punch_packet(&PUNCH_PROBE, tid);
     let mut data = [0u8; 1500];
     // `connect` does not flush the receive queue, so the NAT test's extra replies are still in it.
-    while socket.try_recv(&mut data).is_ok() {}
+    while socket.try_recv_from(&mut data).is_ok() {}
 
     let mut retry_interval = Duration::from_millis(20);
     const MAX_INTERVAL: Duration = Duration::from_millis(200);
@@ -2865,7 +2866,13 @@ pub async fn punch_udp(
     let mut probes_seen = 0u32;
     let mut acked = false;
     let mut recv_errors = 0u32;
-    socket.send(&probe).await.ok();
+    let mut target_addr = peer_addr;
+    let is_connected = socket.peer_addr().is_ok();
+    if is_connected {
+        socket.send(&probe).await.ok();
+    } else {
+        socket.send_to(&probe, target_addr).await.ok();
+    }
     probes_sent += 1;
     let tm = Instant::now();
     // Absolute instants, not relative sleeps: `select!` rebuilds every arm each iteration, so a
@@ -2881,12 +2888,16 @@ pub async fn punch_udp(
                 bail!("UDP punch is timed out, {probes_sent} probes sent, {probes_seen} probes received, acked: {acked}, {recv_errors} recv errors absorbed");
             }
             _ = tokio::time::sleep_until(next_probe) => {
-                socket.send(&probe).await.ok();
+                if is_connected {
+                    socket.send(&probe).await.ok();
+                } else {
+                    socket.send_to(&probe, target_addr).await.ok();
+                }
                 probes_sent += 1;
                 retry_interval = std::cmp::min(retry_interval.mul_f64(1.5), MAX_INTERVAL);
                 next_probe = Instant::now() + retry_interval;
             }
-            res = socket.recv(&mut data) => match res {
+            res = socket.recv_from(&mut data) => match res {
                 Err(e) => {
                     // ICMP unreachable from the peer's NAT is expected while the hole forms and
                     // surfaces here as ConnectionReset/Refused; treat it as loss, MAX_TIME bounds
@@ -2897,7 +2908,18 @@ pub async fn punch_udp(
                     }
                     hbb_common::sleep(0.01).await;
                 }
-                Ok(n) => {
+                Ok((n, from_addr)) => {
+                    if from_addr.ip() != peer_addr.ip() {
+                        log::debug!("Ignore UDP punch packet from unexpected IP: {from_addr}");
+                        continue;
+                    }
+                    if from_addr != target_addr {
+                        log::info!("UDP punch dynamic port switch: {target_addr} -> {from_addr}");
+                        target_addr = from_addr;
+                        if is_connected {
+                            allow_err!(socket.connect(target_addr).await);
+                        }
+                    }
                     let ack = punch_tid(&data[..n], &PUNCH_ACK);
                     if ack == Some(tid) {
                         if !listen {
@@ -2905,17 +2927,27 @@ pub async fn punch_udp(
                                 "UDP punch confirmed in {:?}, {probes_sent} probes sent, {probes_seen} received",
                                 tm.elapsed()
                             );
+                            if !is_connected {
+                                socket.connect(target_addr).await?;
+                            }
                             return Ok(None);
                         }
                         acked = true;
                     } else if let Some(peer_tid) = punch_tid(&data[..n], &PUNCH_PROBE) {
                         probes_seen += 1;
-                        socket.send(&punch_packet(&PUNCH_ACK, peer_tid)).await.ok();
+                        if is_connected {
+                            socket.send(&punch_packet(&PUNCH_ACK, peer_tid)).await.ok();
+                        } else {
+                            socket.send_to(&punch_packet(&PUNCH_ACK, peer_tid), target_addr).await.ok();
+                        }
                     } else if ack.is_none() && n > 0 {
                         log::debug!(
                             "UDP punch confirmed by {n} bytes of peer data in {:?}, {probes_sent} probes sent",
                             tm.elapsed()
                         );
+                        if !is_connected {
+                            socket.connect(target_addr).await?;
+                        }
                         return Ok(Some(bytes::BytesMut::from(&data[..n])));
                     }
                 }
@@ -3063,7 +3095,7 @@ mod tests {
             }
         });
         let start = Instant::now();
-        let res = punch_udp(Arc::new(a), false).await;
+        let res = punch_udp(Arc::new(a), b_addr, false).await;
         let elapsed = start.elapsed();
         flooder.abort();
         assert!(res.is_err(), "the punch should have timed out");

@@ -1207,10 +1207,9 @@ impl RendezvousMediator {
         // than trusting this classification, so a direct WebRTC pair can still form on a
         // connection this branch has already called relay-only. Do not gate the answerer on
         // nat_type to make the two agree.
-        if ph.nat_type.enum_value() == Ok(NatType::SYMMETRIC)
-            || Config::get_nat_type() == NatType::SYMMETRIC as i32
-            || relay
-            || (config::is_disable_tcp_listen() && ph.udp_port <= 0)
+        let can_punch_udp = ph.udp_port > 0;
+        if relay
+            || (config::is_disable_tcp_listen() && !can_punch_udp)
         {
             let uuid = Uuid::new_v4().to_string();
             return self
@@ -1509,8 +1508,7 @@ async fn udp_nat_listen(
     let tm = Instant::now();
     let socket_cloned = socket.clone();
     let func = async {
-        socket.connect(peer_addr).await?;
-        let init_packet = crate::punch_udp(socket.clone(), true).await?;
+        let init_packet = crate::punch_udp(socket.clone(), peer_addr, true).await?;
         let stream = crate::kcp_stream::KcpStream::accept(
             socket,
             Duration::from_millis(CONNECT_TIMEOUT as _),

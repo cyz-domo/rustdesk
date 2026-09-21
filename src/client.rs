@@ -1053,7 +1053,6 @@ impl Client {
                             let s = udp.0.take();
                             if udp_nat_port > 0 && ph.is_udp && s.is_some() {
                                 if let Some(s) = s {
-                                    allow_err!(s.connect(peer_addr).await);
                                     udp.0 = Some(s);
                                 }
                             }
@@ -1110,7 +1109,7 @@ impl Client {
                                     ipv6_fut = Some(
                                         async move {
                                             let (conn, kcp, typ) =
-                                                udp_nat_connect(s, "IPv6", CONNECT_TIMEOUT).await?;
+                                                udp_nat_connect(s, addr, "IPv6", CONNECT_TIMEOUT).await?;
                                             Ok((conn, kcp, typ, true))
                                         }
                                         .boxed(),
@@ -1468,8 +1467,8 @@ impl Client {
         relay_server: &str,
         rendezvous_server: &str,
         punch_time_used: u64,
-        peer_nat_type: NatType,
-        my_nat_type: i32,
+        _peer_nat_type: NatType,
+        _my_nat_type: i32,
         is_local: bool,
         key: &str,
         token: &str,
@@ -1495,30 +1494,14 @@ impl Client {
         let direct_failures = interface.get_lch().read().unwrap().direct_failures;
         let mut connect_timeout = 0;
         const MIN: u64 = 1000;
-        if is_local || peer_nat_type == NatType::SYMMETRIC {
+        if is_local {
             connect_timeout = MIN;
         } else {
             if relay_server.is_empty() {
                 connect_timeout = CONNECT_TIMEOUT;
             } else {
-                if peer_nat_type == NatType::ASYMMETRIC {
-                    let mut my_nat_type = my_nat_type;
-                    if my_nat_type == NatType::UNKNOWN_NAT as i32 {
-                        my_nat_type = crate::get_nat_type(100).await;
-                    }
-                    if my_nat_type == NatType::ASYMMETRIC as i32 {
-                        connect_timeout = CONNECT_TIMEOUT;
-                        if direct_failures > 0 {
-                            connect_timeout = punch_time_used * 6;
-                        }
-                    } else if my_nat_type == NatType::SYMMETRIC as i32 {
-                        connect_timeout = MIN;
-                    }
-                }
-                if connect_timeout == 0 {
-                    let n = if direct_failures > 0 { 3 } else { 6 };
-                    connect_timeout = punch_time_used * (n as u64);
-                }
+                let n = if direct_failures > 0 { 3 } else { 6 };
+                connect_timeout = (punch_time_used * (n as u64)).max(Self::relay_fallback_delay_ms());
             }
             if connect_timeout < MIN {
                 connect_timeout = MIN;
@@ -1531,7 +1514,7 @@ impl Client {
         // always direct; WebRTC is direct only when ICE nominated a non-TURN pair.
         let mut direct_futures = Vec::new();
         if allow_tcp_punch {
-            let fut = connect_tcp_local(peer, Some(local_addr), connect_timeout);
+            let fut = connect_tcp_local(peer_addr, Some(local_addr), connect_timeout);
             direct_futures.push(
                 async move {
                     let conn = fut.await?;
@@ -1544,21 +1527,23 @@ impl Client {
             direct_futures.push(
                 async move {
                     let (conn, kcp, typ) =
-                        udp_nat_connect(udp_socket_nat, "UDP", connect_timeout).await?;
+                        udp_nat_connect(udp_socket_nat, peer_addr, "UDP", connect_timeout).await?;
                     Ok((conn, kcp, typ, true))
                 }
                 .boxed(),
             );
         }
         if let Some(udp_socket_v6) = udp_socket_v6 {
-            direct_futures.push(
-                async move {
-                    let (conn, kcp, typ) =
-                        udp_nat_connect(udp_socket_v6, "IPv6", connect_timeout).await?;
-                    Ok((conn, kcp, typ, true))
-                }
-                .boxed(),
-            );
+            if let Ok(v6_target) = udp_socket_v6.peer_addr() {
+                direct_futures.push(
+                    async move {
+                        let (conn, kcp, typ) =
+                            udp_nat_connect(udp_socket_v6, v6_target, "IPv6", connect_timeout).await?;
+                        Ok((conn, kcp, typ, true))
+                    }
+                    .boxed(),
+                );
+            }
         }
         // Race a clone of the offerer; the guard retains its own clone so a losing/cancelled race
         // still closes the pc (select_ok drops the future's clone without closing).
@@ -5608,10 +5593,11 @@ async fn test_udp_uat(
 #[inline]
 async fn udp_nat_connect(
     socket: Arc<UdpSocket>,
+    peer_addr: SocketAddr,
     typ: &'static str,
     ms_timeout: u64,
 ) -> ResultType<(Stream, Option<KcpStream>, &'static str)> {
-    crate::punch_udp(socket.clone(), false)
+    crate::punch_udp(socket.clone(), peer_addr, false)
         .await
         .map_err(|err| {
             log::debug!("{err}");
