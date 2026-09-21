@@ -188,7 +188,8 @@ jobs:
       - name: Force arm64 Dart SDK + engine
         if: steps.check_selection.outputs.run_job == 'true' && matrix.job.arch == 'aarch64'
         run: |
-          $flutterRoot = "${{ steps.flutter.outputs['CACHE-PATH'] }}"
+          # CACHE-PATH is only the hostedtoolcache parent; the SDK lives in its flutter/ subdir.
+          $flutterRoot = "$env:FLUTTER_ROOT"
           Write-Host "PROCESSOR_ARCHITECTURE=$env:PROCESSOR_ARCHITECTURE"
           Write-Host "Flutter root: $flutterRoot"
           Remove-Item -Force "$flutterRoot\bin\cache\engine-dart-sdk.stamp" -ErrorAction SilentlyContinue
