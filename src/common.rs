@@ -799,7 +799,7 @@ pub async fn get_rendezvous_server(ms_timeout: u64) -> (String, Vec<String>, boo
                 true => 0,
                 false => hosts
                     .iter()
-                    .position(|h| server_profile::is_host_match(h, &cur))
+                    .position(|h| server_profile::is_same_rendezvous_host(h, &cur))
                     .unwrap_or(0),
             };
             (hosts[pick].clone(), hosts)
@@ -1250,7 +1250,10 @@ fn get_api_server_(api: String, custom: String) -> String {
         }
     }
     let s0 = get_custom_rendezvous_server(custom.clone());
-    if !api.is_empty() {
+    // Several active profiles share one global option, so a value an earlier TXT update left
+    // there would otherwise pin the address book to that server for good.
+    let multi_profile = server_profile::get_active_server_profiles().len() > 1;
+    if !api.is_empty() && !multi_profile {
         let is_default_derived = !s0.is_empty()
             && (api == format!("http://{}:21114", s0) || api == format!("{}:21114", s0));
         if is_default_derived {
@@ -1291,6 +1294,9 @@ fn get_api_server_(api: String, custom: String) -> String {
                 return ensure_url_scheme(&profile_api);
             }
         }
+    }
+    if !api.is_empty() {
+        return ensure_url_scheme(&api);
     }
     if !s0.is_empty() {
         let s = crate::increase_port(&s0, -2);

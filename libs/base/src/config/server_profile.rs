@@ -100,7 +100,7 @@ pub fn get_server_profiles() -> Vec<ServerProfile> {
     // Check rendezvous-servers or public servers
     let mut servers = Config::get_rendezvous_servers();
     let cur = Config::get_rendezvous_server();
-    if !cur.is_empty() && !servers.iter().any(|s| is_host_match(s, &cur)) {
+    if !cur.is_empty() && !servers.iter().any(|s| is_same_rendezvous_host(s, &cur)) {
         servers.insert(0, cur);
     }
     servers
@@ -341,21 +341,42 @@ pub fn is_host_match(h1: &str, h2: &str) -> bool {
     }
     let p1 = parse_host(h1);
     let p2 = parse_host(h2);
-    // Same rule as `is_host_match_str`: two entries that both spell out a port must agree on it.
-    // Without it every profile sharing one public IP behind a different STUN-mapped port matches
-    // the first one, and `get_profile_by_host` then hands out that profile's key, tcp host and
-    // relay — which surfaces as an endless key mismatch against the right server.
-    let both_ported = has_explicit_port(h1) && has_explicit_port(h2);
-    if !p1.is_empty()
-        && !p2.is_empty()
-        && p1.eq_ignore_ascii_case(p2)
-        && (!both_ported || h1.eq_ignore_ascii_case(h2))
-    {
-        return true;
+    if !p1.is_empty() && !p2.is_empty() {
+        if p1.eq_ignore_ascii_case(p2) {
+            return true;
+        }
     }
     if h1.eq_ignore_ascii_case(h2) {
         return true;
     }
+    if resolved_hosts_match(h1, h2) {
+        return true;
+    }
+    false
+}
+
+/// `is_host_match` for two addresses that name the same kind of server, i.e. two rendezvous
+/// hosts. Several profiles can share one public IP behind different STUN-mapped ports, and for
+/// that comparison the port is part of the identity: without it `get_profile_by_host` hands out
+/// the first profile's key, tcp host and relay, which surfaces as an endless key mismatch
+/// against the right server.
+///
+/// Cross-role checks must keep using `is_host_match`: a `rendezvous-server-tcp` or `relay-server`
+/// address belongs to the same machine on a different port by design.
+pub fn is_same_rendezvous_host(h1: &str, h2: &str) -> bool {
+    let h1 = h1.trim();
+    let h2 = h2.trim();
+    if h1.is_empty() || h2.is_empty() {
+        return false;
+    }
+    if has_explicit_port(h1) && has_explicit_port(h2) {
+        // Different spellings are still one server when a TXT resolution linked them.
+        return h1.eq_ignore_ascii_case(h2) || resolved_hosts_match(h1, h2);
+    }
+    is_host_match(h1, h2)
+}
+
+fn resolved_hosts_match(h1: &str, h2: &str) -> bool {
     if let Some(r1) = get_resolved_profile_data(h1) {
         if is_host_match_resolved(&r1, h2) {
             return true;
@@ -380,7 +401,7 @@ pub fn get_profile_by_host(host: &str) -> Option<ServerProfile> {
         if p.host.trim().is_empty() {
             continue;
         }
-        if is_host_match(&p.host, host) {
+        if is_same_rendezvous_host(&p.host, host) {
             let mut res = p.clone();
             if let Some(resolved) = get_resolved_profile_data(host) {
                 merge_resolved_into_profile(&mut res, &resolved);
@@ -409,7 +430,7 @@ pub fn get_profile_by_host(host: &str) -> Option<ServerProfile> {
     if let Some(resolved) = get_resolved_profile_data(host) {
         let base = profiles.into_iter().find(|p| {
             (!resolved.profile_id.is_empty() && p.id == resolved.profile_id)
-                || is_host_match(&p.host, &resolved.original_host)
+                || is_same_rendezvous_host(&p.host, &resolved.original_host)
         });
         let mut p = base.unwrap_or_else(|| ServerProfile {
             id: if !resolved.profile_id.is_empty() { resolved.profile_id.clone() } else { "resolved".to_string() },
@@ -554,7 +575,7 @@ pub fn get_server_latency_by_profile(id: &str, host: &str) -> i64 {
             return lat;
         }
         for (k, v) in map.iter() {
-            if is_host_match(k, host) {
+            if is_same_rendezvous_host(k, host) {
                 return *v;
             }
         }
@@ -572,7 +593,7 @@ pub fn get_server_latency_by_profile(id: &str, host: &str) -> i64 {
                 return lat;
             }
             for (k, v) in map.iter() {
-                if is_host_match(k, host) {
+                if is_same_rendezvous_host(k, host) {
                     return *v;
                 }
             }
@@ -654,11 +675,20 @@ mod tests {
     }
 
     #[test]
-    fn public_match_keeps_distinct_ports_apart() {
-        assert!(!is_host_match("203.0.113.7:17366", "203.0.113.7:17368"));
-        assert!(is_host_match("203.0.113.7:17366", "203.0.113.7:17366"));
-        assert!(is_host_match("203.0.113.7", "203.0.113.7:17366"));
-        assert!(!is_host_match("[2001:db8::7]:17366", "[2001:db8::7]:17368"));
+    fn same_rendezvous_host_keeps_distinct_ports_apart() {
+        assert!(!is_same_rendezvous_host("203.0.113.7:17366", "203.0.113.7:17368"));
+        assert!(is_same_rendezvous_host("203.0.113.7:17366", "203.0.113.7:17366"));
+        assert!(is_same_rendezvous_host("203.0.113.7", "203.0.113.7:17366"));
+        assert!(is_same_rendezvous_host("203.0.113.7:17366", "203.0.113.7"));
+        assert!(!is_same_rendezvous_host("[2001:db8::7]:17366", "[2001:db8::7]:17368"));
+    }
+
+    #[test]
+    fn cross_role_host_match_ignores_the_port() {
+        // A rendezvous-server-tcp / relay-server option names the same machine on another
+        // port, so it must still be recognised as belonging to that server.
+        assert!(is_host_match("203.0.113.7:21115", "203.0.113.7:21116"));
+        assert!(is_host_match("203.0.113.7:21117", "203.0.113.7"));
     }
 
     #[test]
