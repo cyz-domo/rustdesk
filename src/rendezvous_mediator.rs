@@ -1200,10 +1200,9 @@ impl RendezvousMediator {
         // ph.nat_type == SYMMETRIC reflects both client NAT and server-enforced relay policies
         // (ALWAYS_USE_RELAY / LAN-WAN mismatch). We intentionally omit local Config::get_nat_type()
         // here to prevent local NAT evaluation timeouts from poisoning punch.
-        let relay_forced = ph.nat_type.enum_value() == Ok(NatType::SYMMETRIC)
-            || relay
-            || (config::is_disable_tcp_listen() && !can_punch_udp);
-        if peer_addr_v6.port() > 0 && !relay_forced {
+        let policy_relay = ph.nat_type.enum_value() == Ok(NatType::SYMMETRIC) || relay;
+        // A policy relay must not hand the peer a v6 candidate to race back into direct.
+        if peer_addr_v6.port() > 0 && !policy_relay {
             socket_addr_v6 =
                 start_ipv6(peer_addr_v6, peer_addr, server.clone(), meta.clone()).await;
         }
@@ -1214,7 +1213,9 @@ impl RendezvousMediator {
         // than trusting this classification, so a direct WebRTC pair can still form on a
         // connection this branch has already called relay-only. Do not gate the answerer on
         // nat_type to make the two agree.
-        if relay_forced {
+        // `disable_tcp_listen` is not a relay policy: it only rules out the legacy transports, and
+        // with no UDP port left the IPv6 leg offered above is the one path still worth trying.
+        if policy_relay || (config::is_disable_tcp_listen() && !can_punch_udp) {
             let uuid = Uuid::new_v4().to_string();
             return self
                 .create_relay(

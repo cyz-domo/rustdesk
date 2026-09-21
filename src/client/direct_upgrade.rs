@@ -29,9 +29,10 @@ use crate::{
 const FIRST_PROBE_DELAY_SECS: u64 = 30;
 const MAX_PROBE_DELAY_SECS: u64 = 300;
 const PROBE_DEADLINE_SECS: u64 = 2 * 60 * 60;
-// Hard cap on relay->direct upgrade reconnects per session, so a punch that probes direct but
-// keeps winning the race as relay cannot loop the user through endless 1-2s black screens.
-const MAX_UPGRADE_RECONNECTS: usize = 1;
+// One relay->direct prompt per session. The prompt is the only thing that can start an upgrade
+// reconnect, so capping it bounds the black screens a punch keeps causing while keeping unrelated
+// reconnects from spending the budget.
+const MAX_UPGRADE_PROMPTS: usize = 1;
 
 #[derive(Clone)]
 struct ProbeInterface {
@@ -101,7 +102,7 @@ pub fn spawn_direct_upgrade_probe<T: InvokeUiSession>(
         return;
     }
     if relay_is_forced(&handler)
-        || handler.upgrade_attempts.load(Ordering::SeqCst) >= MAX_UPGRADE_RECONNECTS
+        || handler.upgrade_attempts.load(Ordering::SeqCst) >= MAX_UPGRADE_PROMPTS
     {
         return;
     }
@@ -150,7 +151,7 @@ async fn run_probe<T: InvokeUiSession>(
             return;
         }
         if relay_is_forced(&handler)
-            || handler.upgrade_attempts.load(Ordering::SeqCst) >= MAX_UPGRADE_RECONNECTS
+            || handler.upgrade_attempts.load(Ordering::SeqCst) >= MAX_UPGRADE_PROMPTS
         {
             return;
         }
@@ -168,9 +169,12 @@ async fn run_probe<T: InvokeUiSession>(
                 if !round_is_live(&handler, round) {
                     return;
                 }
-                log::info!("direct path available, prompting relay-to-direct upgrade");
+                // Counted here, not when the prompted reconnect runs: only the UI knows whether
+                // "Upgrade now" or some unrelated retry follows this prompt, and a reconnect-side
+                // hook would let the offline auto-retry burn the budget.
+                let attempts = handler.upgrade_attempts.fetch_add(1, Ordering::SeqCst) + 1;
+                log::info!("direct path available, prompting relay-to-direct upgrade (attempt {attempts})");
                 handler.lc.write().unwrap().set_direct_failure(0);
-                handler.upgrade_prompted.store(true, Ordering::SeqCst);
                 handler.ui_handler.msgbox(
                     "upgrade-direct",
                     "Direct connection available",

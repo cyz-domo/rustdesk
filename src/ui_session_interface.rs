@@ -33,7 +33,7 @@ use std::{
     ops::{Deref, DerefMut},
     str::FromStr,
     sync::{
-        atomic::{AtomicBool, AtomicUsize, Ordering},
+        atomic::{AtomicUsize, Ordering},
         Arc, Mutex, RwLock,
     },
     time::SystemTime,
@@ -70,10 +70,9 @@ pub struct Session<T: InvokeUiSession> {
     // Indicate whether the session is reconnected.
     // Used to auto start file transfer after reconnection.
     pub reconnect_count: Arc<AtomicUsize>,
-    // How many times the background direct-upgrade probe has reconnected this session.
-    // Caps the relay->direct switch so a flaky punch cannot loop reconnects.
+    // How many relay->direct prompts this session has shown. Capping the prompt is what bounds
+    // the switch: a flaky punch must not loop the session through reconnect black screens.
     pub upgrade_attempts: Arc<AtomicUsize>,
-    pub upgrade_prompted: Arc<AtomicBool>,
     pub last_audit_note: Arc<Mutex<String>>,
     pub audit_guid: Arc<Mutex<String>>,
 }
@@ -1305,8 +1304,6 @@ impl<T: InvokeUiSession> Session<T> {
             // and it is the one kind of relay that belongs in the peer's saved config.
             lc.policy_relay = true;
             lc.peer_relay = true;
-        } else if self.upgrade_prompted.swap(false, Ordering::SeqCst) {
-            self.upgrade_attempts.fetch_add(1, Ordering::SeqCst);
         }
         self.lc.write().unwrap().peer_info = None;
         self.reconnect_count.fetch_add(1, Ordering::SeqCst);

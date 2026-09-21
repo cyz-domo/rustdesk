@@ -667,6 +667,12 @@ impl Client {
     /// its own punch lands, so a candidate that never completes must release the relay quickly.
     const IPV6_PREFER_WINDOW_MS: u64 = 1_000;
 
+    /// Shortest budget worth giving a UDP punch away from the LAN: the hole has to fit its probe
+    /// rounds and the KCP handshake that follows, both of which a `connect_timeout` derived from a
+    /// fast local path or a missing relay server can understate. The LAN path keeps its short
+    /// timeout instead, because there a working hole answers in milliseconds.
+    const PUNCH_MIN_MS: u64 = 2_000;
+
     /// The delay as the user configured it, falling back to `RELAY_FALLBACK_DELAY_MS`. The
     /// settings field holds seconds, which is what a user reasons about; everything here is
     /// milliseconds. Unparseable, zero or negative all mean "unset", so clearing the field
@@ -1109,10 +1115,12 @@ impl Client {
                                     );
                                 }
                                 if connected.is_ok() {
+                                    let punch_timeout = CONNECT_TIMEOUT.max(Self::PUNCH_MIN_MS);
                                     ipv6_fut = Some(
                                         async move {
                                             let (conn, kcp, typ) =
-                                                udp_nat_connect(s, addr, "IPv6", CONNECT_TIMEOUT).await?;
+                                                udp_nat_connect(s, addr, "IPv6", punch_timeout)
+                                                    .await?;
                                             Ok((conn, kcp, typ, true))
                                         }
                                         .boxed(),
@@ -1508,6 +1516,13 @@ impl Client {
         }
         log::info!("peer address: {}, timeout: {}", peer, connect_timeout);
         let start = std::time::Instant::now();
+        // Only the UDP legs need the floor, and only off the LAN: a local hole answers in
+        // milliseconds, so raising its budget would just lengthen the wait when it never opens.
+        let udp_timeout = if is_local {
+            connect_timeout
+        } else {
+            connect_timeout.max(Self::PUNCH_MIN_MS)
+        };
 
         // Each attempt carries whether its path is direct (4th field). TCP/UDP/IPv6 punch are
         // always direct; WebRTC is direct only when ICE nominated a non-TURN pair.
@@ -1526,7 +1541,7 @@ impl Client {
             direct_futures.push(
                 async move {
                     let (conn, kcp, typ) =
-                        udp_nat_connect(udp_socket_nat, peer, "UDP", connect_timeout).await?;
+                        udp_nat_connect(udp_socket_nat, peer, "UDP", udp_timeout).await?;
                     Ok((conn, kcp, typ, true))
                 }
                 .boxed(),
@@ -1536,7 +1551,7 @@ impl Client {
             direct_futures.push(
                 async move {
                     let (conn, kcp, typ) =
-                        udp_nat_connect(udp_socket_v6, v6_target, "IPv6", connect_timeout).await?;
+                        udp_nat_connect(udp_socket_v6, v6_target, "IPv6", udp_timeout).await?;
                     Ok((conn, kcp, typ, true))
                 }
                 .boxed(),
@@ -5596,8 +5611,7 @@ async fn udp_nat_connect(
     typ: &'static str,
     ms_timeout: u64,
 ) -> ResultType<(Stream, Option<KcpStream>, &'static str)> {
-    let punch_timeout = ms_timeout.max(2000);
-    crate::punch_udp(socket.clone(), peer_addr, false, Some(Duration::from_millis(punch_timeout)))
+    crate::punch_udp(socket.clone(), peer_addr, false, Some(Duration::from_millis(ms_timeout)))
         .await
         .map_err(|err| {
             log::debug!("{err}");
