@@ -1514,7 +1514,7 @@ impl Client {
         // always direct; WebRTC is direct only when ICE nominated a non-TURN pair.
         let mut direct_futures = Vec::new();
         if allow_tcp_punch {
-            let fut = connect_tcp_local(peer_addr, Some(local_addr), connect_timeout);
+            let fut = connect_tcp_local(peer, Some(local_addr), connect_timeout);
             direct_futures.push(
                 async move {
                     let conn = fut.await?;
@@ -1527,7 +1527,7 @@ impl Client {
             direct_futures.push(
                 async move {
                     let (conn, kcp, typ) =
-                        udp_nat_connect(udp_socket_nat, peer_addr, "UDP", connect_timeout).await?;
+                        udp_nat_connect(udp_socket_nat, peer, "UDP", connect_timeout).await?;
                     Ok((conn, kcp, typ, true))
                 }
                 .boxed(),
