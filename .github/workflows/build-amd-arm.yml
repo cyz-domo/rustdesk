@@ -36,9 +36,9 @@ on:
         type: boolean
         default: true
       create_release:
-        description: '自动发布为 GitHub Release 保存产物'
+        description: '自动发布为 GitHub Release 保存产物 (默认关；不勾选时到 Actions run 页的 Artifacts 下载)'
         type: boolean
-        default: true
+        default: false
       release_tag:
         description: '自定义 Release 标签 (留空自动按日期时间生成)'
         type: string
@@ -228,6 +228,14 @@ jobs:
           targets: ${{ matrix.job.target }}
           components: "rustfmt"
 
+      - name: Cache vcpkg downloads
+        if: steps.check_selection.outputs.run_job == 'true'
+        uses: actions/cache@v4
+        with:
+          path: C:\vcpkg\downloads
+          key: vcpkg-downloads-windows-${{ env.VCPKG_COMMIT_ID }}
+          restore-keys: vcpkg-downloads-windows-
+
       - name: Setup vcpkg
         if: steps.check_selection.outputs.run_job == 'true'
         uses: lukka/run-vcpkg@v11
@@ -383,6 +391,14 @@ jobs:
           targets: ${{ matrix.job.target }}
           components: "rustfmt"
 
+      - name: Cache vcpkg downloads
+        if: steps.check_selection.outputs.run_job == 'true'
+        uses: actions/cache@v4
+        with:
+          path: /Users/runner/vcpkg/downloads
+          key: vcpkg-downloads-macos-${{ env.VCPKG_COMMIT_ID }}
+          restore-keys: vcpkg-downloads-macos-
+
       - name: Setup vcpkg
         if: steps.check_selection.outputs.run_job == 'true'
         uses: lukka/run-vcpkg@v11
@@ -501,6 +517,14 @@ jobs:
         with:
           name: bridge-artifact
           path: ./
+
+      - name: Cache vcpkg downloads
+        if: steps.check_selection.outputs.run_job == 'true'
+        uses: actions/cache@v4
+        with:
+          path: /opt/artifacts/vcpkg/downloads
+          key: vcpkg-downloads-ubuntu-${{ env.VCPKG_COMMIT_ID }}
+          restore-keys: vcpkg-downloads-ubuntu-
 
       - name: Setup vcpkg
         if: steps.check_selection.outputs.run_job == 'true'
@@ -646,6 +670,14 @@ jobs:
           "${user_base}/bin/cmake" --version
           echo "${user_base}/bin" >> "${GITHUB_PATH}"
 
+      - name: Cache vcpkg downloads
+        if: steps.check_selection.outputs.run_job == 'true'
+        uses: actions/cache@v4
+        with:
+          path: /opt/artifacts/vcpkg/downloads
+          key: vcpkg-downloads-ubuntu-${{ env.VCPKG_COMMIT_ID }}
+          restore-keys: vcpkg-downloads-ubuntu-
+
       - name: Setup vcpkg
         if: steps.check_selection.outputs.run_job == 'true'
         uses: lukka/run-vcpkg@v11
@@ -775,7 +807,12 @@ jobs:
   publish-release:
     name: Publish Release
     needs: [build-windows, build-macos, build-android, build-linux]
-    if: always() && (inputs.create_release == true || inputs.create_release == 'true')
+    if: >-
+      always() && (inputs.create_release == true || inputs.create_release == 'true') &&
+      (needs.build-windows.result == 'success' || needs.build-windows.result == 'skipped') &&
+      (needs.build-macos.result == 'success' || needs.build-macos.result == 'skipped') &&
+      (needs.build-android.result == 'success' || needs.build-android.result == 'skipped') &&
+      (needs.build-linux.result == 'success' || needs.build-linux.result == 'skipped')
     runs-on: ubuntu-latest
     permissions:
       contents: write
