@@ -170,6 +170,7 @@ async fn run_probe<T: InvokeUiSession>(
                 }
                 log::info!("direct path available, prompting relay-to-direct upgrade");
                 handler.lc.write().unwrap().set_direct_failure(0);
+                handler.upgrade_prompted.store(true, Ordering::SeqCst);
                 handler.ui_handler.msgbox(
                     "upgrade-direct",
                     "Direct connection available",
@@ -177,6 +178,7 @@ async fn run_probe<T: InvokeUiSession>(
                     "",
                     false,
                 );
+                return;
             }
             Ok(((_stream, false, _pk, _kcp, _typ), _feedback)) => {
                 log::debug!("direct upgrade probe landed on relay again");

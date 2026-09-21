@@ -1067,9 +1067,10 @@ impl Client {
                                                 "IPv6 punch candidate {addr} unusable from {:?}: {err}",
                                                 s.local_addr().ok()
                                             );
+                                        } else {
+                                            ipv6.0 = Some(s);
+                                            peer_addr_v6 = Some(addr);
                                         }
-                                        ipv6.0 = Some(s);
-                                        peer_addr_v6 = Some(addr);
                                     }
                                 }
                             }
@@ -5595,7 +5596,8 @@ async fn udp_nat_connect(
     typ: &'static str,
     ms_timeout: u64,
 ) -> ResultType<(Stream, Option<KcpStream>, &'static str)> {
-    crate::punch_udp(socket.clone(), peer_addr, false, Some(Duration::from_millis(ms_timeout)))
+    let punch_timeout = ms_timeout.max(2000);
+    crate::punch_udp(socket.clone(), peer_addr, false, Some(Duration::from_millis(punch_timeout)))
         .await
         .map_err(|err| {
             log::debug!("{err}");
