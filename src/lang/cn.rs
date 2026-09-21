@@ -786,5 +786,9 @@ pub static ref T: std::collections::HashMap<&'static str, &'static str> =
         ("Profile name", "配置名称"),
         ("Online", "在线"),
         ("Set as current server", "设为当前服务器"),
+        ("Direct connection available", "直连链路可用"),
+        ("Direct connection is now available. Do you want to upgrade to direct connection now?", "检测到当前中继会话已具备直连条件，是否立即升级为直连以提升画质与流畅度？（切换需 1~2 秒重连）"),
+        ("Upgrade now", "立即升级"),
+        ("Not now", "暂不升级"),
     ].iter().cloned().collect();
 }

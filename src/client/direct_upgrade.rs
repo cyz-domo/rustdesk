@@ -1,24 +1,73 @@
-use std::sync::atomic::Ordering;
-use std::time::{Duration, Instant};
+use std::{
+    sync::{
+        atomic::Ordering,
+        Arc, RwLock,
+    },
+    time::{Duration, Instant},
+};
 
 use hbb_common::{
     config::LocalConfig,
     log,
-    rendezvous_proto::ConnType,
+    rendezvous_proto::{ConnType, PeerInfo},
     tokio::{self, time::sleep},
+    Stream,
 };
 
-use base::config::keys;
+use base::{
+    config::keys,
+    message_proto::{Hash, TestDelay, WindowsSession},
+};
 
-use crate::client::{Client, Interface};
-use crate::ui_session_interface::{InvokeUiSession, Session};
+use crate::{
+    client::{Client, Interface, LoginConfigHandler},
+    ui_session_interface::{InvokeUiSession, Session},
+};
 
 const FIRST_PROBE_DELAY_SECS: u64 = 30;
 const MAX_PROBE_DELAY_SECS: u64 = 300;
 const PROBE_DEADLINE_SECS: u64 = 2 * 60 * 60;
 // Hard cap on relay->direct upgrade reconnects per session, so a punch that probes direct but
 // keeps winning the race as relay cannot loop the user through endless 1-2s black screens.
-const MAX_UPGRADE_RECONNECTS: usize = 2;
+const MAX_UPGRADE_RECONNECTS: usize = 1;
+
+#[derive(Clone)]
+struct ProbeInterface {
+    lch: Arc<RwLock<LoginConfigHandler>>,
+}
+
+#[hbb_common::tokio::async_trait]
+impl Interface for ProbeInterface {
+    fn send(&self, _data: crate::client::Data) {}
+    fn msgbox(&self, _msgtype: &str, _title: &str, _text: &str, _link: &str) {}
+    fn handle_login_error(&self, _err: &str) -> bool {
+        false
+    }
+    fn handle_peer_info(&self, _pi: PeerInfo) {}
+    fn set_multiple_windows_session(&self, _sessions: Vec<WindowsSession>) {}
+    fn on_error(&self, _err: &str) {}
+    async fn handle_hash(&self, _pass: &str, _hash: Hash, _peer: &mut Stream) -> bool {
+        false
+    }
+    async fn handle_login_from_ui(
+        &self,
+        _os_username: String,
+        _os_password: String,
+        _password: String,
+        _remember: bool,
+        _peer: &mut Stream,
+    ) {
+    }
+    async fn handle_test_delay(&self, t: TestDelay, peer: &mut Stream) {
+        if !t.from_client {
+            crate::client::handle_test_delay(t, peer).await;
+        }
+    }
+    fn get_lch(&self) -> Arc<RwLock<LoginConfigHandler>> {
+        self.lch.clone()
+    }
+    fn on_establish_connection_error(&self, _err: String) {}
+}
 
 /// First probe delay in seconds, from the `upgrade-probe-interval` option (seconds, like
 /// `relay-fallback-delay`); anything unparseable keeps the default.
@@ -103,16 +152,13 @@ async fn run_probe<T: InvokeUiSession>(
         {
             return;
         }
-        // The probe shares the session's LoginConfigHandler, and `Client::start` clears
-        // `direct`/`received` on it up front; restore them so the live UI state is untouched.
-        let (prev_direct, prev_received) = {
+        let probe_lch = {
             let lc = handler.lc.read().unwrap();
-            (lc.direct, lc.received)
+            Arc::new(RwLock::new(lc.clone_for_probe()))
         };
+        let probe_iface = ProbeInterface { lch: probe_lch };
         let id = handler.get_id();
-        let result = Client::start(&id, &key, &token, ConnType::default(), handler.clone()).await;
-        handler.update_direct(prev_direct);
-        handler.update_received(prev_received);
+        let result = Client::start(&id, &key, &token, ConnType::default(), probe_iface).await;
         match result {
             Ok(((_stream, true, _pk, _kcp, _typ), _feedback)) => {
                 // The probe itself advanced nothing on the live session, but another reconnect
@@ -121,8 +167,15 @@ async fn run_probe<T: InvokeUiSession>(
                     return;
                 }
                 let attempts = handler.upgrade_attempts.fetch_add(1, Ordering::SeqCst) + 1;
-                log::info!("direct path available, upgrading relay session (attempt {attempts})");
-                handler.reconnect(false);
+                log::info!("direct path available, prompting relay-to-direct upgrade (attempt {attempts})");
+                handler.lc.write().unwrap().set_direct_failure(0);
+                handler.ui_handler.msgbox(
+                    "upgrade-direct",
+                    "Direct connection available",
+                    "Direct connection is now available. Do you want to upgrade to direct connection now?",
+                    "",
+                    false,
+                );
                 return;
             }
             Ok(((_stream, false, _pk, _kcp, _typ), _feedback)) => {

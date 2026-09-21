@@ -986,6 +986,8 @@ class FfiModel with ChangeNotifier {
       showElevationError(sessionId, type, title, text, dialogManager);
     } else if (type == 'relay-hint' || type == 'relay-hint2') {
       showRelayHintDialog(sessionId, type, title, text, dialogManager, peerId);
+    } else if (type == 'upgrade-direct') {
+      showUpgradeDirectDialog(sessionId, type, title, text, dialogManager);
     } else if (text == kMsgboxTextWaitingForImage) {
       showConnectedWaitingForImage(dialogManager, sessionId, type, title, text);
     } else if (title == 'Privacy mode') {
@@ -1202,6 +1204,35 @@ class FfiModel with ChangeNotifier {
                 buttonStyle: style),
         ],
         onCancel: onClose,
+      );
+    });
+  }
+
+  void showUpgradeDirectDialog(
+    SessionID sessionId,
+    String type,
+    String title,
+    String text,
+    OverlayDialogManager dialogManager,
+  ) {
+    dialogManager.show(tag: '$sessionId-$type', (setState, close, context) {
+      void upgrade() {
+        close();
+        reconnect(dialogManager, sessionId, false);
+      }
+
+      final style =
+          ElevatedButton.styleFrom(backgroundColor: Colors.green[700]);
+
+      return CustomAlertDialog(
+        title: null,
+        content: SelectionArea(child: msgboxContent(type, title, text)),
+        actions: [
+          dialogButton('Not now', onPressed: close, isOutline: true),
+          dialogButton('Upgrade now', onPressed: upgrade, buttonStyle: style),
+        ],
+        onSubmit: upgrade,
+        onCancel: close,
       );
     });
   }

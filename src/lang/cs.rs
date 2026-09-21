@@ -786,5 +786,9 @@ pub static ref T: std::collections::HashMap<&'static str, &'static str> =
         ("Profile name", ""),
         ("Online", ""),
         ("Set as current server", ""),
+        ("Direct connection available", ""),
+        ("Direct connection is now available. Do you want to upgrade to direct connection now?", ""),
+        ("Upgrade now", ""),
+        ("Not now", ""),
     ].iter().cloned().collect();
 }

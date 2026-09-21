@@ -1338,7 +1338,7 @@ Widget msgboxIcon(String type) {
   if (type == 'on-uac' || type == 'on-foreground-elevated') {
     iconData = Icons.admin_panel_settings;
   }
-  if (type.contains('info')) {
+  if (type.contains('info') || type == 'upgrade-direct') {
     iconData = Icons.info;
   }
   if (iconData != null) {

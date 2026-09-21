@@ -2933,6 +2933,20 @@ impl Deref for LoginConfigHandler {
 }
 
 impl LoginConfigHandler {
+    pub fn clone_for_probe(&self) -> Self {
+        Self {
+            id: self.id.clone(),
+            conn_type: self.conn_type,
+            other_server: self.other_server.clone(),
+            force_relay: false,
+            policy_relay: false,
+            peer_relay: false,
+            switch_uuid: self.switch_uuid.clone(),
+            direct_failures: 0,
+            ..Default::default()
+        }
+    }
+
     pub(crate) fn set_hash(&mut self, hash: Hash) {
         self.hash = hash;
     }
