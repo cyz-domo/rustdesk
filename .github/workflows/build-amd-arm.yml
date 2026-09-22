@@ -266,6 +266,18 @@ jobs:
           New-Item -ItemType Directory -Force -Path ./rustdesk | Out-Null
           Copy-Item -Force -Recurse "./flutter/build/windows/${{ matrix.job.flutter-arch }}/runner/Release/*" ./rustdesk/
 
+      - name: Add virtual display driver
+        # Privacy mode "Mode 2" installs the driver from `<exe dir>\usbmmidd_v2`, which the Flutter
+        # Release folder does not contain. Keep deviceinstaller64.exe: an x86 process cannot install
+        # or remove a driver on x64 without it.
+        if: steps.check_selection.outputs.run_job == 'true'
+        run: |
+          Invoke-WebRequest -Uri https://github.com/rustdesk-org/rdev/releases/download/usbmmidd_v2/usbmmidd_v2.zip -OutFile usbmmidd_v2.zip
+          Expand-Archive -Path usbmmidd_v2.zip -DestinationPath .
+          Remove-Item -Recurse -Force ./usbmmidd_v2/deviceinstaller.exe, ./usbmmidd_v2/usbmmidd.bat
+          Move-Item -Force ./usbmmidd_v2 ./rustdesk/
+          Get-ChildItem ./rustdesk/usbmmidd_v2 | Select-Object -ExpandProperty Name
+
       - name: Build self-extracted executable
         if: steps.check_selection.outputs.run_job == 'true'
         shell: bash
