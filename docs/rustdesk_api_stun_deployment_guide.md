@@ -114,8 +114,8 @@ services:
       - RUSTDESK_API_RUSTDESK_API_SERVER=http://rustdesk.6143443.xyz:21114
       # 容器内公钥文件路径（指向挂载到 /data 的 id_ed25519.pub）
       - RUSTDESK_API_KEY_FILE=/data/id_ed25519.pub
-      # 4. JWT 鉴权密钥（可自行替换为 32 位随机字符）
-      - RUSTDESK_API_JWT_KEY=7c9b8e21a4f0d635c2e1987ba45e6f3d
+      # 4. JWT 鉴权密钥（可在终端运行 openssl rand -hex 16 生成并替换下方的 xxx）
+      - RUSTDESK_API_JWT_KEY=xxx
     volumes:
       # 宿主机数据持久化挂载
       - /vol2/1000/docker-data/rustdesk/server:/data     # 存放服务通信密钥及 hbbs 数据

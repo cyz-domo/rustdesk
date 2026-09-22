@@ -903,12 +903,15 @@ services:
       - RUSTDESK_API_RUSTDESK_API_SERVER=https://rustdesk-api.example.com
       # 容器内公钥文件路径（指向挂载到 /data 的 id_ed25519.pub）
       - RUSTDESK_API_KEY_FILE=/data/id_ed25519.pub
-      # 4. JWT 鉴权密钥（可自行替换为 32 位随机字符）
-      - RUSTDESK_API_JWT_KEY=7c9b8e21a4f0d635c2e1987ba45e6f3d
+      # 4. JWT 鉴权密钥（可在终端运行 openssl rand -hex 16 生成并替换下方的 xxx）
+      - RUSTDESK_API_JWT_KEY=xxx
     volumes:
       # 宿主机数据持久化挂载（请替换为你的实际 NAS/服务器路径）
       - ./data/server:/data     # 存放服务通信密钥及 hbbs 数据
       - ./data/api:/app/data   # 存放 SQLite 数据库及 Web 后台配置</code></pre>
+                                </div>
+                                <div class="mt-2.5 px-3.5 py-2.5 rounded-xl bg-slate-100/80 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+                                    <span class="font-semibold text-slate-800 dark:text-slate-200">💡 提示：</span>在 Linux/macOS/NAS 终端运行 <code class="font-mono text-brand-600 dark:text-brand-300 bg-white dark:bg-slate-950 px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-800">openssl rand -hex 16</code> 即可快速生成 32 位随机安全密钥，替换上述配置中的 <code class="font-mono text-brand-600 dark:text-brand-300 bg-white dark:bg-slate-950 px-1 py-0.5 rounded border border-slate-200 dark:border-slate-800">xxx</code>。
                                 </div>
                             </div>
                         </div>
