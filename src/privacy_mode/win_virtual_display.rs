@@ -31,6 +31,11 @@ pub(super) const PRIVACY_MODE_IMPL: &str = super::PRIVACY_MODE_IMPL_WIN_VIRTUAL_
 
 const CONFIG_KEY_REG_RECOVERY: &str = "reg_recovery";
 
+// How long to keep waiting for a plugged-in monitor to reach the console desktop after the
+// first window expires. The attach was measured at ~9.4s on a dGPU-direct laptop, while the
+// first window is 5s: bailing there rolls the plug-in back and destroys the pending attach.
+const VIRTUAL_DISPLAY_RETRY_WAIT_MILLIS: u64 = 10_000;
+
 struct Display {
     dm: DEVMODEW,
     name: [WCHAR; 32],
@@ -330,7 +335,7 @@ impl PrivacyModeImpl {
         }]
     }
 
-    // This function will wait at most 6 seconds for the virtual displays to be ready.
+    // This function will wait at most 16 seconds for the virtual displays to be ready.
     // It's ok to wait, because:
     // 1. A new thread is created to handle the async privacy mode.
     // 2. The user is usually not in a hurry to turn on the privacy mode.
@@ -352,6 +357,19 @@ impl PrivacyModeImpl {
                 let now = std::time::Instant::now();
                 while self.virtual_displays.is_empty()
                     && now.elapsed() < Duration::from_millis(5000)
+                {
+                    thread::sleep(Duration::from_millis(500));
+                    self.set_displays();
+                }
+            }
+
+            // The driver can create the monitor long before the desktop takes it online, and it
+            // stays invisible until something makes Windows re-poll the display devices.
+            if is_async_mode && self.virtual_displays.is_empty() {
+                allow_err!(Self::commit_change_display(CDS_RESET));
+                let now = std::time::Instant::now();
+                while self.virtual_displays.is_empty()
+                    && now.elapsed() < Duration::from_millis(VIRTUAL_DISPLAY_RETRY_WAIT_MILLIS)
                 {
                     thread::sleep(Duration::from_millis(500));
                     self.set_displays();
