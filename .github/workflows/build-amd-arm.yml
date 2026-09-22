@@ -830,12 +830,12 @@ jobs:
         with:
           fetch-depth: 20
 
-      - name: Generate Tag, Release Title, and Release Notes
+      - name: Generate tag and release title
         id: vars
         shell: bash
         run: |
-          NOW_UTC=$(date -u '+%Y-%m-%d %H:%M:%S UTC')
-          NOW_CST=$(TZ='Asia/Shanghai' date '+%Y-%m-%d %H:%M:%S CST')
+          NOW_UTC=$(date -u '+%H:%M UTC')
+          NOW_CST=$(TZ='Asia/Shanghai' date '+%Y-%m-%d %H:%M')
           
           if [ -n "${{ inputs.release_tag }}" ]; then
             TAG="${{ inputs.release_tag }}"
@@ -851,33 +851,8 @@ jobs:
           
           echo "tag=$TAG" >> $GITHUB_OUTPUT
           echo "title=$TITLE" >> $GITHUB_OUTPUT
-
-          CHANGELOG=$(git log -n 8 --pretty=format:"- %s (\`%h\` - %an)")
-
-          cat <<EOF > ./release_notes.md
-          ## 🚀 RustDesk 多平台发布 (v${{ env.VERSION }} / ${TAG})
-
-          - **软件版本**: \`v${{ env.VERSION }}\`
-          - **构建时间**: ${NOW_CST} (${NOW_UTC})
-          - **Commit**: [\`${GITHUB_SHA:0:8}\`](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/commit/${GITHUB_SHA})
-          - **触发分支**: \`${GITHUB_REF_NAME}\`
-
-          ### 📝 最近变更记录 (Recent Changes)
-          ${CHANGELOG}
-
-          ### 📦 产物下载与使用说明
-          | 文件名格式 | 平台 / 说明 | 使用方式 |
-          | :--- | :--- | :--- |
-          | \`rustdesk-${{ env.VERSION }}-x86_64.exe\` | Windows (x64) 便携/安装一体化 | 直接双击运行即可使用（免安装便携版）；主界面可一键安装为系统服务 |
-          | \`rustdesk-${{ env.VERSION }}-windows-*.zip\` | Windows (x64) 绿色免解压包 | 解压后直接运行内部的 \`rustdesk.exe\` |
-          | \`rustdesk-${{ env.VERSION }}-*.dmg\` | macOS (Apple Silicon / M系列) | 双击挂载，拖入 Applications 目录 |
-          | \`rustdesk-${{ env.VERSION }}-android-*.apk\` | Android (ARM64) 移动客户端 | 手机直接安装运行 |
-          | \`rustdesk-${{ env.VERSION }}-*.deb\` | Linux (x64 / ARM64 Debian/Ubuntu) | \`sudo dpkg -i rustdesk-${{ env.VERSION }}-*.deb\` |
-          | \`rustdesk-${{ env.VERSION }}-*.rpm\` | Linux (x64 / ARM64 RHEL/CentOS/Fedora) | \`sudo dnf localinstall rustdesk-${{ env.VERSION }}-*.rpm\` 或 \`sudo rpm -ivh rustdesk-${{ env.VERSION }}-*.rpm\` |
-
-          ### 💡 Lucky STUN 动态 DNS TXT 快速配置
-          在客户端「ID/中继服务器」处，ID 服务器直接填写你的动态域名（如 \`rd.example.com\`），客户端将自动解析 TXT 记录中的 \`host\`(UDP)、\`tcp\`(TCP)、\`relay\`(中继) 与 \`key\`。
-          EOF
+          echo "now_cst=$NOW_CST" >> $GITHUB_OUTPUT
+          echo "now_utc=$NOW_UTC" >> $GITHUB_OUTPUT
 
       - name: Download all artifacts
         uses: actions/download-artifact@v4
@@ -892,6 +867,86 @@ jobs:
           find ./dist -maxdepth 2 -type f \( -name "*.exe" -o -name "*.dmg" -o -name "*.deb" -o -name "*.rpm" -o -name "*.zip" -o -name "*.apk" \) ! -name "*bridge*" -exec cp -f {} ./release_files/ \;
           echo "=== Release Files ==="
           ls -lh ./release_files/
+
+      - name: Generate release notes
+        shell: bash
+        run: |
+          BASE="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}"
+          REL="$BASE/releases/download/${{ steps.vars.outputs.tag }}"
+          VERSION="${{ env.VERSION }}"
+          NOW_CST="${{ steps.vars.outputs.now_cst }}"
+
+          assets_rows() {
+            local f order plat arch size hint
+            for f in $(ls -1 ./release_files | sort); do
+              size=$(wc -c < "./release_files/$f" | awk '{ if ($1 >= 1073741824) printf "%.1f GB", $1 / 1073741824; else if ($1 >= 1048576) printf "%.1f MB", $1 / 1048576; else printf "%.0f KB", $1 / 1024 }')
+              order=9; plat="其他"; arch="—"; hint="—"
+              case "$f" in
+                *windows*portable*.zip) order=1; plat="Windows";    hint="解压后运行目录内的 \`rustdesk.exe\`（绿色便携）" ;;
+                *.exe)                  order=2; plat="Windows";    hint="双击即可以便携版运行；主界面可一键安装为系统服务" ;;
+                *.dmg)                  order=3; plat="macOS";      hint="挂载后把 RustDesk 拖入「应用程序」" ;;
+                *.apk)                  order=4; plat="Android";    hint="传到手机后直接安装（需允许“未知来源”）" ;;
+                *.deb)                  order=5; plat="Linux · Debian/Ubuntu";        hint="\`sudo dpkg -i $f\`" ;;
+                *.rpm)                  order=6; plat="Linux · RHEL/Fedora/openSUSE"; hint="\`sudo dnf localinstall $f\`" ;;
+              esac
+              case "$f" in
+                *x86_64*)  arch="x64" ;;
+                *aarch64*) arch="ARM64" ;;
+                *armv7*)   arch="ARMv7 (32 位)" ;;
+              esac
+              printf '%s\t%s\t%s\t[%s](%s/%s)\t%s\t%s\n' "$order" "$plat" "$arch" "$f" "$REL" "$f" "$size" "$hint"
+            done | sort -n | awk -F'\t' '{ printf "| %s | %s | %s | %s | %s |\n", $2, $3, $4, $5, $6 }'
+          }
+
+          # Group by conventional-commit prefix so the user-facing changes lead and
+          # build/docs churn stays collapsible. Nothing is dropped.
+          changelog_md() {
+            git log -n 12 --no-merges --pretty=tformat:'%s%x09%h%x09%an' | awk -F'\t' -v base="$BASE" '
+              function bucket(m) {
+                if (m ~ /^feat/)                                          return "feat"
+                if (m ~ /^(fix|hotfix|bugfix|revert)/)                    return "fix"
+                if (m ~ /^perf/)                                          return "perf"
+                return "minor"
+              }
+              function bullet() { return sprintf("- %s — [`%s`](%s/commit/%s) · %s\n", $1, $2, base, $2, $3) }
+              {
+                b = bucket($1)
+                cnt[b]++
+                items[b] = items[b] bullet()
+              }
+              END {
+                n = split("feat fix perf", keys, " ")
+                lab["feat"] = "✨ 新增"; lab["fix"] = "🩹 修复"; lab["perf"] = "⚡ 性能"
+                for (i = 1; i <= n; i++)
+                  if (items[keys[i]] != "")
+                    printf "#### %s（%d）\n\n%s\n", lab[keys[i]], cnt[keys[i]], items[keys[i]]
+                if (cnt["minor"] > 0) {
+                  printf "<details>\n<summary>🧱 其他改动（%d）</summary>\n\n%s\n</details>\n\n", cnt["minor"], items["minor"]
+                }
+              }'
+          }
+
+          TOTAL=$(git log -n 12 --no-merges --oneline | wc -l)
+
+          {
+            printf '版本 `v%s` ｜ 构建 北京时间 %s（%s） ｜ 提交 [`%s`](%s/commit/%s) ｜ 分支 `%s`\n\n' \
+              "$VERSION" "$NOW_CST" "${{ steps.vars.outputs.now_utc }}" "${GITHUB_SHA:0:8}" "$BASE" "$GITHUB_SHA" "$GITHUB_REF_NAME"
+            printf -- '---\n\n'
+            printf '### 📥 下载\n\n'
+            printf '按系统选一个即可，同平台多个包功能一致，只是安装形态不同。\n\n'
+            printf '| 平台 | 架构 | 安装包 | 大小 | 安装 / 使用 |\n'
+            printf '| :--- | :--- | :--- | ---: | :--- |\n'
+            assets_rows
+            printf '\n> 上表即本次 Release 的全部产物；未列出的平台或架构本次未构建。\n'
+            printf '\n---\n\n'
+            printf '### 📝 本次变更\n\n'
+            printf '<details>\n<summary>展开查看 %s 条提交</summary>\n\n' "$TOTAL"
+            changelog_md
+            printf '[查看全部提交历史](%s/commits/%s)\n\n' "$BASE" "$GITHUB_SHA"
+            printf '</details>\n'
+          } > ./release_notes.md
+
+          cat ./release_notes.md
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
