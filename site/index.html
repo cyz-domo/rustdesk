@@ -175,7 +175,7 @@
     <header class="sticky top-0 z-50 bg-white/85 dark:bg-slate-950/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800/80 transition-colors">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
             <div class="flex items-center space-x-3">
-                <div class="w-10 h-10 rounded-xl bg-slate-900 border border-slate-700/80 p-2 flex items-center justify-center shadow-lg shadow-sky-500/10">
+                <div class="w-10 h-10 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700/80 p-2 flex items-center justify-center shadow-sm dark:shadow-sky-500/10 transition-colors">
                     <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" class="w-full h-full" style="isolation:isolate" viewBox="66.993 897.484 26 26">
                         <defs>
                             <linearGradient id="rd-logo-a" x1=".148" x2=".845" y1=".851" y2=".154" gradientTransform="matrix(26.301 0 0 26.331 90.674 911.757)" gradientUnits="userSpaceOnUse">
@@ -1065,20 +1065,20 @@ services:
                 <div class="glow-card rounded-2xl p-7 border-l-4 border-l-brand-500">
                     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-5 pb-3.5 border-b border-slate-200 dark:border-slate-800">
                         <div class="flex items-center space-x-3">
-                            <span class="px-3 py-1 rounded-full text-xs font-mono font-bold bg-brand-500/20 text-brand-600 dark:text-brand-400 border border-brand-500/30">v1.4.x-enhanced (2026.09)</span>
-                            <h3 class="text-lg font-bold text-slate-900 dark:text-white">ProxyProtocol v2 赋能 TCP 打洞、四通道并发竞速与中继转直连升级</h3>
+                            <span class="px-3 py-1 rounded-full text-xs font-mono font-bold bg-brand-500/20 text-brand-600 dark:text-brand-400 border border-brand-500/30">v1.5.0 正式发布 (build-20260921-0949)</span>
+                            <h3 class="text-lg font-bold text-slate-900 dark:text-white">动态端口锁定、四通道并发竞速、中继直连体验重构与多服务器显式选择</h3>
                         </div>
-                        <span class="text-xs text-brand-600 dark:text-brand-400 font-mono font-semibold">最新发布 · 生产就绪</span>
+                        <span class="text-xs text-brand-600 dark:text-brand-400 font-mono font-semibold">最新发布 · Commit a14f2b8e</span>
                     </div>
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-slate-700 dark:text-slate-300">
                         <div class="p-4 rounded-xl bg-white/70 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800/80">
                             <div class="font-bold text-slate-900 dark:text-white mb-2 flex items-center space-x-2">
                                 <span class="text-base">⚡</span>
-                                <span class="text-brand-600 dark:text-brand-300 font-semibold">ProxyProtocol v2 支持与 170ms TCP 打洞</span>
+                                <span class="text-brand-600 dark:text-brand-300 font-semibold">锥形-对称 NAT 动态端口锁定与极速打洞</span>
                             </div>
                             <p class="text-slate-600 dark:text-slate-400 leading-relaxed">
-                                攻克光猫路由拨号（未改桥接）及反向代理 SNAT 导致对端 IP 变为内网回环的难题。服务端原生解码 ProxyProtocol v1/v2，精准获取客户端真实公网 IP 与动态映射端口，实测跨网 TCP 打洞 170ms 极速建立端到端直连！
+                                攻克光猫路由拨号与反向代理 SNAT 场景下的打洞难题；修正直接打洞 futures 中的对端套接字地址与 TCP 打洞目标，IPv4 动态端口锁定与双向回填，实测跨网 TCP 极速 170ms 建立端到端直连！
                             </p>
                         </div>
 
@@ -1088,27 +1088,27 @@ services:
                                 <span class="text-sky-600 dark:text-sky-300 font-semibold">四通道多传输协议并发竞速 (Multi-Transport Race)</span>
                             </div>
                             <p class="text-slate-600 dark:text-slate-400 leading-relaxed">
-                                IPv4 动态源端口锁定与双向回填，彻底杜绝端口探测错位；IPv4 UDP (KCP)、IPv6 UDP、TCP 打洞与 WebRTC 四通道并发探测，毫秒级快速胜出并绑定最优低延迟直连通路。
+                                IPv4 UDP (KCP)、IPv6 UDP、TCP 打洞与 WebRTC 四通道并发探测，毫秒级快速胜出并绑定最优低延迟直连通路，彻底解决单通道在严苛防火墙环境下的重连与阻塞问题。
                             </p>
                         </div>
 
                         <div class="p-4 rounded-xl bg-white/70 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800/80">
                             <div class="font-bold text-slate-900 dark:text-white mb-2 flex items-center space-x-2">
                                 <span class="text-base">🌐</span>
-                                <span class="text-purple-600 dark:text-purple-300 font-semibold">IPv6 候选解耦与双栈安全策略闭环</span>
+                                <span class="text-purple-600 dark:text-purple-300 font-semibold">IPv6 候选解耦与直连排序优化</span>
                             </div>
                             <p class="text-slate-600 dark:text-slate-400 leading-relaxed">
-                                修复 Windows 平台未连接套接字系统调用错误导致 IPv6 候选被误杀的问题，释放双栈网络直连潜能；同时严格联动服务端强制中继策略（ALWAYS_USE_RELAY / 跨网隔离），IPv4 与 IPv6 双通道严密防绕过。
+                                保持打洞成功的 IPv6 路径优先于孪生中继连接，释放双栈网络直连潜能；同时严格联动服务端强制中继策略（ALWAYS_USE_RELAY / 跨网隔离），IPv4 与 IPv6 双通道严密防绕过。
                             </p>
                         </div>
 
                         <div class="p-4 rounded-xl bg-white/70 dark:bg-slate-900/60 border border-slate-200/80 dark:border-slate-800/80">
                             <div class="font-bold text-slate-900 dark:text-white mb-2 flex items-center space-x-2">
                                 <span class="text-base">🔄</span>
-                                <span class="text-emerald-600 dark:text-emerald-300 font-semibold">中继转直连智能升级体验重构</span>
+                                <span class="text-emerald-600 dark:text-emerald-300 font-semibold">中继转直连新增用户确认弹窗与独立探测隔离</span>
                             </div>
                             <p class="text-slate-600 dark:text-slate-400 leading-relaxed">
-                                采用“先中继秒连兜底、后台静默探测直连”策略。重试计数与常规重连（离线重试、重启等）彻底解耦，只有用户点击确认升级才消耗额度；增加优雅防打扰机制，避免周期性弹窗干扰工作。
+                                修正直连升级探测中的 PeerInfo 引用、async_trait 宏与 Config 克隆；探测与常规重连解耦，检测到更优直连路径时弹出确认对话框由用户自主选择，增加优雅防打扰机制。
                             </p>
                         </div>
                     </div>
@@ -1195,7 +1195,7 @@ services:
             <div class="text-center max-w-3xl mx-auto mb-16">
                 <h2 class="text-xs uppercase tracking-widest text-brand-600 dark:text-brand-400 font-bold mb-3 font-mono">DOWNLOADS</h2>
                 <p class="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-white">客户端版本下载</p>
-                <p class="text-slate-600 dark:text-slate-400 mt-4 text-base">下载已集成动态 STUN 增强特性的全平台客户端安装包与便携版</p>
+                <p class="text-slate-600 dark:text-slate-400 mt-4 text-base">下载已集成动态 STUN 增强特性的全平台客户端安装包与便携版 (最新发布：v1.5.0 / build-20260921-0949)</p>
             </div>
 
             <!-- 下载卡片网格 -->
@@ -1213,8 +1213,9 @@ services:
                             <span class="text-xs bg-brand-500/20 text-brand-600 dark:text-brand-400 font-semibold px-2.5 py-0.5 rounded-full border border-brand-500/30">推荐</span>
                         </div>
                         <h3 class="text-lg font-bold text-slate-900 dark:text-white">Windows (x64)</h3>
+                        <div class="text-[11px] font-mono text-brand-600 dark:text-brand-400 mb-2">rustdesk-1.5.0-x86_64.exe</div>
                         <p class="text-xs text-slate-600 dark:text-slate-400 mt-1 mb-6 leading-relaxed">
-                            单文件免安装便携版；双击直接运行，主界面支持一键固化为系统常驻服务。
+                            单文件免安装便携版；双击直接运行，主界面支持一键安装为系统服务。绿色包解压后直接运行内部 exe。
                         </p>
                     </div>
                     <div class="space-y-2.5">
@@ -1239,8 +1240,9 @@ services:
                             <span class="text-xs bg-sky-500/20 text-sky-600 dark:text-sky-400 font-semibold px-2.5 py-0.5 rounded-full border border-sky-500/30">Apple Silicon</span>
                         </div>
                         <h3 class="text-lg font-bold text-slate-900 dark:text-white">macOS (ARM64)</h3>
+                        <div class="text-[11px] font-mono text-sky-600 dark:text-sky-400 mb-2">rustdesk-1.5.0-*.dmg</div>
                         <p class="text-xs text-slate-600 dark:text-slate-400 mt-1 mb-6 leading-relaxed">
-                            适用于 Apple M1 / M2 / M3 / M4 系列 Mac，支持 ScreenCaptureKit 高清原生录屏。
+                            适用于 Apple M1 / M2 / M3 / M4 系列 Mac，双击挂载拖入 Applications 目录，支持高清录屏。
                         </p>
                     </div>
                     <div>
@@ -1262,8 +1264,9 @@ services:
                             <span class="text-xs bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-semibold px-2.5 py-0.5 rounded-full border border-emerald-500/30">Android</span>
                         </div>
                         <h3 class="text-lg font-bold text-slate-900 dark:text-white">Android (ARM64)</h3>
+                        <div class="text-[11px] font-mono text-emerald-600 dark:text-emerald-400 mb-2">rustdesk-1.5.0-android-*.apk</div>
                         <p class="text-xs text-slate-600 dark:text-slate-400 mt-1 mb-6 leading-relaxed">
-                            安卓手机与平板移动客户端，支持触屏模拟、远程被控及随时随地随身运维。
+                            安卓手机与平板移动客户端，手机直接安装运行，支持触屏模拟、远程被控及随时随地随身运维。
                         </p>
                     </div>
                     <div>
@@ -1285,8 +1288,9 @@ services:
                             <span class="text-xs bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 font-semibold px-2.5 py-0.5 rounded-full border border-indigo-500/30">Linux</span>
                         </div>
                         <h3 class="text-lg font-bold text-slate-900 dark:text-white">Linux (x86_64 / ARM64)</h3>
+                        <div class="text-[11px] font-mono text-indigo-600 dark:text-indigo-400 mb-2">rustdesk-1.5.0-*.deb / *.rpm</div>
                         <p class="text-xs text-slate-600 dark:text-slate-400 mt-1 mb-6 leading-relaxed">
-                            支持 Ubuntu/Debian (.deb) 及 Fedora/RHEL/CentOS/Rocky (.rpm)，兼容 X11 与 Wayland。
+                            支持 Ubuntu/Debian (.deb) 及 Fedora/RHEL/CentOS/Rocky (.rpm)，终端命令直接安装，兼容 X11 与 Wayland。
                         </p>
                     </div>
                     <div class="space-y-2.5">
