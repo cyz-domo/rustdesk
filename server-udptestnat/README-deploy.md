@@ -121,7 +121,12 @@ docker commit $CONT lejianwen/rustdesk-server-s6:latest # 固化进镜像（重�
 
 - 本补丁解决**公网 UDP P2P**；同局域网互访仍走 LAN TCP 直连老路径（打洞对同网段本来就无效，hairpin），
   **小米手机的局域网 TCP 直连失败与本补丁无关**，仍待 adb logcat 定位。
-- TestNat UDP 应答是"收到谁的回给谁"，无放大风险；不新增端口。
+- 更正（2026-09-22）：~~TestNat UDP 应答无放大风险~~ —— 实测旧镜像上，UDP `PunchHoleSent`/`LocalAddr`
+  应答会把报文里携带的**任意地址**当目的地址（未认证、无频控，即 rustdesk-server #670 一类的 UDP 反射/放大面），
+  UDP `TestNatResponse` 还会把 `ConfigUpdate`（服务器列表）回给任何伪造来源。已加反射守卫补丁
+  （punch_targets 白名单 + 每目标回复配额 `PUNCH_REPLY_GRANTS=8` + TestNat 只回端口，见
+  `cyz-domo/rustdesk-server` 的 `ci-dockerhub` 提交 `5691aaf`），需重建镜像后生效；
+  UDP 打洞补丁本身仍在 `hbbs-udp-ipv6`（PR lejianwen/rustdesk-server#59）。
 - 回滚：`docker exec $CONT cp /usr/bin/hbbs.orig /usr/bin/hbbs && docker restart $CONT`；
   若已 `docker commit` 固化，直接把镜像指回 `lejianwen/rustdesk-server-s6:pristine-20260920`
   （江苏机上已打好该 tag，即未打补丁的原始镜像）。
