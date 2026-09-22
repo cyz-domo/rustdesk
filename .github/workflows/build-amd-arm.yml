@@ -278,6 +278,24 @@ jobs:
           Move-Item -Force ./usbmmidd_v2 ./rustdesk/
           Get-ChildItem ./rustdesk/usbmmidd_v2 | Select-Object -ExpandProperty Name
 
+      - name: Add msbuild to PATH
+        if: steps.check_selection.outputs.run_job == 'true'
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Build WindowInjection.dll
+        # Mode 1 (mag and exclude_from_capture share win_topmost_window::PrivacyModeImpl) only looks
+        # for this dll next to the exe, and returns a bare "Failed" without it.
+        if: steps.check_selection.outputs.run_job == 'true'
+        run: |
+          if ("${{ matrix.job.arch }}" -eq "aarch64") { $platform = "ARM64" } else { $platform = "x64" }
+          git clone https://github.com/rustdesk-org/RustDeskTempTopMostWindow RustDeskTempTopMostWindow
+          pushd RustDeskTempTopMostWindow
+          git checkout ecd8d6a139eee76845ea66423fb739af450fda90
+          msbuild WindowInjection/WindowInjection.vcxproj -p:Configuration=Release -p:Platform=$platform -p:TargetVersion=Windows10
+          popd
+          Copy-Item -Force "./RustDeskTempTopMostWindow/WindowInjection/$platform/Release/WindowInjection.dll" ./rustdesk/
+          Get-ChildItem ./rustdesk/WindowInjection.dll | Select-Object -ExpandProperty Length
+
       - name: Build self-extracted executable
         if: steps.check_selection.outputs.run_job == 'true'
         shell: bash
