@@ -15,7 +15,7 @@ use winapi::{
         // dxgiformat::{DXGI_FORMAT, DXGI_FORMAT_B8G8R8A8_UNORM, DXGI_FORMAT_420_OPAQUE},
     },
     um::{
-        d3d11::*, d3dcommon::D3D_DRIVER_TYPE_UNKNOWN, unknwnbase::IUnknown, wingdi::*,
+        d3d11::*, d3dcommon::{D3D_DRIVER_TYPE_HARDWARE, D3D_DRIVER_TYPE_UNKNOWN}, unknwnbase::IUnknown, wingdi::*,
         winnt::HRESULT, winuser::*,
     },
 };
