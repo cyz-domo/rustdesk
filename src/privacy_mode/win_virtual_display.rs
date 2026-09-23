@@ -292,6 +292,21 @@ impl PrivacyModeImpl {
         Ok(display_name)
     }
 
+    // While two usbmmidd displays share the console desktop, DWM presents the whole desktop at
+    // 5-8 fps even with nothing capturing it, so privacy mode has to leave exactly one online.
+    // Draining the surplus into `displays` makes the existing disable/restore machinery own them.
+    fn keep_single_virtual_display(&mut self) {
+        if self.virtual_displays.len() <= 1 {
+            return;
+        }
+        let surplus: Vec<Display> = self.virtual_displays.drain(1..).collect();
+        log::info!(
+            "Privacy mode: disabling {} extra virtual displays to keep a single display on the desktop",
+            surplus.len()
+        );
+        self.displays.extend(surplus);
+    }
+
     // NOTE: We can't detect if the other virtual displays are physical displays or not.
     // We can only use `DeviceString` == `virtual_display_manager::get_cur_device_string()` to detect if the display is a virtual display.
     // The other virtual displays can't be restored after exiting the privacy mode on Windows 24H2.
@@ -500,6 +515,7 @@ impl PrivacyMode for PrivacyModeImpl {
             log::debug!("No virtual displays");
             bail!("No virtual displays.");
         }
+        guard.keep_single_virtual_display();
 
         let reg_connectivity_1 = reg_display_settings::read_reg_connectivity()?;
         let primary_display_name = guard.set_primary_display()?;
