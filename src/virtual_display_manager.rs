@@ -6,7 +6,7 @@ use hbb_common::{bail, log, ResultType};
 pub const RUSTDESK_IDD_DEVICE_STRING: &'static str = "RustDeskIddDriver Device\0";
 pub const AMYUNI_IDD_DEVICE_STRING: &'static str = "USB Mobile Monitor Virtual Display\0";
 
-const IDD_IMPL: &str = IDD_IMPL_RUSTDESK;
+const IDD_IMPL: &str = IDD_IMPL_AMYUNI;
 const IDD_IMPL_RUSTDESK: &str = "rustdesk_idd";
 const IDD_IMPL_AMYUNI: &str = "amyuni_idd";
 const IDD_PLUG_OUT_ALL_INDEX: i32 = -1;
