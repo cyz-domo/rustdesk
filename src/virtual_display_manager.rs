@@ -1,12 +1,12 @@
 use base::platform::windows::is_windows_version_or_greater;
-use hbb_common::{bail, ResultType};
+use hbb_common::{bail, log, ResultType};
 
 // This string is defined here.
 //  https://github.com/rustdesk-org/RustDeskIddDriver/blob/b370aad3f50028b039aad211df60c8051c4a64d6/RustDeskIddDriver/RustDeskIddDriver.inf#LL73C1-L73C40
 pub const RUSTDESK_IDD_DEVICE_STRING: &'static str = "RustDeskIddDriver Device\0";
 pub const AMYUNI_IDD_DEVICE_STRING: &'static str = "USB Mobile Monitor Virtual Display\0";
 
-const IDD_IMPL: &str = IDD_IMPL_AMYUNI;
+const IDD_IMPL: &str = IDD_IMPL_RUSTDESK;
 const IDD_IMPL_RUSTDESK: &str = "rustdesk_idd";
 const IDD_IMPL_AMYUNI: &str = "amyuni_idd";
 const IDD_PLUG_OUT_ALL_INDEX: i32 = -1;
@@ -17,7 +17,13 @@ pub fn is_amyuni_idd() -> bool {
 
 pub fn get_cur_device_string() -> &'static str {
     match IDD_IMPL {
-        IDD_IMPL_RUSTDESK => RUSTDESK_IDD_DEVICE_STRING,
+        IDD_IMPL_RUSTDESK => {
+            if rustdesk_idd::get_virtual_displays().is_empty() && amyuni_idd::get_monitor_count() > 0 {
+                AMYUNI_IDD_DEVICE_STRING
+            } else {
+                RUSTDESK_IDD_DEVICE_STRING
+            }
+        }
         IDD_IMPL_AMYUNI => AMYUNI_IDD_DEVICE_STRING,
         _ => "",
     }
@@ -36,7 +42,13 @@ pub fn is_virtual_display_supported() -> bool {
 
 pub fn plug_in_headless() -> ResultType<()> {
     match IDD_IMPL {
-        IDD_IMPL_RUSTDESK => rustdesk_idd::plug_in_headless(),
+        IDD_IMPL_RUSTDESK => {
+            if let Err(e) = rustdesk_idd::plug_in_headless() {
+                log::warn!("rustdesk_idd plug_in_headless failed: {}, fallback to amyuni", e);
+                return amyuni_idd::plug_in_headless();
+            }
+            Ok(())
+        }
         IDD_IMPL_AMYUNI => amyuni_idd::plug_in_headless(),
         _ => bail!("Unsupported virtual display implementation."),
     }
@@ -72,7 +84,13 @@ pub fn get_platform_additions() -> serde_json::Map<String, serde_json::Value> {
 #[inline]
 pub fn plug_in_monitor(idx: u32, modes: Vec<virtual_display::MonitorMode>) -> ResultType<()> {
     match IDD_IMPL {
-        IDD_IMPL_RUSTDESK => rustdesk_idd::plug_in_index_modes(idx, modes),
+        IDD_IMPL_RUSTDESK => {
+            if let Err(e) = rustdesk_idd::plug_in_index_modes(idx, modes) {
+                log::warn!("rustdesk_idd plug_in_index_modes failed: {}, fallback to amyuni", e);
+                return amyuni_idd::plug_in_monitor();
+            }
+            Ok(())
+        }
         IDD_IMPL_AMYUNI => amyuni_idd::plug_in_monitor(),
         _ => bail!("Unsupported virtual display implementation."),
     }
@@ -86,7 +104,11 @@ pub fn plug_out_monitor(index: i32, force_all: bool, force_one: bool) -> ResultT
             } else {
                 vec![index as _]
             };
-            rustdesk_idd::plug_out_peer_request(&indices)
+            let res = rustdesk_idd::plug_out_peer_request(&indices);
+            if indices.is_empty() || res.is_err() {
+                let _ = amyuni_idd::plug_out_monitor(index, force_all, force_one);
+            }
+            res
         }
         IDD_IMPL_AMYUNI => amyuni_idd::plug_out_monitor(index, force_all, force_one),
         _ => bail!("Unsupported virtual display implementation."),
@@ -95,7 +117,18 @@ pub fn plug_out_monitor(index: i32, force_all: bool, force_one: bool) -> ResultT
 
 pub fn plug_in_peer_request(modes: Vec<Vec<virtual_display::MonitorMode>>) -> ResultType<Vec<u32>> {
     match IDD_IMPL {
-        IDD_IMPL_RUSTDESK => rustdesk_idd::plug_in_peer_request(modes),
+        IDD_IMPL_RUSTDESK => match rustdesk_idd::plug_in_peer_request(modes) {
+            Ok(indices) if !indices.is_empty() => Ok(indices),
+            Err(e) => {
+                log::warn!("rustdesk_idd plug_in_peer_request failed: {}, fallback to amyuni", e);
+                amyuni_idd::plug_in_monitor()?;
+                Ok(vec![0])
+            }
+            _ => {
+                amyuni_idd::plug_in_monitor()?;
+                Ok(vec![0])
+            }
+        },
         IDD_IMPL_AMYUNI => {
             amyuni_idd::plug_in_monitor()?;
             Ok(vec![0])
@@ -122,11 +155,9 @@ pub fn plug_out_monitor_indices(
 }
 
 pub fn reset_all() -> ResultType<()> {
-    match IDD_IMPL {
-        IDD_IMPL_RUSTDESK => rustdesk_idd::reset_all(),
-        IDD_IMPL_AMYUNI => amyuni_idd::reset_all(),
-        _ => bail!("Unsupported virtual display implementation."),
-    }
+    let _ = rustdesk_idd::reset_all();
+    let _ = amyuni_idd::reset_all();
+    Ok(())
 }
 
 pub mod rustdesk_idd {
@@ -163,6 +194,35 @@ pub mod rustdesk_idd {
         }
 
         fn install_update_driver(&mut self) -> ResultType<()> {
+            #[cfg(target_os = "windows")]
+            {
+                if let Ok(exe) = std::env::current_exe() {
+                    if let Some(dir) = exe.parent() {
+                        let cer = dir.join("RustDeskIddDriver").join("RustDeskIddDriver.cer");
+                        let cer_path = if cer.exists() {
+                            Some(cer)
+                        } else {
+                            let cer_root = dir.join("RustDeskIddDriver.cer");
+                            if cer_root.exists() {
+                                Some(cer_root)
+                            } else {
+                                None
+                            }
+                        };
+                        if let Some(cer) = cer_path {
+                            use std::os::windows::process::CommandExt;
+                            let _ = std::process::Command::new("certutil")
+                                .args(["-addstore", "-f", "Root", &cer.to_string_lossy()])
+                                .creation_flags(0x08000000)
+                                .status();
+                            let _ = std::process::Command::new("certutil")
+                                .args(["-addstore", "-f", "TrustedPublisher", &cer.to_string_lossy()])
+                                .creation_flags(0x08000000)
+                                .status();
+                        }
+                    }
+                }
+            }
             if let Err(e) = virtual_display::create_device() {
                 if !e.to_string().contains("Device is already created") {
                     bail!("Create device failed {}", e);

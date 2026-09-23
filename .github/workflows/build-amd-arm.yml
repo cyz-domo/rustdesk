@@ -267,9 +267,9 @@ jobs:
           Copy-Item -Force -Recurse "./flutter/build/windows/${{ matrix.job.flutter-arch }}/runner/Release/*" ./rustdesk/
 
       - name: Add virtual display driver
-        # Privacy mode "Mode 2" installs the driver from `<exe dir>\usbmmidd_v2`, which the Flutter
-        # Release folder does not contain. Keep deviceinstaller64.exe: an x86 process cannot install
-        # or remove a driver on x64 without it.
+        # Mode 2 and Virtual Display support:
+        # 1. usbmmidd_v2 for legacy fallback
+        # 2. RustDeskIddDriver for 60Hz mode-injected virtual display
         if: steps.check_selection.outputs.run_job == 'true'
         run: |
           Invoke-WebRequest -Uri https://github.com/rustdesk-org/rdev/releases/download/usbmmidd_v2/usbmmidd_v2.zip -OutFile usbmmidd_v2.zip
@@ -277,6 +277,16 @@ jobs:
           Remove-Item -Recurse -Force ./usbmmidd_v2/deviceinstaller.exe, ./usbmmidd_v2/usbmmidd.bat
           Move-Item -Force ./usbmmidd_v2 ./rustdesk/
           Get-ChildItem ./rustdesk/usbmmidd_v2 | Select-Object -ExpandProperty Name
+          if ("${{ matrix.job.arch }}" -eq "x86_64") {
+            Invoke-WebRequest -Uri https://github.com/rustdesk-org/RustDeskIddDriver/releases/download/v0.3/RustDeskIddDriver_x64.zip -OutFile RustDeskIddDriver_x64.zip
+            Expand-Archive -Path RustDeskIddDriver_x64.zip -DestinationPath RustDeskIdd_temp
+            Move-Item -Force ./RustDeskIdd_temp/RustDeskIddDriver ./rustdesk/
+            if (Test-Path ./RustDeskIdd_temp/RustDeskIddDriver.cer) {
+              Copy-Item -Force ./RustDeskIdd_temp/RustDeskIddDriver.cer ./rustdesk/RustDeskIddDriver/
+            }
+            Remove-Item -Recurse -Force RustDeskIdd_temp, RustDeskIddDriver_x64.zip
+            Get-ChildItem ./rustdesk/RustDeskIddDriver | Select-Object -ExpandProperty Name
+          }
 
       - name: Add msbuild to PATH
         if: steps.check_selection.outputs.run_job == 'true'
