@@ -332,17 +332,24 @@ async fn sync_one(
                         SENDER.lock().unwrap().send(conns).ok();
                     }
             }
-            if let Some(rsp_modified_at) = rsp.remove("modified_at") {
-                if let Ok(rsp_modified_at) = serde_json::from_value::<i64>(rsp_modified_at) {
-                    if rsp_modified_at != modified_at {
-                        LocalConfig::set_option("strategy_timestamp".to_string(), rsp_modified_at.to_string());
+            let is_target_active = if target.ns.is_empty() {
+                true
+            } else {
+                base::server_profile::is_active_profile_id(&target.ns)
+            };
+            if is_target_active {
+                if let Some(rsp_modified_at) = rsp.remove("modified_at") {
+                    if let Ok(rsp_modified_at) = serde_json::from_value::<i64>(rsp_modified_at) {
+                        if rsp_modified_at != modified_at {
+                            LocalConfig::set_option("strategy_timestamp".to_string(), rsp_modified_at.to_string());
+                        }
                     }
                 }
-            }
-            if let Some(strategy) = rsp.remove("strategy") {
-                if let Ok(strategy) = serde_json::from_value::<StrategyOptions>(strategy) {
-                    log::info!("strategy updated");
-                    handle_config_options(strategy.config_options);
+                if let Some(strategy) = rsp.remove("strategy") {
+                    if let Ok(strategy) = serde_json::from_value::<StrategyOptions>(strategy) {
+                        log::info!("strategy updated from active server: {}", target.ns);
+                        handle_config_options(strategy.config_options);
+                    }
                 }
             }
         }

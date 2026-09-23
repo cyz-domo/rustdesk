@@ -781,6 +781,20 @@ pub fn sync_login_mirror() {
     LocalConfig::set_option("user_info".to_owned(), user_info);
 }
 
+/// Check whether the profile with the given id is currently the active server.
+/// If `id` is empty or "official", returns true when no custom rendezvous server is configured.
+pub fn is_active_profile_id(id: &str) -> bool {
+    let custom = Config::get_option("custom-rendezvous-server");
+    if custom.is_empty() {
+        return id.is_empty() || id == "official";
+    }
+    if let Some(p) = get_server_profiles().into_iter().find(|p| p.id == id) {
+        !p.host.is_empty() && is_same_rendezvous_host(&p.host, &custom)
+    } else {
+        false
+    }
+}
+
 pub fn update_server_profile_latency(id: &str, configured_host: &str, resolved_host: &str, latency: i64) {
     // The JSON is built under the lock but written to disk after it is released:
     // Config::set_option reads and rewrites the options file synchronously, and

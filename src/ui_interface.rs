@@ -1622,7 +1622,22 @@ async fn change_id_on_servers_(
         .into_iter()
         .map(|(server, err)| (server, err.to_owned()))
         .collect();
-    if !results.is_empty() && results.iter().all(|(_, err)| err.is_empty()) {
+    let any_failed = results.iter().any(|(_, err)| !err.is_empty());
+    if any_failed {
+        let rollback_futs = results
+            .iter()
+            .filter(|(_, err)| err.is_empty())
+            .map(|(server, _)| {
+                let server = server.clone();
+                let rollback_old_id = id.clone();
+                let rollback_new_id = old_id.clone();
+                let uuid = uuid.clone();
+                async move {
+                    check_id(server, rollback_old_id, rollback_new_id, uuid).await;
+                }
+            });
+        join_all(rollback_futs).await;
+    } else if !results.is_empty() {
         #[cfg(not(any(target_os = "android", target_os = "ios")))]
         crate::ipc::set_config_async("id", id.to_owned()).await.ok();
         #[cfg(any(target_os = "android", target_os = "ios"))]
