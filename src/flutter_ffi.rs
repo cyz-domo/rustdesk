@@ -946,6 +946,39 @@ pub fn main_change_id(new_id: String) {
     change_id(new_id)
 }
 
+pub fn main_change_id_on_servers(
+    new_id: String,
+    old_id: String,
+    servers: Vec<String>,
+) -> String {
+    let results = crate::ui_interface::change_id_on_servers(new_id, old_id, servers);
+    serde_json::to_string(&results).unwrap_or_default()
+}
+
+pub fn main_set_login_by_api(api: String, access_token: String, user_info: String) {
+    base::server_profile::set_login_by_api(&api, &access_token, &user_info);
+}
+
+pub fn main_get_login_token_by_api(api: String) -> String {
+    base::server_profile::get_login_by_api(&api).0
+}
+
+pub fn main_get_login_user_by_api(api: String) -> String {
+    base::server_profile::get_login_by_api(&api).1
+}
+
+pub fn main_update_login_user_by_api(api: String, user_info: String) {
+    base::server_profile::update_login_user_by_api(&api, &user_info);
+}
+
+pub fn main_clear_login_by_api(api: String) {
+    base::server_profile::clear_login_by_api(&api);
+}
+
+pub fn main_sync_login_mirror() {
+    base::server_profile::sync_login_mirror();
+}
+
 pub fn main_get_async_status() -> String {
     get_async_job_status()
 }

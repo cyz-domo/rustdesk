@@ -3837,33 +3837,36 @@ impl LoginConfigHandler {
             (my_id, self.id.clone())
         };
         let mut avatar = get_builtin_option(keys::OPTION_AVATAR);
+        // A cross-server login identifies us on the peer's server, so the
+        // account fields come from that server's own login state.
+        let user_info = match self.other_server.as_ref() {
+            Some((_, server, _)) => base::server_profile::get_login_by_host(server).1,
+            None => LocalConfig::get_option("user_info"),
+        };
         if avatar.is_empty() {
-            avatar = serde_json::from_str::<serde_json::Value>(&LocalConfig::get_option(
-                "user_info",
-            ))
-            .ok()
-            .and_then(|x| {
-                x.get("avatar")
-                    .and_then(|x| x.as_str())
-                    .map(|x| x.trim().to_owned())
-            })
-            .unwrap_or_default();
+            avatar = serde_json::from_str::<serde_json::Value>(&user_info)
+                .ok()
+                .and_then(|x| {
+                    x.get("avatar")
+                        .and_then(|x| x.as_str())
+                        .map(|x| x.trim().to_owned())
+                })
+                .unwrap_or_default();
         }
         avatar = resolve_avatar_url(avatar);
         let mut display_name = get_builtin_option(keys::OPTION_DISPLAY_NAME);
         if display_name.is_empty() {
-            display_name =
-                serde_json::from_str::<serde_json::Value>(&LocalConfig::get_option("user_info"))
-                    .map(|x| {
-                        x.get("display_name")
-                            .and_then(|x| x.as_str())
-                            .map(|x| x.trim())
-                            .filter(|x| !x.is_empty())
-                            .or_else(|| x.get("name").and_then(|x| x.as_str()))
-                            .map(|x| x.to_owned())
-                            .unwrap_or_default()
-                    })
-                    .unwrap_or_default();
+            display_name = serde_json::from_str::<serde_json::Value>(&user_info)
+                .map(|x| {
+                    x.get("display_name")
+                        .and_then(|x| x.as_str())
+                        .map(|x| x.trim())
+                        .filter(|x| !x.is_empty())
+                        .or_else(|| x.get("name").and_then(|x| x.as_str()))
+                        .map(|x| x.to_owned())
+                        .unwrap_or_default()
+                })
+                .unwrap_or_default();
         }
         if display_name.is_empty() {
             display_name = crate::username();
@@ -4789,7 +4792,7 @@ pub async fn handle_hash(
 
 #[inline]
 fn try_get_password_from_personal_ab(lc: Arc<RwLock<LoginConfigHandler>>, password: &mut Vec<u8>) {
-    let access_token = LocalConfig::get_option("access_token");
+    let (access_token, _) = crate::hbbs_http::current_login_state();
     let ab = config::Ab::load();
     if !access_token.is_empty() && access_token == ab.access_token {
         let id = lc.read().unwrap().id.clone();

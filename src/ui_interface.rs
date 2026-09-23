@@ -1562,17 +1562,97 @@ pub async fn change_id_shared_(id: String, old_id: String) -> &'static str {
     err
 }
 
+/// Change the ID on an explicit set of rendezvous servers and report one
+/// result per server (empty error string means that server accepted the ID).
+/// The local ID is only updated when every selected server succeeded, which
+/// matches the all-servers-must-succeed semantics of `change_id_shared_`.
+#[inline]
+#[tokio::main(flavor = "current_thread")]
+pub async fn change_id_on_servers(
+    id: String,
+    old_id: String,
+    servers: Vec<String>,
+) -> Vec<(String, String)> {
+    change_id_on_servers_(id, old_id, servers).await
+}
+
+async fn change_id_on_servers_(
+    id: String,
+    old_id: String,
+    servers: Vec<String>,
+) -> Vec<(String, String)> {
+    let fail_all = |err: &'static str| {
+        servers
+            .iter()
+            .map(|s| (s.clone(), err.to_owned()))
+            .collect::<Vec<_>>()
+    };
+    if !hbb_common::is_valid_custom_id(&id) {
+        return fail_all(INVALID_FORMAT);
+    }
+
+    #[cfg(not(any(target_os = "android", target_os = "ios")))]
+    let uuid = Bytes::from(
+        hbb_common::machine_uid::get()
+            .unwrap_or("".to_owned())
+            .as_bytes()
+            .to_vec(),
+    );
+    #[cfg(any(target_os = "android", target_os = "ios"))]
+    let uuid = Bytes::from(hbb_common::get_uuid());
+
+    if uuid.is_empty() {
+        log::error!("Failed to change id, uuid is_empty");
+        return fail_all(UNKNOWN_ERROR);
+    }
+
+    let futs = servers.into_iter().map(|rendezvous_server| {
+        let id = id.to_owned();
+        let uuid = uuid.clone();
+        let old_id = old_id.clone();
+        async move {
+            (
+                rendezvous_server.clone(),
+                check_id(rendezvous_server, old_id, id, uuid).await,
+            )
+        }
+    });
+    let mut results: Vec<(String, String)> = join_all(futs)
+        .await
+        .into_iter()
+        .map(|(server, err)| (server, err.to_owned()))
+        .collect();
+    if !results.is_empty() && results.iter().all(|(_, err)| err.is_empty()) {
+        #[cfg(not(any(target_os = "android", target_os = "ios")))]
+        crate::ipc::set_config_async("id", id.to_owned()).await.ok();
+        #[cfg(any(target_os = "android", target_os = "ios"))]
+        {
+            Config::set_key_confirmed(false);
+            Config::set_id(&id);
+        }
+    }
+    results
+}
+
 async fn check_id(
     rendezvous_server: String,
     old_id: String,
     id: String,
     uuid: Bytes,
 ) -> &'static str {
-    let tcp_opt = Config::get_option("rendezvous-server-tcp");
-    let target = if !tcp_opt.is_empty() {
-        crate::check_port(tcp_opt, RENDEZVOUS_PORT)
+    let target = if let Some(tcp) =
+        base::server_profile::get_tcp_host_by_host(&rendezvous_server)
+    {
+        crate::check_port(tcp, RENDEZVOUS_PORT)
     } else {
-        crate::check_port(rendezvous_server, RENDEZVOUS_PORT)
+        let tcp_opt = Config::get_option("rendezvous-server-tcp");
+        if !tcp_opt.is_empty()
+            && base::server_profile::is_host_match(&tcp_opt, &rendezvous_server)
+        {
+            crate::check_port(tcp_opt, RENDEZVOUS_PORT)
+        } else {
+            crate::check_port(rendezvous_server, RENDEZVOUS_PORT)
+        }
     };
     if let Ok(mut socket) = hbb_common::socket_client::connect_tcp(
         target,

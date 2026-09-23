@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use hbb_common::config::Config;
+use hbb_common::config::{Config, LocalConfig, Status};
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ServerProfile {
@@ -17,6 +17,10 @@ pub struct ServerProfile {
     pub key: Option<String>,
     #[serde(default)]
     pub online: Option<String>,
+    #[serde(default)]
+    pub access_token: Option<String>,
+    #[serde(default)]
+    pub user_info: Option<String>,
     #[serde(default = "default_true")]
     pub enabled: bool,
 }
@@ -535,6 +539,248 @@ pub fn get_online_by_host(host: &str) -> Option<String> {
     get_profile_by_host(host).and_then(|p| p.online)
 }
 
+/// Derive the default API server URL from a rendezvous host, mirroring the
+/// port-2 fallback of `get_api_server_` in src/common.rs.
+fn derive_api_from_host(host: &str) -> String {
+    let host = host.trim();
+    if host.is_empty() {
+        return String::new();
+    }
+    let s = hbb_common::socket_client::increase_port(host, -2);
+    if s == host {
+        format!("http://{}:{}", s, hbb_common::config::RENDEZVOUS_PORT - 2)
+    } else {
+        format!("http://{}", s)
+    }
+}
+
+fn api_host_port(api: &str) -> (String, Option<u16>) {
+    let s = api.trim();
+    let s = s
+        .strip_prefix("https://")
+        .or_else(|| s.strip_prefix("http://"))
+        .unwrap_or(s);
+    let s = s.trim_end_matches('/');
+    if let Some(rest) = s.strip_prefix('[') {
+        if let Some(end) = rest.find(']') {
+            let port = rest[end + 1..]
+                .strip_prefix(':')
+                .and_then(|p| p.parse::<u16>().ok());
+            return (rest[..end].to_string(), port);
+        }
+    }
+    if s.matches(':').count() > 1 {
+        // Bare IPv6 literal without brackets.
+        return (s.to_string(), None);
+    }
+    match s.rfind(':') {
+        Some(idx) if s[idx + 1..].chars().all(|c| c.is_ascii_digit()) && !s[idx + 1..].is_empty() => {
+            (s[..idx].to_string(), s[idx + 1..].parse::<u16>().ok())
+        }
+        _ => (s.to_string(), None),
+    }
+}
+
+fn api_host_port_eq(a: &(String, Option<u16>), b: &(String, Option<u16>)) -> bool {
+    if !a.0.eq_ignore_ascii_case(&b.0) {
+        return false;
+    }
+    match (a.1, b.1) {
+        (Some(x), Some(y)) => x == y,
+        _ => true,
+    }
+}
+
+/// Find the profile that owns the given api-server URL: the profile whose
+/// effective api (explicit, resolved, or derived from its rendezvous host)
+/// names the same host and port.
+pub fn get_profile_by_api(api: &str) -> Option<ServerProfile> {
+    let target = api_host_port(api);
+    if target.0.is_empty() {
+        return None;
+    }
+    for p in get_server_profiles() {
+        if p.host.trim().is_empty() {
+            continue;
+        }
+        let eff = get_api_by_host(&p.host)
+            .filter(|a| !a.is_empty())
+            .unwrap_or_else(|| derive_api_from_host(&p.host));
+        if !eff.is_empty() && api_host_port_eq(&api_host_port(&eff), &target) {
+            return Some(p);
+        }
+    }
+    None
+}
+
+// The legacy global `access_token`/`user_info` options stay as the mirror of the
+// currently active server's login, so existing single-server consumers keep
+// working; profile entries hold the per-server state.
+pub fn has_persisted_profiles() -> bool {
+    !Config::get_option("server-profiles").is_empty()
+}
+
+fn migrate_legacy_login_state() {
+    use std::sync::OnceLock;
+    static MIGRATED: OnceLock<()> = OnceLock::new();
+    if MIGRATED.get().is_some() || Status::get("login_state_migrated") == "Y" {
+        MIGRATED.set(()).ok();
+        return;
+    }
+    let token = LocalConfig::get_option("access_token");
+    if !token.is_empty() && has_persisted_profiles() {
+        let api = Config::get_option("api-server");
+        let custom = Config::get_option("custom-rendezvous-server");
+        let cur_api = if !api.is_empty() {
+            api
+        } else {
+            derive_api_from_host(&custom)
+        };
+        if !cur_api.is_empty() {
+            if let Some(p) = get_profile_by_api(&cur_api) {
+                if p.access_token.as_deref().unwrap_or("").is_empty() {
+                    let mut profiles = get_server_profiles();
+                    if let Some(entry) = profiles.iter_mut().find(|e| e.id == p.id) {
+                        entry.access_token = Some(token);
+                        entry.user_info = Some(LocalConfig::get_option("user_info"));
+                        set_server_profiles(&profiles);
+                    }
+                }
+            }
+        }
+    }
+    Status::set("login_state_migrated", "Y".to_owned());
+    MIGRATED.set(()).ok();
+}
+
+/// Read the login state belonging to the given api-server: the owning
+/// profile's token when there is one, else the legacy global slot.
+pub fn get_login_by_api(api: &str) -> (String, String) {
+    migrate_legacy_login_state();
+    if let Some(p) = get_profile_by_api(api) {
+        if let Some(ref t) = p.access_token {
+            if !t.is_empty() {
+                return (t.clone(), p.user_info.clone().unwrap_or_default());
+            }
+        }
+    }
+    (
+        LocalConfig::get_option("access_token"),
+        LocalConfig::get_option("user_info"),
+    )
+}
+
+/// Login state of the server identified by its rendezvous host. Callers that
+/// know only the host (a cross-server peer) get that server's own login; the
+/// legacy global slot answers when no profile owns the host.
+pub fn get_login_by_host(host: &str) -> (String, String) {
+    let api = get_api_by_host(host)
+        .filter(|a| !a.is_empty())
+        .unwrap_or_else(|| derive_api_from_host(host));
+    get_login_by_api(&api)
+}
+
+/// Store a login for the given api-server. The owning profile entry takes the
+/// token; when that profile is the active server the legacy global slot is
+/// mirrored too. Without persisted profiles (non-profile mode) only the global
+/// slot is written, so existing single-server setups behave as before.
+pub fn set_login_by_api(api: &str, access_token: &str, user_info: &str) {
+    migrate_legacy_login_state();
+    if has_persisted_profiles() {
+        if let Some(p) = get_profile_by_api(api) {
+            let mut profiles = get_server_profiles();
+            if let Some(entry) = profiles.iter_mut().find(|e| e.id == p.id) {
+                entry.access_token = Some(access_token.to_string());
+                entry.user_info = Some(user_info.to_string());
+                let custom = Config::get_option("custom-rendezvous-server");
+                let is_active =
+                    !custom.is_empty() && is_same_rendezvous_host(&entry.host, &custom);
+                set_server_profiles(&profiles);
+                if is_active {
+                    LocalConfig::set_option(
+                        "access_token".to_owned(),
+                        access_token.to_string(),
+                    );
+                    LocalConfig::set_option("user_info".to_owned(), user_info.to_string());
+                }
+                return;
+            }
+        }
+    }
+    LocalConfig::set_option("access_token".to_owned(), access_token.to_string());
+    LocalConfig::set_option("user_info".to_owned(), user_info.to_string());
+}
+
+/// Update only the user_info of the given api-server's login, leaving its
+/// token untouched; mirrors to the global slot when that profile is active.
+pub fn update_login_user_by_api(api: &str, user_info: &str) {
+    if has_persisted_profiles() {
+        if let Some(p) = get_profile_by_api(api) {
+            let mut profiles = get_server_profiles();
+            let custom = Config::get_option("custom-rendezvous-server");
+            if let Some(entry) = profiles.iter_mut().find(|e| e.id == p.id) {
+                let is_active =
+                    !custom.is_empty() && is_same_rendezvous_host(&entry.host, &custom);
+                entry.user_info = Some(user_info.to_string());
+                set_server_profiles(&profiles);
+                if is_active {
+                    LocalConfig::set_option("user_info".to_owned(), user_info.to_string());
+                }
+                return;
+            }
+        }
+    }
+    LocalConfig::set_option("user_info".to_owned(), user_info.to_string());
+}
+
+/// Drop the login state of the given api-server: the owning profile entry,
+/// and the global slot too when that profile is the active server.
+pub fn clear_login_by_api(api: &str) {
+    if has_persisted_profiles() {
+        if let Some(p) = get_profile_by_api(api) {
+            let mut profiles = get_server_profiles();
+            let custom = Config::get_option("custom-rendezvous-server");
+            if let Some(entry) = profiles.iter_mut().find(|e| e.id == p.id) {
+                let is_active =
+                    !custom.is_empty() && is_same_rendezvous_host(&entry.host, &custom);
+                entry.access_token = None;
+                entry.user_info = None;
+                set_server_profiles(&profiles);
+                if is_active {
+                    LocalConfig::set_option("access_token".to_owned(), String::new());
+                    LocalConfig::set_option("user_info".to_owned(), String::new());
+                }
+                return;
+            }
+        }
+    }
+    LocalConfig::set_option("access_token".to_owned(), String::new());
+    LocalConfig::set_option("user_info".to_owned(), String::new());
+}
+
+/// Re-point the legacy global login slot at the currently active profile, so
+/// single-server consumers read the right server's login after a switch. No-op
+/// without persisted profiles: the global slot is already authoritative there.
+pub fn sync_login_mirror() {
+    if !has_persisted_profiles() {
+        return;
+    }
+    let custom = Config::get_option("custom-rendezvous-server");
+    let mut token = String::new();
+    let mut user_info = String::new();
+    if !custom.is_empty() {
+        if let Some(p) = get_server_profiles()
+            .iter()
+            .find(|p| !p.host.is_empty() && is_same_rendezvous_host(&p.host, &custom))
+        {
+            token = p.access_token.clone().unwrap_or_default();
+            user_info = p.user_info.clone().unwrap_or_default();
+        }
+    }
+    LocalConfig::set_option("access_token".to_owned(), token);
+    LocalConfig::set_option("user_info".to_owned(), user_info);
+}
+
 pub fn update_server_profile_latency(id: &str, configured_host: &str, resolved_host: &str, latency: i64) {
     // The JSON is built under the lock but written to disk after it is released:
     // Config::set_option reads and rewrites the options file synchronously, and
@@ -619,6 +865,7 @@ pub struct ServerProfileStatus {
     pub enabled: bool,
     pub online: bool,
     pub latency_ms: i64,
+    pub logged_in: bool,
 }
 
 pub fn get_server_profile_statuses() -> Vec<ServerProfileStatus> {
@@ -651,6 +898,18 @@ pub fn get_server_profile_statuses() -> Vec<ServerProfileStatus> {
             };
             let online = p.enabled && lat_us > 0;
             let latency_ms = if lat_us > 0 { (lat_us + 999) / 1000 } else { -1 };
+            // The synthesized official row has no profile entry. Its host is the
+            // "public" placeholder exactly when a custom server is active, and
+            // then the global slot describes that custom server, not official.
+            let logged_in = if p.host == "public" {
+                Config::get_option("custom-rendezvous-server").is_empty()
+                    && !LocalConfig::get_option("access_token").is_empty()
+            } else {
+                let eff_api = get_api_by_host(&p.host)
+                    .filter(|a| !a.is_empty())
+                    .unwrap_or_else(|| derive_api_from_host(&p.host));
+                !eff_api.is_empty() && !get_login_by_api(&eff_api).0.is_empty()
+            };
             ServerProfileStatus {
                 id: p.id,
                 name: p.name,
@@ -658,6 +917,7 @@ pub fn get_server_profile_statuses() -> Vec<ServerProfileStatus> {
                 enabled: p.enabled,
                 online,
                 latency_ms,
+                logged_in,
             }
         })
         .collect()

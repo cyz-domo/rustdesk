@@ -776,10 +776,10 @@ Future<bool?> _openLoginDialog() async {
         case HttpType.kAuthResTypeToken:
           if (resp.access_token != null) {
             if (storeIfAccessToken) {
-              await bind.mainSetLocalOption(
-                  key: 'access_token', value: resp.access_token!);
-              await bind.mainSetLocalOption(
-                  key: 'user_info', value: jsonEncode(resp.user ?? {}));
+              await bind.mainSetLoginByApi(
+                  api: await bind.mainGetApiServer(),
+                  accessToken: resp.access_token!,
+                  userInfo: jsonEncode(resp.user ?? {}));
             }
             if (close != null) {
               close(true);
@@ -914,8 +914,9 @@ Future<bool?> _openLoginDialog() async {
                     LoginResponse? resp;
                     try {
                       // access_token is already stored in the rust side.
-                      resp =
-                          gFFI.userModel.getLoginResponseFromAuthBody(authBody);
+                      resp = gFFI.userModel.getLoginResponseFromAuthBody(
+                          authBody,
+                          api: await bind.mainGetApiServer());
                     } catch (e) {
                       debugPrint(
                           'Failed to parse oidc login body: "$authBody"');
@@ -1026,8 +1027,10 @@ Future<bool?> verificationCodeDialog(
         switch (resp.type) {
           case HttpType.kAuthResTypeToken:
             if (resp.access_token != null) {
-              await bind.mainSetLocalOption(
-                  key: 'access_token', value: resp.access_token!);
+              await bind.mainSetLoginByApi(
+                  api: await bind.mainGetApiServer(),
+                  accessToken: resp.access_token!,
+                  userInfo: jsonEncode(resp.user ?? {}));
               close(true);
               return;
             }

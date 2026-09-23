@@ -54,13 +54,16 @@ class UserModel {
     if (bind.isDisableAccount()) return;
     networkError.value = '';
     networkErrorFromServer.value = false;
-    final token = bind.mainGetLocalOption(key: 'access_token');
+    final url = await bind.mainGetApiServer();
+    final token = await bind.mainGetLoginTokenByApi(api: url);
     if (token == '') {
+      userName.value = '';
+      displayName.value = '';
+      avatar.value = '';
       await updateOtherModels();
       return;
     }
     _updateLocalUserInfo();
-    final url = await bind.mainGetApiServer();
     final body = {
       'id': await bind.mainGetMyId(),
       'uuid': await bind.mainGetUuid()
@@ -97,7 +100,7 @@ class UserModel {
       }
 
       final user = UserPayload.fromJson(data);
-      _parseAndUpdateUser(user);
+      _parseAndUpdateUser(user, url);
     } catch (e) {
       debugPrint('Failed to refreshCurrentUser: $e');
       // Surface failures in the address book / group tabs, which offer a
@@ -136,8 +139,7 @@ class UserModel {
   }
 
   Future<void> reset({bool resetOther = false}) async {
-    await bind.mainSetLocalOption(key: 'access_token', value: '');
-    await bind.mainSetLocalOption(key: 'user_info', value: '');
+    await bind.mainClearLoginByApi(api: await bind.mainGetApiServer());
     if (resetOther) {
       await gFFI.abModel.reset();
       await gFFI.groupModel.reset();
@@ -147,12 +149,12 @@ class UserModel {
     avatar.value = '';
   }
 
-  _parseAndUpdateUser(UserPayload user) {
+  _parseAndUpdateUser(UserPayload user, String api) {
     userName.value = user.name;
     displayName.value = user.displayName;
     avatar.value = user.avatar;
     isAdmin.value = user.isAdmin;
-    bind.mainSetLocalOption(key: 'user_info', value: jsonEncode(user));
+    bind.mainUpdateLoginUserByApi(api: api, userInfo: jsonEncode(user));
     if (isWeb) {
       // ugly here, tmp solution
       bind.mainSetLocalOption(key: 'verifier', value: user.verifier ?? '');
@@ -167,10 +169,10 @@ class UserModel {
     ]);
   }
 
-  Future<void> logOut({String? apiServer}) async {
+  Future<void> logOut() async {
     final tag = gFFI.dialogManager.showLoading(translate('Waiting'));
     try {
-      final url = apiServer ?? await bind.mainGetApiServer();
+      final url = await bind.mainGetApiServer();
       final authHeaders = getHttpHeaders();
       authHeaders['Content-Type'] = "application/json";
       await http
@@ -213,10 +215,11 @@ class UserModel {
       throw RequestException(0, body['error']);
     }
 
-    return getLoginResponseFromAuthBody(body);
+    return getLoginResponseFromAuthBody(body, api: url);
   }
 
-  LoginResponse getLoginResponseFromAuthBody(Map<String, dynamic> body) {
+  LoginResponse getLoginResponseFromAuthBody(Map<String, dynamic> body,
+      {String? api}) {
     final LoginResponse loginResponse;
     try {
       loginResponse = LoginResponse.fromJson(body);
@@ -228,7 +231,7 @@ class UserModel {
     final isLogInDone = loginResponse.type == HttpType.kAuthResTypeToken &&
         loginResponse.access_token != null;
     if (isLogInDone && loginResponse.user != null) {
-      _parseAndUpdateUser(loginResponse.user!);
+      _parseAndUpdateUser(loginResponse.user!, api ?? '');
     }
 
     return loginResponse;

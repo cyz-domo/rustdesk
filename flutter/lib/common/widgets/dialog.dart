@@ -73,6 +73,7 @@ void changeIdDialog() {
   var newId = "";
   var msg = "";
   var isInProgress = false;
+  var runDone = false;
   TextEditingController controller = TextEditingController();
   final RxString rxId = controller.text.trim().obs;
 
@@ -81,6 +82,31 @@ void changeIdDialog() {
     LengthRangeValidationRule(6, 16),
     RegexValidationRule('allowed characters', RegExp(r'^[\w-]*$'))
   ];
+
+  // The synthesized official row carries "public" as a placeholder when a
+  // custom server is active; it is not a resolvable host for check_id.
+  final statuses = stateGlobal.serverStatuses
+      .where((s) => s.host.trim().isNotEmpty && s.host != 'public')
+      .toList();
+  final multiServer = statuses.length > 1;
+  final cur = bind.mainGetOptionSync(key: 'custom-rendezvous-server').trim().toLowerCase();
+  final selected = <String>{};
+  for (final s in statuses) {
+    if (s.host.trim().toLowerCase() == cur) {
+      selected.add(s.host);
+      break;
+    }
+  }
+  if (selected.isEmpty && cur.isEmpty) {
+    for (final s in statuses) {
+      if (s.id == 'official') {
+        selected.add(s.host);
+        break;
+      }
+    }
+  }
+  // host -> error, empty means success. Only filled in multi-server mode.
+  final results = <String, String>{};
 
   gFFI.dialogManager.show((setState, close, context) {
     submit() async {
@@ -100,10 +126,37 @@ void changeIdDialog() {
         });
         return;
       }
+      if (multiServer && selected.isEmpty) {
+        return;
+      }
 
       setState(() {
         msg = "";
         isInProgress = true;
+      });
+
+      if (multiServer) {
+        final oldId = await bind.mainGetMyId();
+        final encoded = await bind.mainChangeIdOnServers(
+            newId: newId, oldId: oldId, servers: selected.toList());
+        results.clear();
+        try {
+          for (final r in jsonDecode(encoded) as List) {
+            final pair = r as List;
+            results[pair[0] as String] = pair[1] as String;
+          }
+        } catch (_) {
+          results.clear();
+          results[''] = encoded;
+        }
+        setState(() {
+          isInProgress = false;
+          runDone = true;
+        });
+        return;
+      }
+
+      setState(() {
         bind.mainChangeId(newId: newId);
       });
 
@@ -123,6 +176,13 @@ void changeIdDialog() {
             ? '${translate('Prompt')}: ${translate(status)}'
             : translate(status);
       });
+    }
+
+    String displayName(String host) {
+      for (final s in statuses) {
+        if (s.host == host) return s.name;
+      }
+      return host;
     }
 
     return CustomAlertDialog(
@@ -176,15 +236,82 @@ void changeIdDialog() {
                     }).toList(),
                   )).marginOnly(bottom: 8)
               : SizedBox.shrink(),
+          if (multiServer && !runDone)
+            ...statuses.map((s) {
+              final name = s.name;
+              final online = s.online;
+              final disabled = !s.enabled;
+              final dot = disabled
+                  ? Colors.grey
+                  : online
+                      ? const Color(0xFF0A9471)
+                      : const Color(0xFFC6569D);
+              final statusText = disabled
+                  ? translate('Disabled')
+                  : online
+                      ? '${translate('Online')} (${s.latencyMs}ms)'
+                      : translate('Offline');
+              return Tooltip(
+                message: statusText,
+                child: Row(
+                  children: [
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: dot,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    Checkbox(
+                      value: selected.contains(s.host),
+                      onChanged: isInProgress
+                          ? null
+                          : (v) {
+                              setState(() {
+                                if (v == true) {
+                                  selected.add(s.host);
+                                } else {
+                                  selected.remove(s.host);
+                                }
+                              });
+                            },
+                    ),
+                    Expanded(child: Text(name)),
+                  ],
+                ),
+              );
+            }),
+          if (multiServer && runDone)
+            ...results.entries.map((e) {
+              final ok = e.value.isEmpty;
+              return Row(
+                children: [
+                  Icon(
+                    ok ? Icons.check_circle : Icons.error,
+                    color: ok ? const Color(0xFF0A9471) : const Color(0xFFC6569D),
+                    size: 16,
+                  ),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      '${displayName(e.key)}: ${ok ? translate('Successful') : translate(e.value)}',
+                      style: const TextStyle(fontSize: 13),
+                    ),
+                  ),
+                ],
+              );
+            }),
           // NOT use Offstage to wrap LinearProgressIndicator
           if (isInProgress) const LinearProgressIndicator(),
         ],
       ),
       actions: [
         dialogButton("Cancel", onPressed: close, isOutline: true),
-        dialogButton("OK", onPressed: submit),
+        dialogButton(runDone ? "Close" : "OK",
+            onPressed: runDone ? close : (selected.isEmpty ? null : submit)),
       ],
-      onSubmit: submit,
+      onSubmit: runDone ? close : submit,
       onCancel: close,
     );
   });

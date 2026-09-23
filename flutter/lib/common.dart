@@ -2981,6 +2981,8 @@ class ServerProfileItem {
   String api;
   String key;
   bool enabled;
+  String accessToken;
+  String userInfo;
 
   ServerProfileItem({
     required this.id,
@@ -2990,6 +2992,8 @@ class ServerProfileItem {
     this.api = '',
     this.key = '',
     this.enabled = true,
+    this.accessToken = '',
+    this.userInfo = '',
   });
 
   Map<String, dynamic> toJson() => {
@@ -3002,6 +3006,14 @@ class ServerProfileItem {
         'enabled': enabled,
       };
 
+  /// The `server-profiles` option form. Kept separate from [toJson] because
+  /// that one also feeds the share/QR payload, which must not carry tokens.
+  Map<String, dynamic> toStorageJson() => {
+        ...toJson(),
+        'access_token': accessToken.isNotEmpty ? accessToken : null,
+        'user_info': userInfo.isNotEmpty ? userInfo : null,
+      };
+
   factory ServerProfileItem.fromJson(Map<String, dynamic> json) =>
       ServerProfileItem(
         id: json['id'] ?? '',
@@ -3011,6 +3023,8 @@ class ServerProfileItem {
         api: json['api'] ?? '',
         key: json['key'] ?? '',
         enabled: json['enabled'] ?? true,
+        accessToken: json['access_token'] ?? '',
+        userInfo: json['user_info'] ?? '',
       );
 
   static String encodeProfiles(List<ServerProfileItem> profiles) {
@@ -3106,6 +3120,7 @@ class ServerStatusItem {
   bool enabled;
   bool online;
   int latencyMs;
+  bool loggedIn;
 
   ServerStatusItem({
     required this.id,
@@ -3114,6 +3129,7 @@ class ServerStatusItem {
     required this.enabled,
     required this.online,
     required this.latencyMs,
+    this.loggedIn = false,
   });
 
   factory ServerStatusItem.fromJson(Map<String, dynamic> json) =>
@@ -3124,6 +3140,7 @@ class ServerStatusItem {
         enabled: json['enabled'] ?? true,
         online: json['online'] ?? false,
         latencyMs: json['latency_ms'] ?? -1,
+        loggedIn: json['logged_in'] ?? false,
       );
 }
 
@@ -3779,20 +3796,15 @@ Future<bool> setServerConfig(
       return false;
     }
   }
-  final oldApiServer = await bind.mainGetApiServer();
-
   // should set one by one
   await bind.mainSetOption(
       key: 'custom-rendezvous-server', value: config.idServer);
   await bind.mainSetOption(key: 'relay-server', value: config.relayServer);
   await bind.mainSetOption(key: 'api-server', value: config.apiServer);
   await bind.mainSetOption(key: 'key', value: config.key);
-  final newApiServer = await bind.mainGetApiServer();
-  if (oldApiServer.isNotEmpty &&
-      oldApiServer != newApiServer &&
-      gFFI.userModel.isLogin) {
-    gFFI.userModel.logOut(apiServer: oldApiServer);
-  }
+  // Switching servers never logs out: each server keeps its own login state
+  // and the global slot is re-pointed at whatever the new server holds.
+  await bind.mainSyncLoginMirror();
   return true;
 }
 
@@ -3813,9 +3825,9 @@ Future<bool> activateServerProfile(
     target.enabled = true;
     await bind.mainSetOption(
         key: 'server-profiles',
-        value: jsonEncode(profiles.map((p) => p.toJson()).toList()));
+        value: jsonEncode(profiles.map((p) => p.toStorageJson()).toList()));
   }
-  return setServerConfig(
+  final ok = await setServerConfig(
       null,
       null,
       ServerConfig(
@@ -3823,6 +3835,11 @@ Future<bool> activateServerProfile(
           relayServer: target.relay,
           apiServer: target.api,
           key: target.key));
+  if (ok) {
+    // Show the newly active server's login/address book, not the old one's.
+    gFFI.userModel.refreshCurrentUser();
+  }
+  return ok;
 }
 
 ColorFilter? svgColor(Color? color) {

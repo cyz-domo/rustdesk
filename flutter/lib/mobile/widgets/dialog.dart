@@ -215,7 +215,8 @@ void showServerSettingsWithOptions(
       });
 
       // Save full server profiles list
-      final profilesJson = jsonEncode(profiles.map((p) => p.toJson()).toList());
+      final profilesJson =
+          jsonEncode(profiles.map((p) => p.toStorageJson()).toList());
       await bind.mainSetOption(key: 'server-profiles', value: profilesJson);
 
       // Save primary active profile to traditional options for backward compatibility

@@ -15,7 +15,7 @@ use base::message_proto::*;
 use bytes::Bytes;
 use hbb_common::{
     allow_err,
-    config::{Config, LocalConfig, PeerConfig},
+    config::{Config, PeerConfig},
     get_version_number, log,
     rendezvous_proto::ConnType,
     tokio::{
@@ -573,7 +573,7 @@ impl<T: InvokeUiSession> Session<T> {
     }
 
     pub fn get_audit_server(&self, typ: String) -> String {
-        if LocalConfig::get_option("access_token").is_empty() {
+        if crate::hbbs_http::current_login_state().0.is_empty() {
             return "".to_owned();
         }
         crate::get_audit_server(
@@ -1950,7 +1950,7 @@ pub async fn io_loop<T: InvokeUiSession>(handler: Session<T>, round: u32) {
     #[cfg(not(any(target_os = "android", target_os = "ios")))]
     let (sender, mut receiver) = mpsc::unbounded_channel::<Data>();
     *handler.sender.write().unwrap() = Some(sender.clone());
-    let token = LocalConfig::get_option("access_token");
+    let (token, _) = crate::hbbs_http::current_login_state();
     let key = crate::get_key(false).await;
     #[cfg(not(any(target_os = "android", target_os = "ios")))]
     if handler.is_port_forward() {

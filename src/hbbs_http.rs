@@ -38,3 +38,14 @@ impl<T: DeserializeOwned> HbbHttpResponse<T> {
         }
     }
 }
+
+/// Login state (access_token, user_info) belonging to the currently active
+/// server's api-server: the owning profile's state, with the legacy global
+/// slot as fallback for non-profile setups.
+pub fn current_login_state() -> (String, String) {
+    let api = crate::common::get_api_server(
+        hbb_common::config::Config::get_option("api-server"),
+        hbb_common::config::Config::get_option("custom-rendezvous-server"),
+    );
+    base::server_profile::get_login_by_api(&api)
+}

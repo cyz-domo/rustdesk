@@ -38,39 +38,199 @@ class _AddressBookState extends State<AddressBook> {
   var menuPos = RelativeRect.fill;
 
   @override
-  Widget build(BuildContext context) => Obx(() {
-        if (!gFFI.userModel.isLogin) {
-          return Center(
-              child: ElevatedButton(
-                  onPressed: loginDialog, child: Text(translate("Login"))));
-        } else if (gFFI.userModel.networkError.isNotEmpty) {
-          return netWorkErrorWidget();
-        } else {
-          return Column(
-            children: [
-              // NOT use Offstage to wrap LinearProgressIndicator
-              if (gFFI.abModel.currentAbLoading.value &&
-                  gFFI.abModel.currentAbEmpty)
-                const LinearProgressIndicator(),
-              buildErrorBanner(context,
-                  loading: gFFI.abModel.currentAbLoading,
-                  err: gFFI.abModel.abPullError,
-                  retry: null,
-                  close: gFFI.abModel.clearPullErrors),
-              buildErrorBanner(context,
-                  loading: gFFI.abModel.currentAbLoading,
-                  err: gFFI.abModel.currentAbPushError,
-                  retry: null, // remove retry
-                  close: () => gFFI.abModel.currentAbPushError.value = ''),
-              Expanded(
-                child: Obx(() => stateGlobal.isPortrait.isTrue
-                    ? _buildAddressBookPortrait()
-                    : _buildAddressBookLandscape()),
-              ),
-            ],
-          );
+  Widget build(BuildContext context) => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildServerDropdown(),
+          Expanded(
+            child: Obx(() {
+              if (!gFFI.userModel.isLogin) {
+                return Center(
+                    child: ElevatedButton(
+                        onPressed: loginDialog,
+                        child: Text(translate("Login"))));
+              } else if (gFFI.userModel.networkError.isNotEmpty) {
+                return netWorkErrorWidget();
+              } else {
+                return Column(
+                  children: [
+                    // NOT use Offstage to wrap LinearProgressIndicator
+                    if (gFFI.abModel.currentAbLoading.value &&
+                        gFFI.abModel.currentAbEmpty)
+                      const LinearProgressIndicator(),
+                    buildErrorBanner(context,
+                        loading: gFFI.abModel.currentAbLoading,
+                        err: gFFI.abModel.abPullError,
+                        retry: null,
+                        close: gFFI.abModel.clearPullErrors),
+                    buildErrorBanner(context,
+                        loading: gFFI.abModel.currentAbLoading,
+                        err: gFFI.abModel.currentAbPushError,
+                        retry: null, // remove retry
+                        close: () => gFFI.abModel.currentAbPushError.value = ''),
+                    Expanded(
+                      child: Obx(() => stateGlobal.isPortrait.isTrue
+                          ? _buildAddressBookPortrait()
+                          : _buildAddressBookLandscape()),
+                    ),
+                  ],
+                );
+              }
+            }),
+          ),
+        ],
+      );
+
+  // Server switcher rendered above the login gate. Hidden unless more than one
+  // server exists, so single-server setups see no change. Entries come from the
+  // polled server statuses so badges stay reactive without extra FFI calls.
+  Widget _buildServerDropdown() {
+    return Obx(() {
+      final isLogin = gFFI.userModel.isLogin;
+      final entries = stateGlobal.serverStatuses
+          .where((s) => s.host.trim().isNotEmpty)
+          .toList();
+      if (entries.length <= 1) {
+        return Offstage();
+      }
+      final cur = bind.mainGetOptionSync(key: 'custom-rendezvous-server')
+          .trim()
+          .toLowerCase();
+      ServerStatusItem? current;
+      for (final s in entries) {
+        if (s.host.trim().toLowerCase() == cur) {
+          current = s;
+          break;
         }
-      });
+      }
+      // An empty custom-rendezvous-server means the official default is active.
+      if (current == null && cur.isEmpty) {
+        for (final s in entries) {
+          if (s.id == 'official') {
+            current = s;
+            break;
+          }
+        }
+      }
+
+      Widget statusDot(ServerStatusItem s) {
+        final color =
+            s.online ? Colors.green : (s.enabled ? Colors.red : Colors.grey);
+        return Container(
+          width: 8,
+          height: 8,
+          margin: const EdgeInsets.only(right: 6),
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        );
+      }
+
+      String statusText(ServerStatusItem s) => s.online
+          ? '${translate("Online")} (${s.latencyMs}ms)'
+          : s.enabled
+              ? translate("Offline")
+              : translate("Disabled");
+
+      Widget buildItem(ServerStatusItem s, {bool button = false}) {
+        // The active server's badge follows the live login state; other
+        // servers' badges come from their stored tokens in the status payload.
+        final loggedIn = button ? isLogin : s.loggedIn;
+        return Row(
+          children: [
+            statusDot(s),
+            Expanded(
+              child: Tooltip(
+                waitDuration: Duration(milliseconds: 500),
+                message: statusText(s),
+                child: Text(
+                  s.name.isNotEmpty ? s.name : s.host,
+                  style: button ? null : TextStyle(fontSize: 14.0),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: button ? TextAlign.center : null,
+                ),
+              ),
+            ),
+            if (loggedIn)
+              Icon(Icons.person, size: 14.0)
+                  .marginOnly(right: button ? 0 : 4),
+          ],
+        );
+      }
+
+      final items = entries
+          .map((e) => DropdownMenuItem(value: e.host, child: buildItem(e)))
+          .toList();
+      final buttonChild = current != null
+          ? buildItem(current, button: true)
+          : Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    bind.mainGetOptionSync(
+                        key: 'custom-rendezvous-server'),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+                if (isLogin) Icon(Icons.person, size: 14.0),
+              ],
+            );
+
+      return Container(
+        width: 200,
+        child: DropdownButton2<String>(
+          value: current?.host,
+          onChanged: (value) async {
+            if (value == null) {
+              return;
+            }
+            ServerStatusItem? picked;
+            for (final s in entries) {
+              if (s.host == value) {
+                picked = s;
+                break;
+              }
+            }
+            if (picked == null) {
+              return;
+            }
+            if (picked.id == 'official') {
+              // The synthesized official row has no profile; empty config
+              // restores the public defaults.
+              await setServerConfig(null, null, ServerConfig());
+            } else {
+              final profiles = await loadServerProfiles();
+              for (final p in profiles) {
+                if (p.host.trim().toLowerCase() == value.toLowerCase()) {
+                  await activateServerProfile(profiles, p);
+                  break;
+                }
+              }
+            }
+            if (mounted) {
+              setState(() {});
+            }
+          },
+          customButton: Container(
+            height: 40,
+            child: Row(children: [
+              Expanded(child: buttonChild),
+              Icon(Icons.arrow_drop_down),
+            ]),
+          ),
+          underline: Container(
+            height: 0.7,
+            color: Theme.of(context).dividerColor.withOpacity(0.1),
+          ),
+          menuItemStyleData: MenuItemStyleData(height: 36),
+          items: items,
+          isExpanded: true,
+          isDense: true,
+        ),
+      ).marginOnly(left: 8, right: 8, top: 4, bottom: 4);
+    });
+  }
 
   Widget _buildAddressBookLandscape() {
     return Row(
