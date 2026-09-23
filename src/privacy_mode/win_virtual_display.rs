@@ -143,9 +143,12 @@ impl PrivacyModeImpl {
                 primary,
             };
 
-            let ds = virtual_display_manager::get_cur_device_string();
             if let Ok(s) = String::from_utf16(&dd.DeviceString) {
-                if s.len() >= ds.len() && &s[..ds.len()] == ds {
+                let ds1 = virtual_display_manager::AMYUNI_IDD_DEVICE_STRING;
+                let ds2 = virtual_display_manager::RUSTDESK_IDD_DEVICE_STRING;
+                if (s.len() >= ds1.len() && &s[..ds1.len()] == ds1)
+                    || (s.len() >= ds2.len() && &s[..ds2.len()] == ds2)
+                {
                     self.virtual_displays.push(display);
                     continue;
                 }

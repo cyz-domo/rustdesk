@@ -988,7 +988,7 @@ fn get_encoder_config(
     #[cfg(all(windows, feature = "vram"))]
     if _portable_service || c.is_gdi() || _source == VideoSource::Camera {
         log::info!("gdi:{}, portable:{}", c.is_gdi(), _portable_service);
-        VRamEncoder::set_not_use(_name, true);
+        VRamEncoder::set_not_use(_name.clone(), true);
     }
     #[cfg(feature = "vram")]
     Encoder::update(scrap::codec::EncodingUpdate::Check);
