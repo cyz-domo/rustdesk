@@ -103,6 +103,7 @@ struct ParsedPeerInfo {
     platform: String,
     is_installed: bool,
     idd_impl: String,
+    amyuni_virtual_display_count: usize,
     support_view_camera: bool,
     support_terminal: bool,
 }
@@ -1200,20 +1201,47 @@ impl<T: InvokeUiSession> Remote<T> {
         if !self.peer_info.is_support_virtual_display() {
             return;
         }
-        let lc = self.handler.lc.read().unwrap();
-        let displays = lc.get_option("virtual-display");
-        for d in displays.split(',') {
-            if let Ok(index) = d.parse::<i32>() {
-                let mut misc = Misc::new();
-                misc.set_toggle_virtual_display(ToggleVirtualDisplay {
-                    display: index,
-                    on: true,
-                    ..Default::default()
-                });
-                let mut msg_out = Message::new();
-                msg_out.set_misc(misc);
-                allow_err!(peer.send(&msg_out).await);
-            }
+        let (indices, replays_virtual_display_privacy_mode) = {
+            let lc = self.handler.lc.read().unwrap();
+            // The same gate `send_toggle_privacy_mode_msg()` below uses.
+            let privacy_mode = lc.version >= hbb_common::get_version_number("1.2.4")
+                && lc.get_toggle_option("privacy-mode")
+                && lc.get_option("privacy-mode-impl-key")
+                    == crate::privacy_mode::PRIVACY_MODE_IMPL_WIN_VIRTUAL_DISPLAY;
+            (
+                lc.get_option("virtual-display")
+                    .split(',')
+                    .filter_map(|d| d.parse::<i32>().ok())
+                    .collect::<Vec<i32>>(),
+                privacy_mode,
+            )
+        };
+        if replays_virtual_display_privacy_mode {
+            // Privacy mode keeps one virtual display on the desktop by unplugging the surplus, and a
+            // replayed plug-in reaches the desktop seconds after that. Letting it through would put
+            // the surplus back and bring the stuttering multi-display desktop with it.
+            return;
+        }
+        let mut sends = indices;
+        if self.peer_info.idd_impl == "amyuni_idd" {
+            // The amyuni IOCTL plugs one display in and ignores the index, so the stored option is a
+            // log of past "+" clicks, not a display count. Replaying it whole added displays on every
+            // reconnect; the peer reports how many it already has, so only the missing ones are sent.
+            let deficit = sends
+                .len()
+                .saturating_sub(self.peer_info.amyuni_virtual_display_count);
+            sends = vec![0; deficit];
+        }
+        for index in sends {
+            let mut misc = Misc::new();
+            misc.set_toggle_virtual_display(ToggleVirtualDisplay {
+                display: index,
+                on: true,
+                ..Default::default()
+            });
+            let mut msg_out = Message::new();
+            msg_out.set_misc(misc);
+            allow_err!(peer.send(&msg_out).await);
         }
     }
 
@@ -2242,6 +2270,12 @@ impl<T: InvokeUiSession> Remote<T> {
                 .map(|v| v.as_bool())
                 .flatten()
                 .unwrap_or(false);
+            // Absent means zero: the peer only reports the key when there is one to report.
+            self.peer_info.amyuni_virtual_display_count = platform_additions
+                .get("amyuni_virtual_displays")
+                .map(|v| v.as_u64())
+                .flatten()
+                .unwrap_or(0) as usize;
         }
     }
 
