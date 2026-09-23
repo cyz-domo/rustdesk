@@ -815,11 +815,11 @@ fn run(vs: VideoService) -> ResultType<()> {
         match res {
             Err(ref e) if e.kind() == WouldBlock => {
                 #[cfg(windows)]
-                if try_gdi > 0 && !c.is_gdi() {
-                    if try_gdi > 3 {
+                if try_gdi > 0 && !c.is_gdi() && first_frame {
+                    if try_gdi > 100 {
                         c.set_gdi();
                         try_gdi = 0;
-                        log::info!("No image, fall back to gdi");
+                        log::info!("No image after 100 attempts, fall back to gdi");
                     }
                     try_gdi += 1;
                 }
@@ -998,7 +998,7 @@ fn get_encoder_config(
     match negotiated_codec {
         CodecFormat::H264 | CodecFormat::H265 => {
             #[cfg(feature = "vram")]
-            if let Some(feature) = VRamEncoder::try_get(&c.device(), negotiated_codec) {
+            if let Some(feature) = VRamEncoder::try_get_for(Some(&_name), &c.device(), negotiated_codec) {
                 return EncoderCfg::VRAM(VRamEncoderConfig {
                     device: c.device(),
                     width: c.width,

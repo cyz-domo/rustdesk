@@ -207,6 +207,22 @@ impl EncoderApi for VRamEncoder {
 
 impl VRamEncoder {
     pub fn try_get(device: &AdapterDevice, format: CodecFormat) -> Option<FeatureContext> {
+        Self::try_get_for(None, device, format)
+    }
+
+    pub fn try_get_for(
+        name: Option<&str>,
+        device: &AdapterDevice,
+        format: CodecFormat,
+    ) -> Option<FeatureContext> {
+        if let Some(name) = name {
+            if FALLBACK_GDI_DISPLAYS.lock().unwrap().contains(name) {
+                return None;
+            }
+            if ENOCDE_NOT_USE.lock().unwrap().get(name) == Some(&true) {
+                return None;
+            }
+        }
         let v: Vec<_> = Self::available(format)
             .drain(..)
             .filter(|e| e.luid == device.luid)
@@ -223,14 +239,15 @@ impl VRamEncoder {
     }
 
     pub fn available(format: CodecFormat) -> Vec<FeatureContext> {
-        let fallbacks = FALLBACK_GDI_DISPLAYS.lock().unwrap().clone();
-        if !fallbacks.is_empty() {
-            log::info!("fallback gdi displays not empty: {fallbacks:?}");
+        let displays_count = crate::Display::all().map(|d| d.len()).unwrap_or(0);
+        let fallbacks_count = FALLBACK_GDI_DISPLAYS.lock().unwrap().len();
+        if displays_count > 0 && fallbacks_count >= displays_count {
+            log::info!("all displays fell back to gdi");
             return vec![];
         }
         let not_use = ENOCDE_NOT_USE.lock().unwrap().clone();
-        if not_use.values().any(|not_use| *not_use) {
-            log::info!("currently not use vram encoders: {not_use:?}");
+        if displays_count > 0 && not_use.values().filter(|v| **v).count() >= displays_count {
+            log::info!("all displays disabled vram");
             return vec![];
         }
         let data_format = match format {

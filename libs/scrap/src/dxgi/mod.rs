@@ -74,12 +74,12 @@ impl Capturer {
         let mut res = if display.gdi {
             wrap_hresult(1)
         } else {
-            let res = wrap_hresult(unsafe {
+            let mut res = wrap_hresult(unsafe {
                 D3D11CreateDevice(
                     display.adapter.0 as *mut _,
                     D3D_DRIVER_TYPE_UNKNOWN,
                     ptr::null_mut(), // No software rasterizer.
-                    0,               // No device flags.
+                    D3D11_CREATE_DEVICE_BGRA_SUPPORT,
                     ptr::null_mut(), // Feature levels.
                     0,               // Feature levels' length.
                     D3D11_SDK_VERSION,
@@ -88,14 +88,29 @@ impl Capturer {
                     &mut context,
                 )
             });
-            if res.is_ok() {
-                wrap_hresult(unsafe { (*display.adapter.0).GetDesc1(&mut adapter_desc1) })
-            } else {
-                res
+            if res.is_err() {
+                res = wrap_hresult(unsafe {
+                    D3D11CreateDevice(
+                        ptr::null_mut(),
+                        D3D_DRIVER_TYPE_HARDWARE,
+                        ptr::null_mut(),
+                        D3D11_CREATE_DEVICE_BGRA_SUPPORT,
+                        ptr::null_mut(),
+                        0,
+                        D3D11_SDK_VERSION,
+                        &mut device,
+                        ptr::null_mut(),
+                        &mut context,
+                    )
+                });
             }
+            if res.is_ok() {
+                let _ = unsafe { (*display.adapter.0).GetDesc1(&mut adapter_desc1) };
+            }
+            res
         };
-        let device = ComPtr(device);
-        let context = ComPtr(context);
+        let mut device = ComPtr(device);
+        let mut context = ComPtr(context);
 
         if res.is_err() {
             gdi_capturer = display.create_gdi();
@@ -105,7 +120,32 @@ impl Capturer {
             }
         } else {
             res = wrap_hresult(unsafe {
-                let hres = (*display.inner.0).DuplicateOutput(device.0 as *mut _, &mut duplication);
+                let mut hres = (*display.inner.0).DuplicateOutput(device.0 as *mut _, &mut duplication);
+                if hres != S_OK {
+                    let mut fallback_device = ptr::null_mut();
+                    let mut fallback_context = ptr::null_mut();
+                    if S_OK == D3D11CreateDevice(
+                        ptr::null_mut(),
+                        D3D_DRIVER_TYPE_HARDWARE,
+                        ptr::null_mut(),
+                        D3D11_CREATE_DEVICE_BGRA_SUPPORT,
+                        ptr::null_mut(),
+                        0,
+                        D3D11_SDK_VERSION,
+                        &mut fallback_device,
+                        ptr::null_mut(),
+                        &mut fallback_context,
+                    ) {
+                        let fallback_device_ptr = fallback_device;
+                        let fb_dev = ComPtr(fallback_device);
+                        let fb_ctx = ComPtr(fallback_context);
+                        hres = (*display.inner.0).DuplicateOutput(fallback_device_ptr as *mut _, &mut duplication);
+                        if hres == S_OK {
+                            device = fb_dev;
+                            context = fb_ctx;
+                        }
+                    }
+                }
                 if hres != S_OK {
                     gdi_capturer = display.create_gdi();
                     println!("Fallback to GDI");

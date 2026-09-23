@@ -286,7 +286,7 @@ pub mod rustdesk_idd {
     }
 
     fn get_new_device_name(device_names: &HashSet<String>) -> String {
-        for _ in 0..3 {
+        for _ in 0..10 {
             let device_names_af: HashSet<String> = get_device_names().into_iter().collect();
             let diff_names: Vec<_> = device_names_af.difference(&device_names).collect();
             if diff_names.len() == 1 {
@@ -299,7 +299,7 @@ pub mod rustdesk_idd {
                 return "".to_string();
             }
             // Sleep is needed here to wait for the virtual display to be ready.
-            std::thread::sleep(std::time::Duration::from_millis(50));
+            std::thread::sleep(std::time::Duration::from_millis(100));
         }
         log::error!("Failed to get diff device names after plugin virtual display",);
         "".to_string()
@@ -337,6 +337,7 @@ pub mod rustdesk_idd {
                 }
                 Err(e) => {
                     log::error!("Plug in monitor failed {}", e);
+                    return Err(e);
                 }
             }
         }
