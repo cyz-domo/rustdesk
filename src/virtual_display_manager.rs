@@ -154,6 +154,20 @@ pub fn plug_out_monitor_indices(
     }
 }
 
+/// The amyuni driver creates the monitor seconds before the desktop takes it online, and nothing
+/// else makes Windows re-poll the display devices. Best effort: a failed reset only keeps the wait.
+pub fn nudge_display_change() {
+    use winapi::{
+        shared::ntdef::NULL,
+        um::winuser::{ChangeDisplaySettingsExW, CDS_RESET, DISP_CHANGE_SUCCESSFUL},
+    };
+    let rc =
+        unsafe { ChangeDisplaySettingsExW(NULL as _, NULL as _, NULL as _, CDS_RESET, NULL as _) };
+    if rc != DISP_CHANGE_SUCCESSFUL {
+        log::warn!("Failed to nudge the display change, ret: {}", rc);
+    }
+}
+
 pub fn reset_all() -> ResultType<()> {
     let _ = rustdesk_idd::reset_all();
     let _ = amyuni_idd::reset_all();

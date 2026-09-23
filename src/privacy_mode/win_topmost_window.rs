@@ -129,7 +129,11 @@ impl PrivacyMode for PrivacyModeImpl {
         state: Option<PrivacyModeState>,
     ) -> ResultType<()> {
         self.check_off_conn_id(conn_id)?;
-        super::win_input::unhook()?;
+        // Must not abort the cleanup below: the mode stayed occupied by a connection that no
+        // longer existed, and every later attempt to turn it on did nothing.
+        if let Err(e) = super::win_input::unhook() {
+            log::error!("Privacy mode: failed to unhook the input, {}", e);
+        }
         let hwnds = find_privacy_hwnds()?;
         let hide_result = set_privacy_windows_visible(&hwnds, false);
         if hide_result.is_err() {

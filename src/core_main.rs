@@ -407,7 +407,7 @@ pub fn core_main() -> Option<Vec<String>> {
                 hbb_common::allow_err!(crate::run_me(vec!["--tray"]));
             }
             #[cfg(windows)]
-            crate::privacy_mode::restore_reg_connectivity(true, false);
+            crate::privacy_mode::restore_reg_connectivity(false, false);
             #[cfg(any(target_os = "linux", target_os = "windows"))]
             {
                 crate::start_server(true, false);

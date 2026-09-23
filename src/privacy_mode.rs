@@ -11,7 +11,10 @@ use hbb_common::{anyhow::anyhow, bail, lazy_static, tokio::sync::oneshot, Result
 use serde_derive::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
-    sync::{Arc, Mutex},
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc, Mutex,
+    },
 };
 
 #[cfg(windows)]
@@ -208,7 +211,19 @@ fn get_supported_impl(impl_key: &str) -> String {
     cur_impl
 }
 
+// The worker below cannot be cancelled and holds the privacy mode lock for as long as the driver
+// takes. Without this a timed-out attempt left its worker behind and every retry stacked another
+// one on the same lock, which is what made the control look dead.
+static TURN_ON_PRIVACY_IN_FLIGHT: AtomicBool = AtomicBool::new(false);
+
 pub async fn turn_on_privacy(impl_key: &str, conn_id: i32) -> Option<ResultType<bool>> {
+    // Checked before PRIVACY_MODE, which the worker below holds for as long as it runs: locking it
+    // here first would block this task instead of refusing the request.
+    if TURN_ON_PRIVACY_IN_FLIGHT.load(Ordering::SeqCst) {
+        return Some(Err(anyhow!(
+            "Privacy mode is still being turned on by an earlier request"
+        )));
+    }
     if is_async_privacy_mode() {
         turn_on_privacy_async(impl_key.to_string(), conn_id).await
     } else {
@@ -225,11 +240,29 @@ fn is_async_privacy_mode() -> bool {
         .map_or(false, |m| m.is_async_privacy_mode())
 }
 
+struct TurnOnPrivacyInFlight;
+
+impl Drop for TurnOnPrivacyInFlight {
+    fn drop(&mut self) {
+        TURN_ON_PRIVACY_IN_FLIGHT.store(false, Ordering::SeqCst);
+    }
+}
+
 #[inline]
 async fn turn_on_privacy_async(impl_key: String, conn_id: i32) -> Option<ResultType<bool>> {
+    if TURN_ON_PRIVACY_IN_FLIGHT.swap(true, Ordering::SeqCst) {
+        return Some(Err(anyhow!(
+            "Privacy mode is still being turned on by an earlier request"
+        )));
+    }
     let (tx, rx) = oneshot::channel();
     std::thread::spawn(move || {
-        let res = turn_on_privacy_sync(&impl_key, conn_id);
+        // Dropped before the result goes out, so an immediate retry is not refused by the flag it
+        // just waited for. Scoped so a panic clears it too.
+        let res = {
+            let _in_flight = TurnOnPrivacyInFlight;
+            turn_on_privacy_sync(&impl_key, conn_id)
+        };
         let _ = tx.send(res);
     });
     // Wait at most 20 seconds for the result.

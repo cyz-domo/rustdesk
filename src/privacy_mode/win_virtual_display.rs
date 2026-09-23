@@ -35,6 +35,12 @@ const CONFIG_KEY_REG_RECOVERY: &str = "reg_recovery";
 // first window expires. The attach was measured at ~9.4s on a dGPU-direct laptop, while the
 // first window is 5s: bailing there rolls the plug-in back and destroys the pending attach.
 const VIRTUAL_DISPLAY_RETRY_WAIT_MILLIS: u64 = 10_000;
+// Budget for converging to a single virtual display before privacy mode starts. Only spent when
+// there is a surplus, in which case `ensure_virtual_display()` has nothing to wait for. Kept short
+// because a removal takes effect in well under a second, and the whole turn-on has to fit in the
+// 20s the caller waits for.
+const VIRTUAL_DISPLAY_PLUG_OUT_WAIT_MILLIS: u64 = 5_000;
+const VIRTUAL_DISPLAY_PLUG_OUT_SETTLE_MILLIS: u64 = 2_500;
 
 struct Display {
     dm: DEVMODEW,
@@ -143,17 +149,90 @@ impl PrivacyModeImpl {
                 primary,
             };
 
-            if let Ok(s) = String::from_utf16(&dd.DeviceString) {
-                let ds1 = virtual_display_manager::AMYUNI_IDD_DEVICE_STRING;
-                let ds2 = virtual_display_manager::RUSTDESK_IDD_DEVICE_STRING;
-                if (s.len() >= ds1.len() && &s[..ds1.len()] == ds1)
-                    || (s.len() >= ds2.len() && &s[..ds2.len()] == ds2)
+            if Self::is_virtual_display_device(&dd) {
+                self.virtual_displays.push(display);
+                continue;
+            }
+            self.displays.push(display);
+        }
+    }
+
+    fn is_virtual_display_device(dd: &DISPLAY_DEVICEW) -> bool {
+        match String::from_utf16(&dd.DeviceString) {
+            Ok(s) => [
+                virtual_display_manager::AMYUNI_IDD_DEVICE_STRING,
+                virtual_display_manager::RUSTDESK_IDD_DEVICE_STRING,
+            ]
+            .iter()
+            .any(|ds| s.len() >= ds.len() && &s[..ds.len()] == *ds),
+            Err(_) => false,
+        }
+    }
+
+    // A panel left at 0x0 by an earlier privacy mode is off the desktop, so `set_displays()` sees
+    // no physical display at all and the mode can never be entered again. Re-enabling from the
+    // registry mode is what Windows itself does on the next logon. Callers must gate this on the
+    // desktop holding only virtual displays, otherwise a monitor the user switched off by hand
+    // would come back too.
+    fn recover_off_desktop_displays(&mut self) {
+        let mut recovered = 0;
+        let mut i: DWORD = 0;
+        loop {
+            #[allow(invalid_value)]
+            let mut dd: DISPLAY_DEVICEW = unsafe { std::mem::MaybeUninit::uninit().assume_init() };
+            dd.cb = std::mem::size_of::<DISPLAY_DEVICEW>() as _;
+            if FALSE == unsafe { EnumDisplayDevicesW(std::ptr::null(), i, &mut dd as _, 0) } {
+                break;
+            }
+            i += 1;
+            if (dd.StateFlags & DISPLAY_DEVICE_ATTACHED_TO_DESKTOP) > 0
+                || (dd.StateFlags & DISPLAY_DEVICE_MIRRORING_DRIVER) > 0
+                || Self::is_virtual_display_device(&dd)
+            {
+                continue;
+            }
+            let name = std::string::String::from_utf16_lossy(&dd.DeviceName);
+            #[allow(invalid_value)]
+            let mut dm: DEVMODEW = unsafe { std::mem::MaybeUninit::uninit().assume_init() };
+            dm.dmSize = std::mem::size_of::<DEVMODEW>() as _;
+            dm.dmDriverExtra = 0;
+            unsafe {
+                if FALSE
+                    == EnumDisplaySettingsExW(
+                        dd.DeviceName.as_ptr(),
+                        ENUM_REGISTRY_SETTINGS,
+                        &mut dm as _,
+                        0,
+                    )
                 {
-                    self.virtual_displays.push(display);
+                    continue;
+                }
+                let rc = ChangeDisplaySettingsExW(
+                    dd.DeviceName.as_ptr(),
+                    &mut dm,
+                    NULL as _,
+                    CDS_UPDATEREGISTRY | CDS_NORESET,
+                    NULL as _,
+                );
+                if rc != DISP_CHANGE_SUCCESSFUL {
+                    log::error!(
+                        "Privacy mode: failed to re-enable display {:?}, {}",
+                        &name,
+                        Self::change_display_settings_ex_err_msg(rc)
+                    );
                     continue;
                 }
             }
-            self.displays.push(display);
+            log::info!(
+                "Privacy mode: re-enabled the off-desktop display {:?}",
+                &name
+            );
+            recovered += 1;
+        }
+
+        if recovered > 0 {
+            allow_err!(Self::commit_change_display(CDS_RESET));
+            self.set_displays();
         }
     }
 
@@ -297,17 +376,39 @@ impl PrivacyModeImpl {
 
     // While two usbmmidd displays share the console desktop, DWM presents the whole desktop at
     // 5-8 fps even with nothing capturing it, so privacy mode has to leave exactly one online.
-    // Draining the surplus into `displays` makes the existing disable/restore machinery own them.
-    fn keep_single_virtual_display(&mut self) {
+    // The surplus are unplugged rather than disabled: a disabled display keeps a 0x0 mode in the
+    // registry and then vanishes from every display count, which is how the physical panel ends up
+    // unaccounted for. If this overshoots to none, `ensure_virtual_display()` plugs a new one.
+    fn plug_out_surplus_virtual_displays(&mut self) {
         if self.virtual_displays.len() <= 1 {
             return;
         }
-        let surplus: Vec<Display> = self.virtual_displays.drain(1..).collect();
         log::info!(
-            "Privacy mode: disabling {} extra virtual displays to keep a single display on the desktop",
-            surplus.len()
+            "Privacy mode: plugging out {} extra virtual displays to keep a single display on the desktop",
+            self.virtual_displays.len() - 1
         );
-        self.displays.extend(surplus);
+        let now = std::time::Instant::now();
+        while self.virtual_displays.len() > 1
+            && now.elapsed() < Duration::from_millis(VIRTUAL_DISPLAY_PLUG_OUT_WAIT_MILLIS)
+        {
+            let before = self.virtual_displays.len();
+            // index 0 + force_one asks the driver for exactly one removal, whatever its own count.
+            if let Err(e) = virtual_display_manager::plug_out_monitor(0, false, true) {
+                log::error!("Privacy mode: failed to plug out a virtual display, {}", e);
+                break;
+            }
+            let settle = std::time::Instant::now();
+            while self.virtual_displays.len() >= before
+                && settle.elapsed() < Duration::from_millis(VIRTUAL_DISPLAY_PLUG_OUT_SETTLE_MILLIS)
+            {
+                thread::sleep(Duration::from_millis(500));
+                self.set_displays();
+            }
+            if self.virtual_displays.len() >= before {
+                log::warn!("Privacy mode: the virtual display count did not drop, giving up");
+                break;
+            }
+        }
     }
 
     // NOTE: We can't detect if the other virtual displays are physical displays or not.
@@ -366,6 +467,9 @@ impl PrivacyModeImpl {
             }
             self.set_displays();
             // No physical displays, no need to use the privacy mode.
+            if self.displays.is_empty() {
+                self.recover_off_desktop_displays();
+            }
             if self.displays.is_empty() {
                 virtual_display_manager::plug_out_monitor_indices(&displays, false, false)?;
                 bail!(NO_PHYSICAL_DISPLAYS);
@@ -437,6 +541,17 @@ impl PrivacyModeImpl {
     }
 
     fn restore(&mut self) {
+        // `set_primary_display()` moves the primary flag onto a virtual display, so a second
+        // privacy mode captures that as the original state and the panel would never get the flag
+        // back. Only corrected when no physical display claims it, to leave a normal multi-display
+        // setup alone.
+        if !self.displays.iter().any(|d| d.primary)
+            && self.virtual_displays.iter().any(|d| d.primary)
+        {
+            if let Some(display) = self.displays.first_mut() {
+                display.primary = true;
+            }
+        }
         Self::restore_displays(&self.displays);
         Self::restore_displays(&self.virtual_displays);
         allow_err!(Self::commit_change_display(0));
@@ -448,10 +563,10 @@ impl PrivacyModeImpl {
         } else {
             // https://github.com/rustdesk/rustdesk/pull/12114#issuecomment-2983054370
             // No virtual displays added, we need to change the display combination to force the display settings to be reloaded.
-            // This function changes the user behavior of the virtual displays.
-            // But it makes the privacy mode more stable.
-            // No need to restore the virtual displays. It's easy to notice that the virtual displays are plugged out.
-            let _ = virtual_display_manager::plug_out_monitor(-1, true, false);
+            // Plugging every monitor out instead was how the privacy mode ended up taking away
+            // virtual displays the user made by hand, and it left one behind that no control in the
+            // UI can remove: with the physical panel disabled, "plug out" resolves to all-but-one.
+            allow_err!(Self::commit_change_display(CDS_RESET));
 
             // We can't replug the virtual dislays here.
             // TODO: plug out + plug in the virtual displays (`IDD_IMPL_AMYUNI`) in a short time makes the server side crash.
@@ -548,6 +663,11 @@ impl PrivacyMode for PrivacyModeImpl {
             return Ok(true);
         }
         self.set_displays();
+        if self.displays.is_empty() && !self.virtual_displays.is_empty() {
+            // Nothing but virtual displays on the desktop means an earlier privacy mode never
+            // brought the panel back. Without this the mode stays unenterable for good.
+            self.recover_off_desktop_displays();
+        }
         if self.displays.is_empty() {
             log::debug!("{}", NO_PHYSICAL_DISPLAYS);
             bail!(NO_PHYSICAL_DISPLAYS);
@@ -559,12 +679,12 @@ impl PrivacyMode for PrivacyModeImpl {
             succeeded: false,
         };
 
+        guard.plug_out_surplus_virtual_displays();
         guard.ensure_virtual_display(is_async_mode)?;
         if guard.virtual_displays.is_empty() {
             log::debug!("No virtual displays");
             bail!("No virtual displays.");
         }
-        guard.keep_single_virtual_display();
 
         let reg_connectivity_1 = reg_display_settings::read_reg_connectivity()?;
         let primary_display_name = guard.set_primary_display()?;
@@ -604,7 +724,11 @@ impl PrivacyMode for PrivacyModeImpl {
         state: Option<PrivacyModeState>,
     ) -> ResultType<()> {
         self.check_off_conn_id(conn_id)?;
-        super::win_input::unhook()?;
+        // A failed unhook must not skip restore() and the conn_id reset below: that left the panel
+        // disabled with the mode still occupied by a connection that no longer existed.
+        if let Err(e) = super::win_input::unhook() {
+            log::error!("Privacy mode: failed to unhook the input, {}", e);
+        }
         let _tmp_ignore_changed_holder = crate::display_service::temp_ignore_displays_changed();
         self.restore();
         // We need to force restore the registry connectivity.

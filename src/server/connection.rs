@@ -4607,16 +4607,17 @@ impl Connection {
             if !virtual_display_manager::is_virtual_display_supported() {
                 self.send(make_msg("idd_not_support_under_win10_2004_tip".to_string()))
                     .await;
+            } else if let Err(e) =
+                virtual_display_manager::plug_in_monitor(t.display as _, Vec::new())
+            {
+                log::error!("Failed to plug in virtual display: {}", e);
+                self.send(make_msg(format!(
+                    "Failed to plug in virtual display: {}",
+                    e
+                )))
+                .await;
             } else {
-                if let Err(e) = virtual_display_manager::plug_in_monitor(t.display as _, Vec::new())
-                {
-                    log::error!("Failed to plug in virtual display: {}", e);
-                    self.send(make_msg(format!(
-                        "Failed to plug in virtual display: {}",
-                        e
-                    )))
-                    .await;
-                }
+                virtual_display_manager::nudge_display_change();
             }
         } else {
             if let Err(e) = virtual_display_manager::plug_out_monitor(t.display, false, true) {
@@ -4626,6 +4627,8 @@ impl Connection {
                     e
                 )))
                 .await;
+            } else {
+                virtual_display_manager::nudge_display_change();
             }
         }
     }
