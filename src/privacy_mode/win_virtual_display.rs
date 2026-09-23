@@ -460,20 +460,66 @@ impl PrivacyModeImpl {
 
     fn restore_displays(displays: &[Display]) {
         for display in displays {
+            let flags = if display.primary {
+                CDS_NORESET | CDS_UPDATEREGISTRY | CDS_SET_PRIMARY
+            } else {
+                CDS_NORESET | CDS_UPDATEREGISTRY
+            };
+            let name = std::string::String::from_utf16_lossy(&display.name);
             unsafe {
                 let mut dm = display.dm.clone();
-                let flags = if display.primary {
-                    CDS_NORESET | CDS_UPDATEREGISTRY | CDS_SET_PRIMARY
-                } else {
-                    CDS_NORESET | CDS_UPDATEREGISTRY
-                };
-                ChangeDisplaySettingsExW(
+                let rc = ChangeDisplaySettingsExW(
                     display.name.as_ptr(),
                     &mut dm,
                     std::ptr::null_mut(),
                     flags,
                     std::ptr::null_mut(),
                 );
+                if rc == DISP_CHANGE_SUCCESSFUL {
+                    continue;
+                }
+                log::error!(
+                    "Failed to restore display settings, device name: {:?}, {}",
+                    &name,
+                    Self::change_display_settings_ex_err_msg(rc)
+                );
+
+                // The mode captured before privacy mode may no longer be acceptable to the driver.
+                // The registry mode is what Windows itself re-enables a display with, so the local
+                // screen does not stay black just because privacy mode is over.
+                #[allow(invalid_value)]
+                let mut dm: DEVMODEW = std::mem::MaybeUninit::uninit().assume_init();
+                dm.dmSize = std::mem::size_of::<DEVMODEW>() as _;
+                dm.dmDriverExtra = 0;
+                if FALSE
+                    == EnumDisplaySettingsExW(
+                        display.name.as_ptr(),
+                        ENUM_REGISTRY_SETTINGS,
+                        &mut dm,
+                        0,
+                    )
+                {
+                    log::error!(
+                        "Failed to read the registry display settings, device name: {:?}, error: {}",
+                        &name,
+                        Error::last_os_error()
+                    );
+                    continue;
+                }
+                let rc = ChangeDisplaySettingsExW(
+                    display.name.as_ptr(),
+                    &mut dm,
+                    std::ptr::null_mut(),
+                    flags,
+                    std::ptr::null_mut(),
+                );
+                if rc != DISP_CHANGE_SUCCESSFUL {
+                    log::error!(
+                        "Failed to restore display settings from the registry, device name: {:?}, {}",
+                        &name,
+                        Self::change_display_settings_ex_err_msg(rc)
+                    );
+                }
             }
         }
     }
