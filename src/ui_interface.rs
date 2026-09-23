@@ -1624,19 +1624,25 @@ async fn change_id_on_servers_(
         .collect();
     let any_failed = results.iter().any(|(_, err)| !err.is_empty());
     if any_failed {
-        let rollback_futs = results
-            .iter()
-            .filter(|(_, err)| err.is_empty())
-            .map(|(server, _)| {
-                let server = server.clone();
-                let rollback_old_id = id.clone();
-                let rollback_new_id = old_id.clone();
-                let uuid = uuid.clone();
-                async move {
-                    check_id(server, rollback_old_id, rollback_new_id, uuid).await;
+        let rollback_futs = results.into_iter().map(|(server, err)| {
+            let rollback_old_id = id.clone();
+            let rollback_new_id = old_id.clone();
+            let uuid = uuid.clone();
+            async move {
+                if !err.is_empty() {
+                    (server, err)
+                } else {
+                    let rb_err =
+                        check_id(server.clone(), rollback_old_id, rollback_new_id, uuid).await;
+                    if rb_err.is_empty() {
+                        (server, "Rolled back".to_string())
+                    } else {
+                        (server, format!("Failed to rollback: {}", rb_err))
+                    }
                 }
-            });
-        join_all(rollback_futs).await;
+            }
+        });
+        results = join_all(rollback_futs).await;
     } else if !results.is_empty() {
         #[cfg(not(any(target_os = "android", target_os = "ios")))]
         crate::ipc::set_config_async("id", id.to_owned()).await.ok();

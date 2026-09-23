@@ -198,6 +198,8 @@ class _AddressBookState extends State<AddressBook> {
             if (picked.id == 'official') {
               // The synthesized official row has no profile; empty config
               // restores the public defaults.
+              await bind.mainSetOption(
+                  key: 'active-server-profile-id', value: 'official');
               await setServerConfig(null, null, ServerConfig());
             } else {
               final profiles = await loadServerProfiles();

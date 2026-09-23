@@ -790,5 +790,7 @@ pub static ref T: std::collections::HashMap<&'static str, &'static str> =
         ("Direct connection is now available. Do you want to upgrade to direct connection now?", "檢測到當前中繼工作階段已具備直連條件，是否立即升級為直連以提升畫質與流暢度？（切換需 1~2 秒重新連線）"),
         ("Upgrade now", "立即升級"),
         ("Not now", "暫不升級"),
+        ("Rolled back", "已復原"),
+        ("Failed to rollback", "復原失敗"),
     ].iter().cloned().collect();
 }

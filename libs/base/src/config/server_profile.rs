@@ -784,6 +784,10 @@ pub fn sync_login_mirror() {
 /// Check whether the profile with the given id is currently the active server.
 /// If `id` is empty or "official", returns true when no custom rendezvous server is configured.
 pub fn is_active_profile_id(id: &str) -> bool {
+    let active_id = Config::get_option("active-server-profile-id");
+    if !active_id.is_empty() {
+        return active_id == id;
+    }
     let custom = Config::get_option("custom-rendezvous-server");
     if custom.is_empty() {
         return id.is_empty() || id == "official";

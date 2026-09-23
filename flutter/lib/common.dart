@@ -3827,6 +3827,8 @@ Future<bool> activateServerProfile(
         key: 'server-profiles',
         value: jsonEncode(profiles.map((p) => p.toStorageJson()).toList()));
   }
+  await bind.mainSetOption(
+      key: 'active-server-profile-id', value: target.id);
   final ok = await setServerConfig(
       null,
       null,

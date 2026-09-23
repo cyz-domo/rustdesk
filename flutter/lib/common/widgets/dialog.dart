@@ -285,11 +285,22 @@ void changeIdDialog() {
           if (multiServer && runDone)
             ...results.entries.map((e) {
               final ok = e.value.isEmpty;
+              final rolledBack = e.value == 'Rolled back';
+              final icon = ok
+                  ? Icons.check_circle
+                  : rolledBack
+                      ? Icons.undo
+                      : Icons.error;
+              final color = ok
+                  ? const Color(0xFF0A9471)
+                  : rolledBack
+                      ? Colors.orange
+                      : const Color(0xFFC6569D);
               return Row(
                 children: [
                   Icon(
-                    ok ? Icons.check_circle : Icons.error,
-                    color: ok ? const Color(0xFF0A9471) : const Color(0xFFC6569D),
+                    icon,
+                    color: color,
                     size: 16,
                   ),
                   const SizedBox(width: 6),

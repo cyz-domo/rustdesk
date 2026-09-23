@@ -790,5 +790,7 @@ pub static ref T: std::collections::HashMap<&'static str, &'static str> =
         ("Direct connection is now available. Do you want to upgrade to direct connection now?", ""),
         ("Upgrade now", ""),
         ("Not now", ""),
+        ("Rolled back", ""),
+        ("Failed to rollback", ""),
     ].iter().cloned().collect();
 }
