@@ -3844,6 +3844,30 @@ Future<bool> activateServerProfile(
   return ok;
 }
 
+/// Switch the active server to the profile represented by [picked].
+/// Clears the in-memory address book immediately so previous server's peers do not linger,
+/// applies the profile or official defaults, and triggers a user and address book refresh.
+Future<bool> switchActiveServer(ServerStatusItem picked) async {
+  await gFFI.abModel.reset(clearCache: false);
+  if (picked.id == 'official') {
+    await bind.mainSetOption(
+        key: 'active-server-profile-id', value: 'official');
+    final ok = await setServerConfig(null, null, ServerConfig());
+    if (ok) {
+      gFFI.userModel.refreshCurrentUser();
+    }
+    return ok;
+  } else {
+    final profiles = await loadServerProfiles();
+    for (final p in profiles) {
+      if (p.host.trim().toLowerCase() == picked.host.trim().toLowerCase()) {
+        return await activateServerProfile(profiles, p);
+      }
+    }
+    return false;
+  }
+}
+
 ColorFilter? svgColor(Color? color) {
   if (color == null) {
     return null;

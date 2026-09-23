@@ -60,6 +60,7 @@ class UserModel {
       userName.value = '';
       displayName.value = '';
       avatar.value = '';
+      await gFFI.abModel.reset(clearCache: false);
       await updateOtherModels();
       return;
     }
@@ -163,6 +164,7 @@ class UserModel {
 
   // update ab and group status
   static Future<void> updateOtherModels() async {
+    await gFFI.abModel.loadCache();
     await Future.wait([
       gFFI.abModel.pullAb(force: ForcePullAb.listAndCurrent, quiet: false),
       gFFI.groupModel.pull()

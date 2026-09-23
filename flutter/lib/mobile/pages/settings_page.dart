@@ -737,9 +737,12 @@ class _SettingsState extends State<SettingsPage> with WidgetsBindingObserver {
                       ) ??
                       Icon(Icons.person);
                 }),
-                onPressed: (context) {
+                onPressed: (context) async {
                   if (gFFI.userModel.userName.value.isEmpty) {
-                    loginDialog();
+                    final res = await loginDialog();
+                    if (res == true) {
+                      gFFI.userModel.refreshCurrentUser();
+                    }
                   } else {
                     logOutConfirmDialog();
                   }

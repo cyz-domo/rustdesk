@@ -781,6 +781,7 @@ Future<bool?> _openLoginDialog() async {
                   accessToken: resp.access_token!,
                   userInfo: jsonEncode(resp.user ?? {}));
             }
+            gFFI.userModel.refreshCurrentUser();
             if (close != null) {
               close(true);
             }
@@ -811,7 +812,7 @@ Future<bool?> _openLoginDialog() async {
               final res = await verificationCodeDialog(
                   resp.user, resp.secret, isEmailVerification);
               if (res == true) {
-                if (!isWeb && close != null) close(false);
+                if (!isWeb && close != null) close(true);
                 return;
               }
             }
@@ -1031,6 +1032,7 @@ Future<bool?> verificationCodeDialog(
                   api: await bind.mainGetApiServer(),
                   accessToken: resp.access_token!,
                   userInfo: jsonEncode(resp.user ?? {}));
+              gFFI.userModel.refreshCurrentUser();
               close(true);
               return;
             }

@@ -36,18 +36,45 @@ class AddressBook extends StatefulWidget {
 
 class _AddressBookState extends State<AddressBook> {
   var menuPos = RelativeRect.fill;
+  String? _optimisticHost;
+  bool _isSwitchingServer = false;
+
+  Future<void> _switchServer(ServerStatusItem picked) async {
+    try {
+      await switchActiveServer(picked);
+    } catch (e) {
+      debugPrint("Failed to switch server in address book: $e");
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSwitchingServer = false;
+          _optimisticHost = null;
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) => Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildServerDropdown(),
+          if (_isSwitchingServer)
+            const SizedBox(
+              height: 2,
+              child: LinearProgressIndicator(),
+            ).marginOnly(left: 8, right: 8, bottom: 4),
           Expanded(
             child: Obx(() {
               if (!gFFI.userModel.isLogin) {
                 return Center(
                     child: ElevatedButton(
-                        onPressed: loginDialog,
+                        onPressed: () async {
+                          final res = await loginDialog();
+                          if (res == true) {
+                            gFFI.userModel.refreshCurrentUser();
+                          }
+                        },
                         child: Text(translate("Login"))));
               } else if (gFFI.userModel.networkError.isNotEmpty) {
                 return netWorkErrorWidget();
@@ -157,11 +184,23 @@ class _AddressBookState extends State<AddressBook> {
         );
       }
 
+      final activeHost = _optimisticHost ?? current?.host;
+      ServerStatusItem? activeItem;
+      if (activeHost != null) {
+        for (final s in entries) {
+          if (s.host == activeHost) {
+            activeItem = s;
+            break;
+          }
+        }
+      }
+      activeItem ??= current;
+
       final items = entries
           .map((e) => DropdownMenuItem(value: e.host, child: buildItem(e)))
           .toList();
-      final buttonChild = current != null
-          ? buildItem(current, button: true)
+      final buttonChild = activeItem != null
+          ? buildItem(activeItem, button: true)
           : Row(
               children: [
                 Expanded(
@@ -180,40 +219,29 @@ class _AddressBookState extends State<AddressBook> {
       return Container(
         width: 200,
         child: DropdownButton2<String>(
-          value: current?.host,
-          onChanged: (value) async {
-            if (value == null) {
-              return;
-            }
-            ServerStatusItem? picked;
-            for (final s in entries) {
-              if (s.host == value) {
-                picked = s;
-                break;
-              }
-            }
-            if (picked == null) {
-              return;
-            }
-            if (picked.id == 'official') {
-              // The synthesized official row has no profile; empty config
-              // restores the public defaults.
-              await bind.mainSetOption(
-                  key: 'active-server-profile-id', value: 'official');
-              await setServerConfig(null, null, ServerConfig());
-            } else {
-              final profiles = await loadServerProfiles();
-              for (final p in profiles) {
-                if (p.host.trim().toLowerCase() == value.toLowerCase()) {
-                  await activateServerProfile(profiles, p);
-                  break;
-                }
-              }
-            }
-            if (mounted) {
-              setState(() {});
-            }
-          },
+          value: activeHost,
+          onChanged: _isSwitchingServer
+              ? null
+              : (value) {
+                  if (value == null || value == current?.host) {
+                    return;
+                  }
+                  ServerStatusItem? picked;
+                  for (final s in entries) {
+                    if (s.host == value) {
+                      picked = s;
+                      break;
+                    }
+                  }
+                  if (picked == null) {
+                    return;
+                  }
+                  setState(() {
+                    _optimisticHost = picked!.host;
+                    _isSwitchingServer = true;
+                  });
+                  _switchServer(picked);
+                },
           customButton: Container(
             height: 40,
             child: Row(children: [

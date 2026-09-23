@@ -95,14 +95,17 @@ class AbModel {
     }
   }
 
-  reset() async {
+  reset({bool clearCache = true}) async {
     print("reset ab model");
     addressbooks.clear();
     _currentName.value = '';
     _listPullError.value = '';
     _pulledOnce = false;
-    await bind.mainClearAb();
+    if (clearCache) {
+      await bind.mainClearAb();
+    }
     listInitialized = false;
+    _cacheLoadOnceFlag = false;
   }
 
   void clearPullErrors() {
@@ -658,7 +661,7 @@ class AbModel {
 
   _deserializeCache(dynamic data) {
     if (data == null) return;
-    reset();
+    reset(clearCache: false);
     final abEntries = data['ab_entries'];
     if (abEntries is List) {
       for (var i = 0; i < abEntries.length; i++) {

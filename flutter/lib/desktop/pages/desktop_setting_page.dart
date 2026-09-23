@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:dropdown_button2/dropdown_button2.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -2216,27 +2217,257 @@ class _Account extends StatefulWidget {
 }
 
 class _AccountState extends State<_Account> {
+  String? _optimisticHost;
+  bool _isSwitchingServer = false;
+
+  Future<void> _switchServer(ServerStatusItem picked) async {
+    try {
+      await switchActiveServer(picked);
+    } catch (e) {
+      debugPrint("Failed to switch server in account setting: $e");
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSwitchingServer = false;
+          _optimisticHost = null;
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final scrollController = ScrollController();
     return ListView(
       controller: scrollController,
       children: [
-        _Card(title: 'Account', children: [accountAction(), useInfo()]),
+        _Card(title: 'Account', children: [
+          _buildServerSelector(),
+          if (_isSwitchingServer)
+            const SizedBox(
+              height: 2,
+              child: LinearProgressIndicator(),
+            ).marginOnly(left: _kContentHMargin, right: _kContentHMargin, bottom: 4),
+          accountAction(),
+          useInfo(),
+        ]),
       ],
     ).marginOnly(bottom: _kListViewBottomMargin);
   }
 
+  Widget _buildServerSelector() {
+    return Obx(() {
+      final isLogin = gFFI.userModel.isLogin;
+      final entries = stateGlobal.serverStatuses
+          .where((s) => s.host.trim().isNotEmpty)
+          .toList();
+      if (entries.isEmpty) {
+        return const SizedBox.shrink();
+      }
+
+      final cur = bind
+          .mainGetOptionSync(key: 'custom-rendezvous-server')
+          .trim()
+          .toLowerCase();
+      ServerStatusItem? current;
+      for (final s in entries) {
+        if (s.host.trim().toLowerCase() == cur) {
+          current = s;
+          break;
+        }
+      }
+      if (current == null && cur.isEmpty) {
+        for (final s in entries) {
+          if (s.id == 'official') {
+            current = s;
+            break;
+          }
+        }
+      }
+
+      final activeHost = _optimisticHost ?? current?.host;
+      ServerStatusItem? activeItem;
+      if (activeHost != null) {
+        for (final s in entries) {
+          if (s.host == activeHost) {
+            activeItem = s;
+            break;
+          }
+        }
+      }
+      activeItem ??= current;
+
+      Widget statusDot(ServerStatusItem s) {
+        final color =
+            s.online ? Colors.green : (s.enabled ? Colors.red : Colors.grey);
+        return Container(
+          width: 8,
+          height: 8,
+          margin: const EdgeInsets.only(right: 6),
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        );
+      }
+
+      String statusText(ServerStatusItem s) => s.online
+          ? '${translate("Online")} (${s.latencyMs}ms)'
+          : s.enabled
+              ? translate("Offline")
+              : translate("Disabled");
+
+      Widget buildItem(ServerStatusItem s, {bool button = false}) {
+        final loggedIn = button ? isLogin : s.loggedIn;
+        return Row(
+          children: [
+            statusDot(s),
+            Expanded(
+              child: Tooltip(
+                waitDuration: const Duration(milliseconds: 500),
+                message: statusText(s),
+                child: Text(
+                  s.name.isNotEmpty ? s.name : s.host,
+                  style: button ? null : const TextStyle(fontSize: 14.0),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: button ? TextAlign.start : null,
+                ),
+              ),
+            ),
+            if (loggedIn)
+              const Icon(Icons.person, size: 14.0)
+                  .marginOnly(right: button ? 0 : 4),
+          ],
+        );
+      }
+
+      final items = entries
+          .map((e) => DropdownMenuItem(value: e.host, child: buildItem(e)))
+          .toList();
+
+      final buttonChild = activeItem != null
+          ? buildItem(activeItem, button: true)
+          : Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    bind.mainGetOptionSync(
+                        key: 'custom-rendezvous-server'),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                if (isLogin) const Icon(Icons.person, size: 14.0),
+              ],
+            );
+
+      return Row(
+        children: [
+          Container(
+            width: 100,
+            child: Text(
+              '${translate("Server")}:',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+          Container(
+            width: 260,
+            decoration: BoxDecoration(
+              border: Border.all(
+                  color: Theme.of(context).dividerColor.withOpacity(0.3)),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: DropdownButton2<String>(
+              value: activeHost,
+              onChanged: _isSwitchingServer
+                  ? null
+                  : (value) {
+                      if (value == null || value == current?.host) {
+                        return;
+                      }
+                      ServerStatusItem? picked;
+                      for (final s in entries) {
+                        if (s.host == value) {
+                          picked = s;
+                          break;
+                        }
+                      }
+                      if (picked == null) {
+                        return;
+                      }
+                      setState(() {
+                        _optimisticHost = picked!.host;
+                        _isSwitchingServer = true;
+                      });
+                      _switchServer(picked);
+                    },
+              customButton: Container(
+                height: 36,
+                child: Row(children: [
+                  Expanded(child: buttonChild),
+                  const Icon(Icons.arrow_drop_down),
+                ]),
+              ),
+              underline: const SizedBox.shrink(),
+              menuItemStyleData: const MenuItemStyleData(height: 36),
+              items: items,
+              isExpanded: true,
+              isDense: true,
+            ),
+          ),
+        ],
+      ).marginOnly(left: _kContentHMargin, top: 4, bottom: 8);
+    });
+  }
+
   Widget accountAction() {
-    return Obx(() => _Button(
-        gFFI.userModel.userName.value.isEmpty
-            ? 'Login'
-            : '${translate('Logout')} (${gFFI.userModel.accountLabelWithHandle})',
-        () => {
-              gFFI.userModel.userName.value.isEmpty
-                  ? loginDialog()
-                  : logOutConfirmDialog()
-            }));
+    return Obx(() {
+      final entries = stateGlobal.serverStatuses
+          .where((s) => s.host.trim().isNotEmpty)
+          .toList();
+      final cur = bind
+          .mainGetOptionSync(key: 'custom-rendezvous-server')
+          .trim()
+          .toLowerCase();
+      ServerStatusItem? current;
+      for (final s in entries) {
+        if (s.host.trim().toLowerCase() == cur) {
+          current = s;
+          break;
+        }
+      }
+      if (current == null && cur.isEmpty) {
+        for (final s in entries) {
+          if (s.id == 'official') {
+            current = s;
+            break;
+          }
+        }
+      }
+      final targetName = current != null
+          ? (current.name.isNotEmpty ? current.name : current.host)
+          : translate("Server");
+
+      final bool isLogged = gFFI.userModel.userName.value.isNotEmpty;
+      final String label = isLogged
+          ? '${translate('Logout')} (${gFFI.userModel.accountLabelWithHandle})'
+          : '${translate('Login')} - $targetName';
+
+      return _Button(
+        label,
+        () async {
+          if (_isSwitchingServer) return;
+          if (!isLogged) {
+            final res = await loginDialog();
+            if (res == true) {
+              gFFI.userModel.refreshCurrentUser();
+            }
+          } else {
+            logOutConfirmDialog();
+          }
+        },
+        enabled: !_isSwitchingServer,
+      );
+    });
   }
 
   Widget useInfo() {
