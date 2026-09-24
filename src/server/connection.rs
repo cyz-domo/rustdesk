@@ -4616,8 +4616,6 @@ impl Connection {
                     e
                 )))
                 .await;
-            } else {
-                virtual_display_manager::nudge_display_change();
             }
         } else {
             if let Err(e) = virtual_display_manager::plug_out_monitor(t.display, false, true) {
@@ -4627,8 +4625,6 @@ impl Connection {
                     e
                 )))
                 .await;
-            } else {
-                virtual_display_manager::nudge_display_change();
             }
         }
     }

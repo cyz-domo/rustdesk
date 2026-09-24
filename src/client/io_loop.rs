@@ -103,7 +103,6 @@ struct ParsedPeerInfo {
     platform: String,
     is_installed: bool,
     idd_impl: String,
-    amyuni_virtual_display_count: usize,
     support_view_camera: bool,
     support_terminal: bool,
 }
@@ -1222,17 +1221,16 @@ impl<T: InvokeUiSession> Remote<T> {
             // the surplus back and bring the stuttering multi-display desktop with it.
             return;
         }
-        let mut sends = indices;
         if self.peer_info.idd_impl == "amyuni_idd" {
             // The amyuni IOCTL plugs one display in and ignores the index, so the stored option is a
-            // log of past "+" clicks, not a display count. Replaying it whole added displays on every
-            // reconnect; the peer reports how many it already has, so only the missing ones are sent.
-            let deficit = sends
-                .len()
-                .saturating_sub(self.peer_info.amyuni_virtual_display_count);
-            sends = vec![0; deficit];
+            // log of past "+" clicks, not a display count, and the driver's monitors do not survive
+            // the session the way the option does. The peer's own count only lists displays Windows
+            // has already taken online, which lags a plug-in by seconds, so any arithmetic between
+            // the two is wrong: a ledger of past clicks against a lagging zero re-added four
+            // displays in one burst. Replay nothing; press "+" again after reconnecting.
+            return;
         }
-        for index in sends {
+        for index in indices {
             let mut misc = Misc::new();
             misc.set_toggle_virtual_display(ToggleVirtualDisplay {
                 display: index,
@@ -2270,12 +2268,6 @@ impl<T: InvokeUiSession> Remote<T> {
                 .map(|v| v.as_bool())
                 .flatten()
                 .unwrap_or(false);
-            // Absent means zero: the peer only reports the key when there is one to report.
-            self.peer_info.amyuni_virtual_display_count = platform_additions
-                .get("amyuni_virtual_displays")
-                .map(|v| v.as_u64())
-                .flatten()
-                .unwrap_or(0) as usize;
         }
     }
 

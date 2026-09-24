@@ -169,6 +169,51 @@ impl PrivacyModeImpl {
         }
     }
 
+    // An empty `virtual_displays` says nothing about *why*: the driver may have created no monitor,
+    // or created one Windows never brought onto the desktop, or the adapter may be gone entirely.
+    // Those need different fixes, and the second one is invisible at adapter level -- a pending
+    // monitor only shows up when the adapter's own targets are enumerated. Log-only.
+    fn log_virtual_display_targets() {
+        let mut i: DWORD = 0;
+        loop {
+            #[allow(invalid_value)]
+            let mut dd: DISPLAY_DEVICEW = unsafe { std::mem::MaybeUninit::uninit().assume_init() };
+            dd.cb = std::mem::size_of::<DISPLAY_DEVICEW>() as _;
+            if FALSE == unsafe { EnumDisplayDevicesW(std::ptr::null(), i, &mut dd as _, 0) } {
+                break;
+            }
+            i += 1;
+            if !Self::is_virtual_display_device(&dd) {
+                continue;
+            }
+            let adapter = std::string::String::from_utf16_lossy(&dd.DeviceName);
+            log::info!(
+                "Privacy mode: virtual display adapter {:?} state flags 0x{:x}",
+                &adapter,
+                dd.StateFlags
+            );
+            let mut j: DWORD = 0;
+            loop {
+                #[allow(invalid_value)]
+                let mut target: DISPLAY_DEVICEW =
+                    unsafe { std::mem::MaybeUninit::uninit().assume_init() };
+                target.cb = std::mem::size_of::<DISPLAY_DEVICEW>() as _;
+                if FALSE == unsafe {
+                    EnumDisplayDevicesW(dd.DeviceName.as_ptr(), j, &mut target as _, 0)
+                } {
+                    break;
+                }
+                j += 1;
+                log::info!(
+                    "Privacy mode:   target {:?} {:?} state flags 0x{:x}",
+                    std::string::String::from_utf16_lossy(&target.DeviceName),
+                    std::string::String::from_utf16_lossy(&target.DeviceString),
+                    target.StateFlags
+                );
+            }
+        }
+    }
+
     // A panel left at 0x0 by an earlier privacy mode is off the desktop, so `set_displays()` sees
     // no physical display at all and the mode can never be entered again. Re-enabling from the
     // registry mode is what Windows itself does on the next logon. Callers must gate this on the
@@ -231,7 +276,9 @@ impl PrivacyModeImpl {
         }
 
         if recovered > 0 {
-            allow_err!(Self::commit_change_display(CDS_RESET));
+            // Flush the queue built above. `CDS_RESET` would ignore it and re-apply every display's
+            // persisted registry mode instead, which is a different (and staler) configuration.
+            allow_err!(Self::commit_change_display(0));
             self.set_displays();
         }
     }
@@ -566,7 +613,11 @@ impl PrivacyModeImpl {
             // Plugging every monitor out instead was how the privacy mode ended up taking away
             // virtual displays the user made by hand, and it left one behind that no control in the
             // UI can remove: with the physical panel disabled, "plug out" resolves to all-but-one.
-            allow_err!(Self::commit_change_display(CDS_RESET));
+            //
+            // Nothing is committed here: `restore_displays()` above queued the real modes and
+            // `commit_change_display(0)` applied them. `CDS_RESET` would throw that away and put
+            // every display back at its persisted registry mode, which is still the 0x0 one privacy
+            // mode wrote when it disabled the panel -- the panel then blacks just as we exit.
 
             // We can't replug the virtual dislays here.
             // TODO: plug out + plug in the virtual displays (`IDD_IMPL_AMYUNI`) in a short time makes the server side crash.
@@ -682,6 +733,7 @@ impl PrivacyMode for PrivacyModeImpl {
         guard.plug_out_surplus_virtual_displays();
         guard.ensure_virtual_display(is_async_mode)?;
         if guard.virtual_displays.is_empty() {
+            Self::log_virtual_display_targets();
             log::debug!("No virtual displays");
             bail!("No virtual displays.");
         }
