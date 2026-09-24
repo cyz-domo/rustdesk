@@ -36,7 +36,7 @@ class AddressBook extends StatefulWidget {
 
 class _AddressBookState extends State<AddressBook> {
   var menuPos = RelativeRect.fill;
-  String? _optimisticHost;
+  String? _optimisticId;
   bool _isSwitchingServer = false;
 
   Future<void> _switchServer(ServerStatusItem picked) async {
@@ -48,7 +48,7 @@ class _AddressBookState extends State<AddressBook> {
       if (mounted) {
         setState(() {
           _isSwitchingServer = false;
-          _optimisticHost = null;
+          _optimisticId = null;
         });
       }
     }
@@ -120,14 +120,27 @@ class _AddressBookState extends State<AddressBook> {
       if (entries.length <= 1) {
         return Offstage();
       }
+      final activeProfileId = bind
+          .mainGetOptionSync(key: 'active-server-profile-id')
+          .trim();
       final cur = bind.mainGetOptionSync(key: 'custom-rendezvous-server')
           .trim()
           .toLowerCase();
       ServerStatusItem? current;
-      for (final s in entries) {
-        if (s.host.trim().toLowerCase() == cur) {
-          current = s;
-          break;
+      if (activeProfileId.isNotEmpty) {
+        for (final s in entries) {
+          if (s.id == activeProfileId) {
+            current = s;
+            break;
+          }
+        }
+      }
+      if (current == null && cur.isNotEmpty) {
+        for (final s in entries) {
+          if (s.host.trim().toLowerCase() == cur) {
+            current = s;
+            break;
+          }
         }
       }
       // An empty custom-rendezvous-server means the official default is active.
@@ -184,11 +197,11 @@ class _AddressBookState extends State<AddressBook> {
         );
       }
 
-      final activeHost = _optimisticHost ?? current?.host;
+      final activeId = _optimisticId ?? current?.id;
       ServerStatusItem? activeItem;
-      if (activeHost != null) {
+      if (activeId != null) {
         for (final s in entries) {
-          if (s.host == activeHost) {
+          if (s.id == activeId) {
             activeItem = s;
             break;
           }
@@ -197,7 +210,7 @@ class _AddressBookState extends State<AddressBook> {
       activeItem ??= current;
 
       final items = entries
-          .map((e) => DropdownMenuItem(value: e.host, child: buildItem(e)))
+          .map((e) => DropdownMenuItem(value: e.id, child: buildItem(e)))
           .toList();
       final buttonChild = activeItem != null
           ? buildItem(activeItem, button: true)
@@ -219,16 +232,16 @@ class _AddressBookState extends State<AddressBook> {
       return Container(
         width: 200,
         child: DropdownButton2<String>(
-          value: activeHost,
+          value: activeItem?.id,
           onChanged: _isSwitchingServer
               ? null
               : (value) {
-                  if (value == null || value == current?.host) {
+                  if (value == null || value == current?.id) {
                     return;
                   }
                   ServerStatusItem? picked;
                   for (final s in entries) {
-                    if (s.host == value) {
+                    if (s.id == value) {
                       picked = s;
                       break;
                     }
@@ -237,7 +250,7 @@ class _AddressBookState extends State<AddressBook> {
                     return;
                   }
                   setState(() {
-                    _optimisticHost = picked!.host;
+                    _optimisticId = picked!.id;
                     _isSwitchingServer = true;
                   });
                   _switchServer(picked);

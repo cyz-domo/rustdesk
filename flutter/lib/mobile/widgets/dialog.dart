@@ -154,10 +154,6 @@ void showServerSettingsWithOptions(
   }
 
   int selectedIndex = 0;
-  // Which profile becomes `custom-rendezvous-server` on submit. Seeded with the entry list order
-  // would have picked, so nothing changes until the user marks another one as current.
-  int primaryIndex =
-      profiles.indexWhere((p) => p.enabled && p.host.isNotEmpty);
   final tabScrollController = ScrollController();
 
   // Upstream prefills the dialog from a scanned/shared config; reading the fields off
@@ -219,21 +215,47 @@ void showServerSettingsWithOptions(
           jsonEncode(profiles.map((p) => p.toStorageJson()).toList());
       await bind.mainSetOption(key: 'server-profiles', value: profilesJson);
 
-      // Save primary active profile to traditional options for backward compatibility
-      final primary = (primaryIndex >= 0 &&
-              primaryIndex < profiles.length &&
-              profiles[primaryIndex].host.trim().isNotEmpty)
-          ? profiles[primaryIndex]
-          : profiles.firstWhereOrNull((p) => p.enabled && p.host.isNotEmpty);
+      // Preserve active profile or update its settings if edited
+      final activeProfileId =
+          bind.mainGetOptionSync(key: 'active-server-profile-id');
+      final activeRendezvous =
+          bind.mainGetOptionSync(key: 'custom-rendezvous-server');
+
+      ServerProfileItem? activeProfile;
+      if (activeProfileId.isNotEmpty && activeProfileId != 'official') {
+        activeProfile =
+            profiles.firstWhereOrNull((p) => p.id == activeProfileId);
+      }
+      if (activeProfile == null && activeRendezvous.isNotEmpty) {
+        activeProfile = profiles.firstWhereOrNull((p) =>
+            p.host.trim().toLowerCase() ==
+            activeRendezvous.trim().toLowerCase());
+      }
+      if (activeProfileId == 'official' ||
+          (activeProfile == null && activeRendezvous.isEmpty)) {
+        bool ret = await setServerConfig(null, errMsgs, ServerConfig());
+        setState(() {
+          isInProgress = false;
+        });
+        return ret;
+      }
+
+      activeProfile ??=
+          profiles.firstWhereOrNull((p) => p.enabled && p.host.isNotEmpty);
+
+      if (activeProfile != null) {
+        await bind.mainSetOption(
+            key: 'active-server-profile-id', value: activeProfile.id);
+      }
 
       bool ret = await setServerConfig(
           null,
           errMsgs,
           ServerConfig(
-              idServer: primary?.host ?? '',
-              relayServer: primary?.relay ?? '',
-              apiServer: primary?.api ?? '',
-              key: primary?.key ?? ''));
+              idServer: activeProfile?.host ?? '',
+              relayServer: activeProfile?.relay ?? '',
+              apiServer: activeProfile?.api ?? '',
+              key: activeProfile?.key ?? ''));
 
       setState(() {
         isInProgress = false;
@@ -444,10 +466,7 @@ void showServerSettingsWithOptions(
                                                       .isNotEmpty
                                                   ? profiles[i].name
                                                   : 'Server ${i + 1}';
-                                              // Not a colour emoji: ★ renders on Windows too.
-                                              final title = i == primaryIndex
-                                                  ? '★ $label'
-                                                  : label;
+                                              final title = label;
                                               return Row(
                                                 mainAxisSize: MainAxisSize.min,
                                                 children: [
@@ -514,21 +533,12 @@ void showServerSettingsWithOptions(
                                               InkWell(
                                                 onTap: () {
                                                   setState(() {
-                                                    final wasPrimary =
-                                                        primaryIndex == i;
                                                     profiles.removeAt(i);
                                                     if (selectedIndex >=
                                                         profiles.length) {
                                                       selectedIndex =
                                                           profiles.length - 1;
                                                     }
-                                                    primaryIndex = wasPrimary
-                                                        ? profiles.indexWhere((p) =>
-                                                            p.enabled &&
-                                                            p.host.isNotEmpty)
-                                                        : (primaryIndex > i
-                                                            ? primaryIndex - 1
-                                                            : primaryIndex);
                                                     loadControllersFromProfile(
                                                         selectedIndex);
                                                   });
@@ -566,25 +576,6 @@ void showServerSettingsWithOptions(
                               child: Icon(Icons.chevron_right, size: 20, color: Colors.grey),
                             ),
                           ),
-                        // Which profile becomes the app's current server; the tab of the chosen
-                        // one carries the star.
-                        IconButton(
-                          icon: Icon(Icons.push_pin,
-                              size: 22,
-                              color: primaryIndex == selectedIndex
-                                  ? Theme.of(context).colorScheme.primary
-                                  : Colors.grey),
-                          tooltip: translate('Set as current server'),
-                          padding: const EdgeInsets.all(4),
-                          constraints: const BoxConstraints(),
-                          onPressed: () {
-                            setState(() {
-                              syncCurrentProfileFromControllers();
-                              profiles[selectedIndex].enabled = true;
-                              primaryIndex = selectedIndex;
-                            });
-                          },
-                        ),
                         // Fixed Add Button
                         IconButton(
                           icon: Icon(Icons.add_circle,

@@ -3068,6 +3068,13 @@ class ServerProfileItem {
       } catch (_) {}
     }
 
+    if (json is List) {
+      return json
+          .whereType<Map>()
+          .map((e) => ServerProfileItem.fromJson(Map<String, dynamic>.from(e)))
+          .toList();
+    }
+
     if (json is Map) {
       if (json.containsKey('profiles') && json['profiles'] is List) {
         final list = json['profiles'] as List;
@@ -3860,7 +3867,9 @@ Future<bool> switchActiveServer(ServerStatusItem picked) async {
   } else {
     final profiles = await loadServerProfiles();
     for (final p in profiles) {
-      if (p.host.trim().toLowerCase() == picked.host.trim().toLowerCase()) {
+      if (p.id == picked.id ||
+          (p.host.trim().isNotEmpty &&
+              p.host.trim().toLowerCase() == picked.host.trim().toLowerCase())) {
         return await activateServerProfile(profiles, p);
       }
     }

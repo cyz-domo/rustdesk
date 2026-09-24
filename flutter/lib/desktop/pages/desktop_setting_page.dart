@@ -2217,7 +2217,7 @@ class _Account extends StatefulWidget {
 }
 
 class _AccountState extends State<_Account> {
-  String? _optimisticHost;
+  String? _optimisticId;
   bool _isSwitchingServer = false;
 
   Future<void> _switchServer(ServerStatusItem picked) async {
@@ -2229,7 +2229,7 @@ class _AccountState extends State<_Account> {
       if (mounted) {
         setState(() {
           _isSwitchingServer = false;
-          _optimisticHost = null;
+          _optimisticId = null;
         });
       }
     }
@@ -2265,15 +2265,28 @@ class _AccountState extends State<_Account> {
         return const SizedBox.shrink();
       }
 
+      final activeProfileId = bind
+          .mainGetOptionSync(key: 'active-server-profile-id')
+          .trim();
       final cur = bind
           .mainGetOptionSync(key: 'custom-rendezvous-server')
           .trim()
           .toLowerCase();
       ServerStatusItem? current;
-      for (final s in entries) {
-        if (s.host.trim().toLowerCase() == cur) {
-          current = s;
-          break;
+      if (activeProfileId.isNotEmpty) {
+        for (final s in entries) {
+          if (s.id == activeProfileId) {
+            current = s;
+            break;
+          }
+        }
+      }
+      if (current == null && cur.isNotEmpty) {
+        for (final s in entries) {
+          if (s.host.trim().toLowerCase() == cur) {
+            current = s;
+            break;
+          }
         }
       }
       if (current == null && cur.isEmpty) {
@@ -2285,11 +2298,11 @@ class _AccountState extends State<_Account> {
         }
       }
 
-      final activeHost = _optimisticHost ?? current?.host;
+      final activeId = _optimisticId ?? current?.id;
       ServerStatusItem? activeItem;
-      if (activeHost != null) {
+      if (activeId != null) {
         for (final s in entries) {
-          if (s.host == activeHost) {
+          if (s.id == activeId) {
             activeItem = s;
             break;
           }
@@ -2340,7 +2353,7 @@ class _AccountState extends State<_Account> {
       }
 
       final items = entries
-          .map((e) => DropdownMenuItem(value: e.host, child: buildItem(e)))
+          .map((e) => DropdownMenuItem(value: e.id, child: buildItem(e)))
           .toList();
 
       final buttonChild = activeItem != null
@@ -2377,16 +2390,16 @@ class _AccountState extends State<_Account> {
             ),
             padding: const EdgeInsets.symmetric(horizontal: 8),
             child: DropdownButton2<String>(
-              value: activeHost,
+              value: activeItem?.id,
               onChanged: _isSwitchingServer
                   ? null
                   : (value) {
-                      if (value == null || value == current?.host) {
+                      if (value == null || value == current?.id) {
                         return;
                       }
                       ServerStatusItem? picked;
                       for (final s in entries) {
-                        if (s.host == value) {
+                        if (s.id == value) {
                           picked = s;
                           break;
                         }
@@ -2395,7 +2408,7 @@ class _AccountState extends State<_Account> {
                         return;
                       }
                       setState(() {
-                        _optimisticHost = picked!.host;
+                        _optimisticId = picked!.id;
                         _isSwitchingServer = true;
                       });
                       _switchServer(picked);
