@@ -1682,12 +1682,15 @@ async fn check_id(
     .await
     {
         let mut msg_out = Message::new();
+        let pk = Config::get_key_pair().1;
         msg_out.set_register_pk(RegisterPk {
-            old_id,
-            id,
+            old_id: old_id.clone(),
+            id: id.clone(),
             uuid,
+            pk: pk.into(),
             ..Default::default()
         });
+        log::info!("check_id sending RegisterPk to {rendezvous_server} (target: {target}), old_id: {old_id}, new_id: {id}");
         let mut ok = false;
         if socket.send(&msg_out).await.is_ok() {
             if let Some(msg_in) =
@@ -1695,6 +1698,7 @@ async fn check_id(
             {
                 match msg_in.union {
                     Some(rendezvous_message::Union::RegisterPkResponse(rpr)) => {
+                        log::info!("check_id response from {rendezvous_server}: {:?}", rpr.result.enum_value());
                         match rpr.result.enum_value() {
                             Ok(register_pk_response::Result::OK) => {
                                 ok = true;
