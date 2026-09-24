@@ -216,6 +216,12 @@ fn get_supported_impl(impl_key: &str) -> String {
 // one on the same lock, which is what made the control look dead.
 static TURN_ON_PRIVACY_IN_FLIGHT: AtomicBool = AtomicBool::new(false);
 
+/// True while a privacy mode turn-on is running, including the time it spends plugging in a
+/// virtual display. Callers that would fight that sequence must stay out of it.
+pub fn is_turning_on_privacy() -> bool {
+    TURN_ON_PRIVACY_IN_FLIGHT.load(Ordering::SeqCst)
+}
+
 pub async fn turn_on_privacy(impl_key: &str, conn_id: i32) -> Option<ResultType<bool>> {
     // Checked before PRIVACY_MODE, which the worker below holds for as long as it runs: locking it
     // here first would block this task instead of refusing the request.

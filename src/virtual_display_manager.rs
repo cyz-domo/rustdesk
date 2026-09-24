@@ -637,6 +637,8 @@ pub mod amyuni_idd {
         let timeout = Duration::from_secs(3);
         let now = Instant::now();
         let reg_connectivity_old = reg_display_settings::read_reg_connectivity();
+        let monitor_count_before = get_monitor_count();
+        let primary_before = windows::get_primary_device();
         loop {
             match plug_monitor_(add, wait_timeout) {
                 Ok(_) => {
@@ -656,6 +658,9 @@ pub mod amyuni_idd {
                     return Err(e.into());
                 }
             }
+        }
+        if add {
+            ensure_plugged_display(monitor_count_before, primary_before);
         }
         // Workaround for the issue that we can't set the default the resolution.
         if let Ok(old_connectivity_old) = reg_connectivity_old {
@@ -685,6 +690,127 @@ pub mod amyuni_idd {
                 }
             }
         }
+    }
+
+    // After the IO control the driver has created a monitor, but it's up to Windows to decide when
+    // it goes online and on which adapter.
+    const MONITOR_ON_DESKTOP_TIMEOUT: Duration = Duration::from_millis(3_000);
+
+    fn wait_monitor_on_desktop(count_before: usize, timeout: Duration) -> bool {
+        let now = Instant::now();
+        loop {
+            if get_monitor_count() != count_before {
+                return true;
+            }
+            if now.elapsed() >= timeout {
+                return false;
+            }
+            std::thread::sleep(Duration::from_millis(100));
+        }
+    }
+
+    fn ensure_plugged_display(count_before: usize, primary_before: Option<(String, String)>) {
+        if !wait_monitor_on_desktop(count_before, MONITOR_ON_DESKTOP_TIMEOUT) {
+            rearbitrate_display_topology();
+            wait_monitor_on_desktop(count_before, MONITOR_ON_DESKTOP_TIMEOUT);
+        }
+        restore_primary_display_if_stolen(primary_before);
+    }
+
+    /// Windows can bind the new monitor to another adapter's source, where it stays a clone of an
+    /// existing display instead of becoming one of its own: every lookup by device string then
+    /// keeps reporting that nothing is plugged in. Committing the database's extend topology makes
+    /// Windows re-arbitrate all paths, which puts the monitor on the virtual adapter and keeps the
+    /// primary display where it was. Only called when the plug looked like a no-op.
+    fn rearbitrate_display_topology() {
+        use ::windows::Win32::Devices::Display::{SetDisplayConfig, SDC_APPLY, SDC_TOPOLOGY_EXTEND};
+        let res = unsafe { SetDisplayConfig(None, None, SDC_APPLY | SDC_TOPOLOGY_EXTEND) };
+        log::info!(
+            "The virtual display did not reach the desktop, rearbitrated the display topology: {}",
+            res
+        );
+    }
+
+    fn is_amyuni_device_string(device_string: &str) -> bool {
+        device_string.starts_with(super::AMYUNI_IDD_DEVICE_STRING.trim_end_matches('\0'))
+    }
+
+    /// A new display can take over the primary role, because Windows picks it from the order of the
+    /// active display paths. The panel is left on the desktop but no longer primary, which the user
+    /// sees as a black screen, and the role is not given back when the virtual display goes away.
+    fn restore_primary_display_if_stolen(primary_before: Option<(String, String)>) {
+        // Privacy mode makes the virtual display primary itself right after plugging in, so a
+        // restore here would only undo that and re-initialise the desktop an extra time.
+        if crate::privacy_mode::is_turning_on_privacy() {
+            return;
+        }
+        let Some((name, device_string)) = primary_before else {
+            return;
+        };
+        let Some((now_name, now_string)) = windows::get_primary_device() else {
+            return;
+        };
+        if now_name == name || !is_amyuni_device_string(&now_string) {
+            return;
+        }
+        // The virtual display was already primary before the plug, e.g. privacy mode is on.
+        if is_amyuni_device_string(&device_string) {
+            return;
+        }
+        match set_primary_display(&name) {
+            Ok(_) => log::info!("Restored {} as the primary display", name),
+            Err(e) => log::warn!("Failed to restore the primary display: {}", e),
+        }
+    }
+
+    fn set_primary_display(name: &str) -> ResultType<()> {
+        use winapi::{
+            shared::ntdef::NULL,
+            um::{
+                wingdi::{DEVMODEW, DM_DISPLAYORIENTATION, DM_POSITION},
+                winuser::{
+                    ChangeDisplaySettingsExW, EnumDisplaySettingsW, CDS_NORESET, CDS_RESET,
+                    CDS_SET_PRIMARY, CDS_UPDATEREGISTRY, DISP_CHANGE_SUCCESSFUL,
+                    ENUM_CURRENT_SETTINGS,
+                },
+            },
+        };
+        let mut raw: Vec<u16> = name.encode_utf16().collect();
+        raw.push(0);
+        let mut dm: DEVMODEW = unsafe { std::mem::zeroed() };
+        dm.dmSize = std::mem::size_of::<DEVMODEW>() as _;
+        unsafe {
+            if EnumDisplaySettingsW(raw.as_ptr(), ENUM_CURRENT_SETTINGS, &mut dm) == 0 {
+                bail!("Failed to EnumDisplaySettingsW of {}", name);
+            }
+            // CDS_SET_PRIMARY is only honoured together with a position and an orientation.
+            dm.dmFields |= DM_POSITION | DM_DISPLAYORIENTATION;
+            dm.u1.s2_mut().dmPosition.x = 0;
+            dm.u1.s2_mut().dmPosition.y = 0;
+            let rc = ChangeDisplaySettingsExW(
+                raw.as_ptr(),
+                &mut dm,
+                NULL as _,
+                CDS_UPDATEREGISTRY | CDS_NORESET | CDS_SET_PRIMARY,
+                null_mut(),
+            );
+            if rc != DISP_CHANGE_SUCCESSFUL {
+                bail!("Failed to set {} as primary: {}", name, rc);
+            }
+            // `CDS_RESET` rather than committing the queued change alone: the panel is often off the
+            // desktop by now, and only a reset re-attaches the display devices.
+            let rc = ChangeDisplaySettingsExW(
+                null_mut(),
+                null_mut(),
+                NULL as _,
+                CDS_UPDATEREGISTRY | CDS_RESET,
+                null_mut(),
+            );
+            if rc != DISP_CHANGE_SUCCESSFUL {
+                bail!("Failed to commit the primary display: {}", rc);
+            }
+        }
+        Ok(())
     }
 
     pub fn plug_in_headless() -> ResultType<()> {
@@ -887,6 +1013,37 @@ mod windows {
             }
         }
         device_names
+    }
+
+    /// The display that is both active and primary: `(device name, device string)`.
+    pub(super) fn get_primary_device() -> Option<(String, String)> {
+        use winapi::um::wingdi::DISPLAY_DEVICE_PRIMARY_DEVICE;
+        let mut dd: DISPLAY_DEVICEW = unsafe { std::mem::zeroed() };
+        dd.cb = std::mem::size_of::<DISPLAY_DEVICEW>() as DWORD;
+        let mut i_dev_num = 0;
+        loop {
+            let result = unsafe { EnumDisplayDevicesW(null_mut(), i_dev_num, &mut dd, 0) };
+            if result == 0 {
+                break;
+            }
+            i_dev_num += 1;
+
+            if dd.StateFlags & DISPLAY_DEVICE_ACTIVE == 0
+                || dd.StateFlags & DISPLAY_DEVICE_PRIMARY_DEVICE == 0
+            {
+                continue;
+            }
+            if let (Ok(name), Ok(ds)) = (
+                String::from_utf16(&dd.DeviceName),
+                String::from_utf16(&dd.DeviceString),
+            ) {
+                return Some((
+                    name.trim_end_matches('\0').to_owned(),
+                    ds.trim_end_matches('\0').to_owned(),
+                ));
+            }
+        }
+        None
     }
 
     pub(super) fn get_display_drivers() -> Vec<(String, u32)> {
