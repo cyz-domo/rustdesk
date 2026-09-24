@@ -3079,7 +3079,11 @@ pub(super) fn change_resolution_directly(
             device_name.as_ptr(),
             &mut dm,
             NULL as _,
-            CDS_UPDATEREGISTRY | CDS_GLOBAL | CDS_RESET,
+            // Only CDS_UPDATEREGISTRY: this changes the named device. `CDS_GLOBAL` cannot be combined
+            // with it and makes Windows drive the change from the machine-wide global display profile,
+            // re-initialising every display instead of this one -- the desktop goes black for a second
+            // when a virtual display plugs in. `CDS_RESET` asks for the same re-init.
+            CDS_UPDATEREGISTRY,
             NULL,
         );
         if res != DISP_CHANGE_SUCCESSFUL {
