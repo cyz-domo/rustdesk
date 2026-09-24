@@ -1672,9 +1672,10 @@ async fn check_id(
         {
             crate::check_port(tcp_opt, RENDEZVOUS_PORT)
         } else {
-            crate::check_port(rendezvous_server, RENDEZVOUS_PORT)
+            crate::check_port(&rendezvous_server, RENDEZVOUS_PORT)
         }
     };
+    log::info!("check_id sending RegisterPk to {rendezvous_server} (target: {target}), old_id: {old_id}, new_id: {id}");
     if let Ok(mut socket) = hbb_common::socket_client::connect_tcp(
         target,
         CONNECT_TIMEOUT,
@@ -1690,7 +1691,6 @@ async fn check_id(
             pk: pk.into(),
             ..Default::default()
         });
-        log::info!("check_id sending RegisterPk to {rendezvous_server} (target: {target}), old_id: {old_id}, new_id: {id}");
         let mut ok = false;
         if socket.send(&msg_out).await.is_ok() {
             if let Some(msg_in) =
