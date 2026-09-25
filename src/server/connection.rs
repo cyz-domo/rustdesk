@@ -4590,10 +4590,10 @@ impl Connection {
 
     #[cfg(windows)]
     async fn toggle_virtual_display(&mut self, t: ToggleVirtualDisplay) {
-        let make_msg = |text: String| {
+        let make_msg = |text: String, msgtype: &str| {
             let mut msg_out = Message::new();
             let res = MessageBox {
-                msgtype: "nook-nocancel-hasclose".to_owned(),
+                msgtype: msgtype.to_owned(),
                 title: "Virtual display".to_owned(),
                 text,
                 link: "".to_owned(),
@@ -4605,31 +4605,37 @@ impl Connection {
 
         if t.on {
             if !virtual_display_manager::is_virtual_display_supported() {
-                self.send(make_msg("idd_not_support_under_win10_2004_tip".to_string()))
-                    .await;
+                self.send(make_msg(
+                    "idd_not_support_under_win10_2004_tip".to_string(),
+                    "custom-nook-nocancel-hasclose-info",
+                ))
+                .await;
             } else {
                 // Before the plug: it blocks for seconds, and a later box would replace this one.
                 if virtual_display_manager::amyuni_virtual_display_warning_due() {
-                    self.send(make_msg("amyuni_virtual_display_limit_tip".to_string()))
-                        .await;
+                    self.send(make_msg(
+                        "amyuni_virtual_display_limit_tip".to_string(),
+                        "custom-nook-nocancel-hasclose-info",
+                    ))
+                    .await;
                 }
                 if let Err(e) = virtual_display_manager::plug_in_monitor(t.display as _, Vec::new())
                 {
                     log::error!("Failed to plug in virtual display: {}", e);
-                    self.send(make_msg(format!(
-                        "Failed to plug in virtual display: {}",
-                        e
-                    )))
+                    self.send(make_msg(
+                        format!("Failed to plug in virtual display: {}", e),
+                        "custom-nook-nocancel-hasclose-error",
+                    ))
                     .await;
                 }
             }
         } else {
             if let Err(e) = virtual_display_manager::plug_out_monitor(t.display, false, true) {
                 log::error!("Failed to plug out virtual display {}: {}", t.display, e);
-                self.send(make_msg(format!(
-                    "Failed to plug out virtual displays: {}",
-                    e
-                )))
+                self.send(make_msg(
+                    format!("Failed to plug out virtual displays: {}", e),
+                    "custom-nook-nocancel-hasclose-error",
+                ))
                 .await;
             }
         }

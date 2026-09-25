@@ -792,6 +792,6 @@ pub static ref T: std::collections::HashMap<&'static str, &'static str> =
         ("Not now", "暂不升级"),
         ("Rolled back", "已回滚"),
         ("Failed to rollback", "回滚失败"),
-        ("amyuni_virtual_display_limit_tip", "使用该虚拟屏驱动时，再加第二块会让整个桌面（包括物理显示器）每秒卡顿一次。RustDesk 仍会继续添加。"),
+        ("amyuni_virtual_display_limit_tip", "该虚拟屏驱动在添加第二块虚拟屏后，会让整个桌面（包括物理显示器）每秒卡顿一次，远程画面的帧率也会随之下降。RustDesk 仍会继续添加，但建议只使用一块虚拟屏。"),
     ].iter().cloned().collect();
 }

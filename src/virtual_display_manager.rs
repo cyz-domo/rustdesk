@@ -706,6 +706,9 @@ pub mod amyuni_idd {
     // it goes online and on which adapter.
     const MONITOR_ON_DESKTOP_TIMEOUT: Duration = Duration::from_millis(3_000);
 
+    // `plug_out_monitor()` runs on the connection task, so this one stays short.
+    const PLUG_OUT_DESKTOP_SETTLE_TIMEOUT: Duration = Duration::from_millis(1_000);
+
     fn wait_monitor_on_desktop(count_before: usize, timeout: Duration) -> bool {
         let now = Instant::now();
         loop {
@@ -890,14 +893,16 @@ pub mod amyuni_idd {
         let mut to_plug_out_count = match all_count {
             0 => return Ok(()),
             1 => {
-                if plug_in_count == 0 {
+                // Windows can leave the panel off the desktop, and then this one display on the
+                // desktop is a virtual one. Refusing to unplug it would trap the user there.
+                if amyuni_count == 1 {
+                    1
+                } else if plug_in_count == 0 {
                     bail!("No virtual displays to plug out.")
+                } else if force_all {
+                    1
                 } else {
-                    if force_all {
-                        1
-                    } else {
-                        bail!("This only virtual display cannot be plugged out.")
-                    }
+                    bail!("This only virtual display cannot be plugged out.")
                 }
             }
             _ => {
@@ -919,7 +924,24 @@ pub mod amyuni_idd {
         for _i in 0..to_plug_out_count {
             let _ = plug_monitor_(false, None);
         }
+        if to_plug_out_count == all_count {
+            restore_desktop_if_left_empty();
+        }
         Ok(())
+    }
+
+    // The panel was parked on another adapter's source by the monitor just removed, and a desktop
+    // with no display at all is what the user sees as a black screen. Re-arbitrate if Windows did
+    // not attach one by itself right away.
+    fn restore_desktop_if_left_empty() {
+        let now = Instant::now();
+        while windows::get_device_names(None).is_empty() {
+            if now.elapsed() >= PLUG_OUT_DESKTOP_SETTLE_TIMEOUT {
+                rearbitrate_display_topology();
+                return;
+            }
+            std::thread::sleep(Duration::from_millis(100));
+        }
     }
 
     #[inline]
