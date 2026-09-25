@@ -792,6 +792,6 @@ pub static ref T: std::collections::HashMap<&'static str, &'static str> =
         ("Not now", "暫不升級"),
         ("Rolled back", "已復原"),
         ("Failed to rollback", "復原失敗"),
-        ("amyuni_virtual_display_limit_tip", "該虛擬顯示器驅動只支援一塊螢幕。再加第二塊會讓整個桌面變卡，請先拔出目前的虛擬螢幕。"),
+        ("amyuni_virtual_display_limit_tip", "使用該虛擬螢幕驅動時，再加第二塊會讓整個桌面（包括實體顯示器）每秒卡頓一次。RustDesk 仍會繼續新增。"),
     ].iter().cloned().collect();
 }
