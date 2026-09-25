@@ -792,5 +792,6 @@ pub static ref T: std::collections::HashMap<&'static str, &'static str> =
         ("Not now", "暂不升级"),
         ("Rolled back", "已回滚"),
         ("Failed to rollback", "回滚失败"),
+        ("amyuni_virtual_display_limit_tip", "该虚拟显示器驱动只支持一块屏幕。再加第二块会让整个桌面变卡，请先拔出当前的虚拟屏。"),
     ].iter().cloned().collect();
 }

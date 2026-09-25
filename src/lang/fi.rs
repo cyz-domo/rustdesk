@@ -792,5 +792,6 @@ pub static ref T: std::collections::HashMap<&'static str, &'static str> =
         ("Not now", ""),
         ("Rolled back", ""),
         ("Failed to rollback", ""),
+        ("amyuni_virtual_display_limit_tip", ""),
     ].iter().cloned().collect();
 }

@@ -15,6 +15,15 @@ pub fn is_amyuni_idd() -> bool {
     IDD_IMPL == IDD_IMPL_AMYUNI
 }
 
+// A second amyuni monitor makes Windows' whole composition round stall for ~235 ms once per second,
+// which drags every display down, the physical panel included. Measured on a R7000P.
+pub const AMYUNI_MAX_VIRTUAL_DISPLAYS: usize = 1;
+
+/// True once adding another amyuni virtual display would cost the whole desktop its frames.
+pub fn amyuni_virtual_display_limit_reached() -> bool {
+    is_amyuni_idd() && amyuni_idd::get_monitor_count() >= AMYUNI_MAX_VIRTUAL_DISPLAYS
+}
+
 pub fn get_cur_device_string() -> &'static str {
     match IDD_IMPL {
         IDD_IMPL_RUSTDESK => {
@@ -839,8 +848,8 @@ pub mod amyuni_idd {
             bail!("Failed to install driver.");
         }
 
-        if get_monitor_count() == VIRTUAL_DISPLAY_MAX_COUNT {
-            bail!("There are already {VIRTUAL_DISPLAY_MAX_COUNT} monitors plugged in.");
+        if get_monitor_count() >= super::AMYUNI_MAX_VIRTUAL_DISPLAYS {
+            bail!("amyuni_virtual_display_limit_tip");
         }
 
         plug_in_monitor_(true, is_async, None)

@@ -4607,6 +4607,9 @@ impl Connection {
             if !virtual_display_manager::is_virtual_display_supported() {
                 self.send(make_msg("idd_not_support_under_win10_2004_tip".to_string()))
                     .await;
+            } else if virtual_display_manager::amyuni_virtual_display_limit_reached() {
+                self.send(make_msg("amyuni_virtual_display_limit_tip".to_string()))
+                    .await;
             } else if let Err(e) =
                 virtual_display_manager::plug_in_monitor(t.display as _, Vec::new())
             {
