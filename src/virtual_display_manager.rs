@@ -81,7 +81,7 @@ pub fn get_platform_additions() -> serde_json::Map<String, serde_json::Value> {
             }
         }
         IDD_IMPL_AMYUNI => {
-            let c = amyuni_idd::get_monitor_count();
+            let c = amyuni_idd::reported_monitor_count();
             if c > 0 {
                 map.insert("amyuni_virtual_displays".into(), serde_json::json!(c));
             }
@@ -891,7 +891,14 @@ pub mod amyuni_idd {
 
         let all_count = windows::get_device_names(None).len();
         let mut to_plug_out_count = match all_count {
-            0 => return Ok(()),
+            0 => {
+                // Nothing to take away, but if RustDesk still owes virtual displays then Windows
+                // parked them off the desktop along with the panel. Don't call that a success.
+                if plug_in_count > 0 {
+                    restore_desktop_if_left_empty();
+                }
+                return Ok(());
+            }
             1 => {
                 // Windows can leave the panel off the desktop, and then this one display on the
                 // desktop is a virtual one. Refusing to unplug it would trap the user there.
@@ -947,6 +954,16 @@ pub mod amyuni_idd {
     #[inline]
     pub fn get_monitor_count() -> usize {
         windows::get_device_names(Some(super::AMYUNI_IDD_DEVICE_STRING)).len()
+    }
+
+    /// What the client should be shown. A monitor Windows parked off the desktop is invisible to
+    /// `get_monitor_count()`, but RustDesk still has to offer it for plug-out.
+    #[inline]
+    pub fn reported_monitor_count() -> usize {
+        std::cmp::max(
+            get_monitor_count(),
+            VIRTUAL_DISPLAY_COUNT.load(atomic::Ordering::Relaxed),
+        )
     }
 
     #[inline]
