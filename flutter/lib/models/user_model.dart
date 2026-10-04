@@ -86,8 +86,15 @@ class UserModel {
       }
       refreshingUser = false;
       final status = response.statusCode;
-      if (status == 401 || status == 400) {
-        reset(resetOther: status == 401);
+      if (status == 401) {
+        reset(resetOther: true);
+        return;
+      }
+      if (status == 400) {
+        // A rejected request is not proof the token is stale -- a proxy page or a
+        // body-schema change answers 400 as well -- so the login stays put.
+        networkErrorFromServer.value = true;
+        networkError.value = 'Bad request (400) from $url';
         return;
       }
       final data = json.decode(decode_http_response(response));

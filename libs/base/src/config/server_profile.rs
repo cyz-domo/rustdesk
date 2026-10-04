@@ -599,18 +599,32 @@ pub fn get_profile_by_api(api: &str) -> Option<ServerProfile> {
     if target.0.is_empty() {
         return None;
     }
+    // A profile is claimed by the api it states itself. One whose api would only be
+    // guessed from its host wins just when no profile states that address: two servers
+    // on one machine otherwise let a tokenless profile swallow the other's login, and
+    // the 401 that follows then deletes a login belonging to a different server.
+    let mut guessed: Option<ServerProfile> = None;
     for p in get_server_profiles() {
         if p.host.trim().is_empty() {
             continue;
         }
-        let eff = get_api_by_host(&p.host)
+        let stated = p
+            .api
+            .clone()
             .filter(|a| !a.is_empty())
-            .unwrap_or_else(|| derive_api_from_host(&p.host));
-        if !eff.is_empty() && api_host_port_eq(&api_host_port(&eff), &target) {
-            return Some(p);
+            .or_else(|| get_api_by_host(&p.host).filter(|a| !a.is_empty()));
+        if let Some(eff) = stated {
+            if api_host_port_eq(&api_host_port(&eff), &target) {
+                return Some(p);
+            }
+        } else if guessed.is_none() {
+            let eff = derive_api_from_host(&p.host);
+            if !eff.is_empty() && api_host_port_eq(&api_host_port(&eff), &target) {
+                guessed = Some(p);
+            }
         }
     }
-    None
+    guessed
 }
 
 // The legacy global `access_token`/`user_info` options stay as the mirror of the
@@ -618,6 +632,53 @@ pub fn get_profile_by_api(api: &str) -> Option<ServerProfile> {
 // working; profile entries hold the per-server state.
 pub fn has_persisted_profiles() -> bool {
     !Config::get_option("server-profiles").is_empty()
+}
+
+/// The profile the app is switched to, named by `active-server-profile-id` when the UI
+/// set one and else by the active rendezvous host. The id comes first because a TXT
+/// update can rewrite `custom-rendezvous-server` into an address no profile spells.
+pub fn get_active_profile() -> Option<ServerProfile> {
+    let profiles = get_server_profiles();
+    let id = Config::get_option("active-server-profile-id");
+    if !id.is_empty() && id != "official" {
+        if let Some(p) = profiles.iter().find(|p| p.id == id) {
+            return Some(p.clone());
+        }
+    }
+    let custom = Config::get_option("custom-rendezvous-server");
+    if custom.is_empty() {
+        return None;
+    }
+    profiles
+        .into_iter()
+        .find(|p| !p.host.is_empty() && is_same_rendezvous_host(&p.host, &custom))
+}
+
+/// The api-server of the active profile, so reading the current server never lands on
+/// another profile's console. `None` when no profile is active, which leaves the
+/// single-server global options in charge.
+pub fn get_active_profile_api() -> Option<String> {
+    let p = get_active_profile()?;
+    if p.host.trim().is_empty() {
+        return None;
+    }
+    // The shared option is the fresher statement of the active server's api: the
+    // advanced options page edits it without touching the profile entry.
+    let global = Config::get_option("api-server");
+    let api = if !global.is_empty() && is_host_match(&global, &p.host) {
+        global
+    } else {
+        p.api
+            .clone()
+            .filter(|a| !a.is_empty())
+            .or_else(|| get_api_by_host(&p.host).filter(|a| !a.is_empty()))
+            .unwrap_or_else(|| derive_api_from_host(&p.host))
+    };
+    if api.is_empty() {
+        None
+    } else {
+        Some(api)
+    }
 }
 
 fn migrate_legacy_login_state() {
@@ -658,16 +719,53 @@ fn migrate_legacy_login_state() {
 pub fn get_login_by_api(api: &str) -> (String, String) {
     migrate_legacy_login_state();
     if let Some(p) = get_profile_by_api(api) {
-        if let Some(ref t) = p.access_token {
-            if !t.is_empty() {
-                return (t.clone(), p.user_info.clone().unwrap_or_default());
-            }
+        let token = p.access_token.clone().unwrap_or_default();
+        if !token.is_empty() {
+            return (token, p.user_info.clone().unwrap_or_default());
         }
+        let global = || {
+            (
+                LocalConfig::get_option("access_token"),
+                LocalConfig::get_option("user_info"),
+            )
+        };
+        if !has_persisted_profiles() {
+            // Without a profile list the global slot is the only record there is.
+            return global();
+        }
+        if any_profile_has_token() {
+            // Per-server records are in use, so this server is simply not logged in.
+            // Handing out the mirror instead would send one server's token to another
+            // and the 401 that answers would then clear the login of its real owner.
+            return (String::new(), String::new());
+        }
+        // A login made before the profile list existed: hand it to its own server.
+        let legacy = global();
+        if !legacy.0.is_empty() {
+            set_login_by_api(api, &legacy.0, &legacy.1);
+        }
+        return legacy;
     }
     (
         LocalConfig::get_option("access_token"),
         LocalConfig::get_option("user_info"),
     )
+}
+
+fn any_profile_has_token() -> bool {
+    get_server_profiles()
+        .iter()
+        .any(|p| p.access_token.as_deref().map(|t| !t.is_empty()).unwrap_or(false))
+}
+
+/// Whether the given entry is the server the app is switched to, i.e. the one whose
+/// login the legacy global slot mirrors. Ids are compared rather than hosts because a
+/// TXT update rewrites `custom-rendezvous-server` into an address the profile does not
+/// itself spell.
+fn is_active_entry(entry: &ServerProfile) -> bool {
+    get_active_profile()
+        .map(|p| p.id == entry.id)
+        .unwrap_or(false)
 }
 
 /// Login state of the server identified by its rendezvous host. Callers that
@@ -692,9 +790,7 @@ pub fn set_login_by_api(api: &str, access_token: &str, user_info: &str) {
             if let Some(entry) = profiles.iter_mut().find(|e| e.id == p.id) {
                 entry.access_token = Some(access_token.to_string());
                 entry.user_info = Some(user_info.to_string());
-                let custom = Config::get_option("custom-rendezvous-server");
-                let is_active =
-                    !custom.is_empty() && is_same_rendezvous_host(&entry.host, &custom);
+                let is_active = is_active_entry(entry);
                 set_server_profiles(&profiles);
                 if is_active {
                     LocalConfig::set_option(
@@ -717,10 +813,8 @@ pub fn update_login_user_by_api(api: &str, user_info: &str) {
     if has_persisted_profiles() {
         if let Some(p) = get_profile_by_api(api) {
             let mut profiles = get_server_profiles();
-            let custom = Config::get_option("custom-rendezvous-server");
             if let Some(entry) = profiles.iter_mut().find(|e| e.id == p.id) {
-                let is_active =
-                    !custom.is_empty() && is_same_rendezvous_host(&entry.host, &custom);
+                let is_active = is_active_entry(entry);
                 entry.user_info = Some(user_info.to_string());
                 set_server_profiles(&profiles);
                 if is_active {
@@ -739,10 +833,8 @@ pub fn clear_login_by_api(api: &str) {
     if has_persisted_profiles() {
         if let Some(p) = get_profile_by_api(api) {
             let mut profiles = get_server_profiles();
-            let custom = Config::get_option("custom-rendezvous-server");
             if let Some(entry) = profiles.iter_mut().find(|e| e.id == p.id) {
-                let is_active =
-                    !custom.is_empty() && is_same_rendezvous_host(&entry.host, &custom);
+                let is_active = is_active_entry(entry);
                 entry.access_token = None;
                 entry.user_info = None;
                 set_server_profiles(&profiles);
@@ -765,18 +857,13 @@ pub fn sync_login_mirror() {
     if !has_persisted_profiles() {
         return;
     }
-    let custom = Config::get_option("custom-rendezvous-server");
-    let mut token = String::new();
-    let mut user_info = String::new();
-    if !custom.is_empty() {
-        if let Some(p) = get_server_profiles()
-            .iter()
-            .find(|p| !p.host.is_empty() && is_same_rendezvous_host(&p.host, &custom))
-        {
-            token = p.access_token.clone().unwrap_or_default();
-            user_info = p.user_info.clone().unwrap_or_default();
-        }
-    }
+    let (token, user_info) = match get_active_profile() {
+        Some(p) => (
+            p.access_token.clone().unwrap_or_default(),
+            p.user_info.clone().unwrap_or_default(),
+        ),
+        None => (String::new(), String::new()),
+    };
     LocalConfig::set_option("access_token".to_owned(), token);
     LocalConfig::set_option("user_info".to_owned(), user_info);
 }

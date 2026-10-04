@@ -1253,6 +1253,16 @@ fn get_api_server_(api: String, custom: String) -> String {
     // Several active profiles share one global option, so a value an earlier TXT update left
     // there would otherwise pin the address book to that server for good.
     let multi_profile = server_profile::get_active_server_profiles().len() > 1;
+    // With several profiles configured the api has to be the one the active profile
+    // states: the host lookups below can name another server's console, because
+    // `get_rendezvous_server()` still answers with the previous server until the
+    // mediator restarts. The UI would then post a valid token to a server that never
+    // issued it, and the 401 in answer would clear the login of its real owner.
+    if multi_profile {
+        if let Some(profile_api) = server_profile::get_active_profile_api() {
+            return ensure_url_scheme(&profile_api);
+        }
+    }
     if !api.is_empty() && !multi_profile {
         let is_default_derived = !s0.is_empty()
             && (api == format!("http://{}:21114", s0) || api == format!("{}:21114", s0));
