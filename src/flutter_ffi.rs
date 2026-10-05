@@ -971,8 +971,8 @@ pub fn main_update_login_user_by_api(api: String, user_info: String) {
     base::server_profile::update_login_user_by_api(&api, &user_info);
 }
 
-pub fn main_clear_login_by_api(api: String) {
-    base::server_profile::clear_login_by_api(&api);
+pub fn main_clear_login_by_api(api: String, reason: String) {
+    base::server_profile::clear_login_by_api(&api, &reason);
 }
 
 pub fn main_sync_login_mirror() {

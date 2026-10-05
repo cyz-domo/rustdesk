@@ -226,7 +226,7 @@ class AbModel {
           '${translate('pull_ab_failed_tip')}: ${translate(err.toString())}';
     }
     if (statusCode == 401) {
-      gFFI.userModel.reset(resetOther: true);
+      gFFI.userModel.resetFromSubApi('ab_list');
     }
   }
 
@@ -1048,7 +1048,7 @@ class LegacyAb extends BaseAb {
     } finally {
       if (pullError.isNotEmpty) {
         if (statusCode == 401) {
-          gFFI.userModel.reset(resetOther: true);
+          gFFI.userModel.resetFromSubApi('ab_current');
         }
       }
     }
@@ -1492,7 +1492,7 @@ class Ab extends BaseAb {
     } finally {
       if (pullError.isNotEmpty) {
         if (statusCode == 401) {
-          gFFI.userModel.reset(resetOther: true);
+          gFFI.userModel.resetFromSubApi('ab_shared');
         }
       }
     }
@@ -1539,7 +1539,7 @@ class Ab extends BaseAb {
     } finally {
       if (pullError.isNotEmpty) {
         if (statusCode == 401) {
-          gFFI.userModel.reset(resetOther: true);
+          gFFI.userModel.resetFromSubApi('ab_shared');
         }
       }
     }

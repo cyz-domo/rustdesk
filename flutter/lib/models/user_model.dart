@@ -87,7 +87,7 @@ class UserModel {
       refreshingUser = false;
       final status = response.statusCode;
       if (status == 401) {
-        reset(resetOther: true);
+        reset(resetOther: true, reason: 'currentUser', api: url);
         return;
       }
       if (status == 400) {
@@ -146,8 +146,18 @@ class UserModel {
     }
   }
 
-  Future<void> reset({bool resetOther = false}) async {
-    await bind.mainClearLoginByApi(api: await bind.mainGetApiServer());
+  /// Drop the login of the given api-server, defaulting to the current one.
+  ///
+  /// Callers that know which server rejected the token should pass it: during a
+  /// server switch the api resolves to another profile, so re-reading it here
+  /// would clear the wrong server's login.
+  Future<void> reset({
+    bool resetOther = false,
+    String reason = 'login_rejected',
+    String? api,
+  }) async {
+    await bind.mainClearLoginByApi(
+        api: api ?? await bind.mainGetApiServer(), reason: reason);
     if (resetOther) {
       await gFFI.abModel.reset();
       await gFFI.groupModel.reset();
@@ -155,6 +165,25 @@ class UserModel {
     userName.value = '';
     displayName.value = '';
     avatar.value = '';
+  }
+
+  /// Handle a 401 from an address-book or group endpoint.
+  ///
+  /// Those authenticate with the global mirror slot while resolving the api at
+  /// send time, so switching servers leaves requests in flight asking one
+  /// server with another's token -- or with none. Such a 401 proves the
+  /// pairing was stale, not that the stored login died, and acting on it would
+  /// delete a good login from the wrong server. `/api/currentUser` pairs api
+  /// with token and stays the authority for logging out.
+  Future<void> resetFromSubApi(String reason) async {
+    final api = await bind.mainGetApiServer();
+    final sent = bind.mainGetLocalOption(key: 'access_token');
+    if (sent.isEmpty || sent != await bind.mainGetLoginTokenByApi(api: api)) {
+      debugPrint('Ignoring $reason 401: the mirror token is not $api\'s own '
+          '(mirror ${sent.isEmpty ? "empty" : "set"})');
+      return;
+    }
+    await reset(resetOther: true, reason: reason, api: api);
   }
 
   _parseAndUpdateUser(UserPayload user, String api) {
@@ -195,7 +224,7 @@ class UserModel {
     } catch (e) {
       debugPrint("request /api/logout failed: err=$e");
     } finally {
-      await reset(resetOther: true);
+      await reset(resetOther: true, reason: 'logout');
       gFFI.dialogManager.dismissByTag(tag);
     }
   }

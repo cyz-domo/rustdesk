@@ -55,7 +55,7 @@ class GroupModel {
     initialized = true;
     platformFFI.tryHandle({'name': LoadEvent.group});
     if (_statusCode == 401) {
-      gFFI.userModel.reset(resetOther: true);
+      gFFI.userModel.resetFromSubApi('group');
     } else {
       _saveCache();
     }

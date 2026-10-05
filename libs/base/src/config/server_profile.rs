@@ -829,12 +829,25 @@ pub fn update_login_user_by_api(api: &str, user_info: &str) {
 
 /// Drop the login state of the given api-server: the owning profile entry,
 /// and the global slot too when that profile is the active server.
-pub fn clear_login_by_api(api: &str) {
+///
+/// `reason` names the caller. Losing a login is invisible otherwise -- the
+/// state lands in the same two options whether the user signed out or some
+/// endpoint answered 401 -- so the log is the only way to tell them apart.
+pub fn clear_login_by_api(api: &str, reason: &str) {
     if has_persisted_profiles() {
         if let Some(p) = get_profile_by_api(api) {
             let mut profiles = get_server_profiles();
             if let Some(entry) = profiles.iter_mut().find(|e| e.id == p.id) {
                 let is_active = is_active_entry(entry);
+                let had_token = matches!(&entry.access_token, Some(t) if !t.is_empty());
+                log::info!(
+                    "clearing login of profile {} (api {}): reason={}, had_token={}, mirror={}",
+                    p.id,
+                    api,
+                    reason,
+                    had_token,
+                    if is_active { "cleared" } else { "kept" }
+                );
                 entry.access_token = None;
                 entry.user_info = None;
                 set_server_profiles(&profiles);
@@ -846,6 +859,11 @@ pub fn clear_login_by_api(api: &str) {
             }
         }
     }
+    log::info!(
+        "clearing global login slot (api {}): reason={}, no profile owns that api",
+        api,
+        reason
+    );
     LocalConfig::set_option("access_token".to_owned(), String::new());
     LocalConfig::set_option("user_info".to_owned(), String::new());
 }
