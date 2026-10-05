@@ -164,6 +164,11 @@ pub fn refresh_options() {
 pub fn get_option<T: AsRef<str>>(key: T) -> String {
     #[cfg(not(any(target_os = "android", target_os = "ios")))]
     {
+        // `OPTIONS` is a cache of `Config`, but server profile options are written to
+        // `Config` directly, so the cache can predate them.
+        if base::server_profile::is_profile_option(key.as_ref()) {
+            return Config::get_option(key.as_ref());
+        }
         let map = OPTIONS.lock().unwrap();
         if let Some(v) = map.get(key.as_ref()) {
             v.to_owned()
@@ -416,6 +421,8 @@ pub fn get_sound_inputs() -> Vec<String> {
 pub fn set_options(m: HashMap<String, String>) {
     #[cfg(not(any(target_os = "android", target_os = "ios")))]
     {
+        let mut m = m;
+        base::server_profile::preserve_profile_options(&mut m);
         *OPTIONS.lock().unwrap() = m.clone();
         ipc::set_options(m).ok();
     }
@@ -455,6 +462,9 @@ pub fn set_option(key: String, value: String) {
     #[cfg(not(any(target_os = "android", target_os = "ios")))]
     {
         let mut options = OPTIONS.lock().unwrap();
+        // Applied before the caller's own key, so an explicit write to a profile option
+        // still wins over what `Config` holds right now.
+        base::server_profile::preserve_profile_options(&mut options);
         if value.is_empty() {
             options.remove(&key);
         } else {

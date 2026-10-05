@@ -1,5 +1,9 @@
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+
 use hbb_common::config::{Config, LocalConfig, Status};
+
+use super::keys;
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ServerProfile {
@@ -45,7 +49,7 @@ impl ServerProfile {
 /// If no profile list exists yet, it dynamically parses existing `custom-rendezvous-server`
 /// (which may contain multiple servers separated by `;`, `,` or newlines).
 pub fn get_server_profiles() -> Vec<ServerProfile> {
-    let raw = Config::get_option("server-profiles");
+    let raw = Config::get_option(keys::OPTION_SERVER_PROFILES);
     if !raw.is_empty() {
         if let Ok(list) = serde_json::from_str::<Vec<ServerProfile>>(&raw) {
             let filtered: Vec<ServerProfile> = list
@@ -126,7 +130,26 @@ pub fn get_server_profiles() -> Vec<ServerProfile> {
 /// Save the server profiles list to options.
 pub fn set_server_profiles(profiles: &[ServerProfile]) {
     if let Ok(json) = serde_json::to_string(profiles) {
-        Config::set_option("server-profiles".to_owned(), json);
+        Config::set_option(keys::OPTION_SERVER_PROFILES.to_owned(), json);
+    }
+}
+
+/// Whether `key` is one of the options this module owns, and therefore one whose current
+/// value lives in `Config` rather than in the UI's options cache.
+pub fn is_profile_option(key: &str) -> bool {
+    keys::SERVER_PROFILE_OPTIONS.contains(&key)
+}
+
+/// Carry this process' profile options into `options` before it is handed to a whole-map
+/// option write. `Config::set_options` replaces every option at once, so a map taken before
+/// [set_server_profiles] ran would otherwise drop the logins stored since. This process owns
+/// those keys, so only its empty values defer to the incoming map.
+pub fn preserve_profile_options(options: &mut HashMap<String, String>) {
+    for k in keys::SERVER_PROFILE_OPTIONS.iter().copied() {
+        let v = Config::get_option(k);
+        if !v.is_empty() {
+            options.insert(k.to_owned(), v);
+        }
     }
 }
 
@@ -238,7 +261,7 @@ pub fn update_resolved_profile_data(
         }
     };
     if let Some(json) = persisted {
-        Config::set_option("resolved-server-profiles".to_owned(), json);
+        Config::set_option(keys::OPTION_RESOLVED_SERVER_PROFILES.to_owned(), json);
     }
 }
 
@@ -263,7 +286,7 @@ pub fn get_resolved_profile_data(host: &str) -> Option<ResolvedProfileData> {
             }
         }
     }
-    let raw = Config::get_option("resolved-server-profiles");
+    let raw = Config::get_option(keys::OPTION_RESOLVED_SERVER_PROFILES);
     if !raw.is_empty() {
         if let Ok(map) = serde_json::from_str::<std::collections::HashMap<String, ResolvedProfileData>>(&raw) {
             if let Some(data) = map.get(host) {
@@ -631,7 +654,7 @@ pub fn get_profile_by_api(api: &str) -> Option<ServerProfile> {
 // currently active server's login, so existing single-server consumers keep
 // working; profile entries hold the per-server state.
 pub fn has_persisted_profiles() -> bool {
-    !Config::get_option("server-profiles").is_empty()
+    !Config::get_option(keys::OPTION_SERVER_PROFILES).is_empty()
 }
 
 /// The profile the app is switched to, named by `active-server-profile-id` when the UI
@@ -639,7 +662,7 @@ pub fn has_persisted_profiles() -> bool {
 /// update can rewrite `custom-rendezvous-server` into an address no profile spells.
 pub fn get_active_profile() -> Option<ServerProfile> {
     let profiles = get_server_profiles();
-    let id = Config::get_option("active-server-profile-id");
+    let id = Config::get_option(keys::OPTION_ACTIVE_SERVER_PROFILE_ID);
     if !id.is_empty() && id != "official" {
         if let Some(p) = profiles.iter().find(|p| p.id == id) {
             return Some(p.clone());
@@ -889,7 +912,7 @@ pub fn sync_login_mirror() {
 /// Check whether the profile with the given id is currently the active server.
 /// If `id` is empty or "official", returns true when no custom rendezvous server is configured.
 pub fn is_active_profile_id(id: &str) -> bool {
-    let active_id = Config::get_option("active-server-profile-id");
+    let active_id = Config::get_option(keys::OPTION_ACTIVE_SERVER_PROFILE_ID);
     if !active_id.is_empty() {
         return active_id == id;
     }
