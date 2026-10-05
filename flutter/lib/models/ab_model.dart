@@ -895,6 +895,10 @@ abstract class BaseAb {
 
   Future<void> pullAb({quiet = false}) async {
     if (abPulling) return;
+    // Every endpoint below authenticates with the token in the global slot, so
+    // with no token the pull can only come back refused -- and refusals from a
+    // stale server switch are what used to delete a good login.
+    if (bind.mainGetLocalOption(key: 'access_token').isEmpty) return;
     abPulling = true;
     if (!quiet) {
       abLoading.value = true;

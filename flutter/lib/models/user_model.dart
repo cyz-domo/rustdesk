@@ -170,20 +170,42 @@ class UserModel {
   /// Handle a 401 from an address-book or group endpoint.
   ///
   /// Those authenticate with the global mirror slot while resolving the api at
-  /// send time, so switching servers leaves requests in flight asking one
-  /// server with another's token -- or with none. Such a 401 proves the
-  /// pairing was stale, not that the stored login died, and acting on it would
-  /// delete a good login from the wrong server. `/api/currentUser` pairs api
-  /// with token and stays the authority for logging out.
+  /// send time, so a switch leaves requests in flight asking one server with
+  /// another's token -- or with none -- and they land seconds later, after the
+  /// switch already restored a different login. Validating the pairing here is
+  /// no use: by then api and slot both point at the new server, so the pair
+  /// looks valid while the 401 was about the old one. Ask the api about the
+  /// token stored for it, and believe only its own answer.
   Future<void> resetFromSubApi(String reason) async {
     final api = await bind.mainGetApiServer();
-    final sent = bind.mainGetLocalOption(key: 'access_token');
-    if (sent.isEmpty || sent != await bind.mainGetLoginTokenByApi(api: api)) {
-      debugPrint('Ignoring $reason 401: the mirror token is not $api\'s own '
-          '(mirror ${sent.isEmpty ? "empty" : "set"})');
+    final token = await bind.mainGetLoginTokenByApi(api: api);
+    if (token.isEmpty) return;
+    if (!await _apiRejectsToken(api, token)) {
+      debugPrint('Ignoring $reason 401: $api still accepts its own token');
       return;
     }
     await reset(resetOther: true, reason: reason, api: api);
+  }
+
+  /// `true` only when the api says the token it owns is no longer valid.
+  /// Anything else -- a 5xx, a proxy page, an unreachable host -- is not proof,
+  /// so the login stays.
+  Future<bool> _apiRejectsToken(String api, String token) async {
+    try {
+      final resp = await http.post(Uri.parse('$api/api/currentUser'),
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token'
+          },
+          body: jsonEncode({
+            'id': await bind.mainGetMyId(),
+            'uuid': await bind.mainGetUuid()
+          }));
+      return resp.statusCode == 401;
+    } catch (e) {
+      debugPrint('currentUser confirm to $api failed: $e');
+      return false;
+    }
   }
 
   _parseAndUpdateUser(UserPayload user, String api) {
