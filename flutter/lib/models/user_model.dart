@@ -86,8 +86,15 @@ class UserModel {
       }
       refreshingUser = false;
       final status = response.statusCode;
-      if (status == 401 || status == 400) {
-        reset(resetOther: status == 401);
+      if (status == 401) {
+        reset(resetOther: true, reason: 'currentUser', api: url);
+        return;
+      }
+      if (status == 400) {
+        // A rejected request is not proof the token is stale -- a proxy page or a
+        // body-schema change answers 400 as well -- so the login stays put.
+        networkErrorFromServer.value = true;
+        networkError.value = 'Bad request (400) from $url';
         return;
       }
       final data = json.decode(decode_http_response(response));
@@ -139,8 +146,18 @@ class UserModel {
     }
   }
 
-  Future<void> reset({bool resetOther = false}) async {
-    await bind.mainClearLoginByApi(api: await bind.mainGetApiServer());
+  /// Drop the login of the given api-server, defaulting to the current one.
+  ///
+  /// Callers that know which server rejected the token should pass it: during a
+  /// server switch the api resolves to another profile, so re-reading it here
+  /// would clear the wrong server's login.
+  Future<void> reset({
+    bool resetOther = false,
+    String reason = 'login_rejected',
+    String? api,
+  }) async {
+    await bind.mainClearLoginByApi(
+        api: api ?? await bind.mainGetApiServer(), reason: reason);
     if (resetOther) {
       await gFFI.abModel.reset();
       await gFFI.groupModel.reset();
@@ -148,6 +165,47 @@ class UserModel {
     userName.value = '';
     displayName.value = '';
     avatar.value = '';
+  }
+
+  /// Handle a 401 from an address-book or group endpoint.
+  ///
+  /// Those authenticate with the global mirror slot while resolving the api at
+  /// send time, so a switch leaves requests in flight asking one server with
+  /// another's token -- or with none -- and they land seconds later, after the
+  /// switch already restored a different login. Validating the pairing here is
+  /// no use: by then api and slot both point at the new server, so the pair
+  /// looks valid while the 401 was about the old one. Ask the api about the
+  /// token stored for it, and believe only its own answer.
+  Future<void> resetFromSubApi(String reason) async {
+    final api = await bind.mainGetApiServer();
+    final token = await bind.mainGetLoginTokenByApi(api: api);
+    if (token.isEmpty) return;
+    if (!await _apiRejectsToken(api, token)) {
+      debugPrint('Ignoring $reason 401: $api still accepts its own token');
+      return;
+    }
+    await reset(resetOther: true, reason: reason, api: api);
+  }
+
+  /// `true` only when the api says the token it owns is no longer valid.
+  /// Anything else -- a 5xx, a proxy page, an unreachable host -- is not proof,
+  /// so the login stays.
+  Future<bool> _apiRejectsToken(String api, String token) async {
+    try {
+      final resp = await http.post(Uri.parse('$api/api/currentUser'),
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token'
+          },
+          body: jsonEncode({
+            'id': await bind.mainGetMyId(),
+            'uuid': await bind.mainGetUuid()
+          }));
+      return resp.statusCode == 401;
+    } catch (e) {
+      debugPrint('currentUser confirm to $api failed: $e');
+      return false;
+    }
   }
 
   _parseAndUpdateUser(UserPayload user, String api) {
@@ -188,7 +246,7 @@ class UserModel {
     } catch (e) {
       debugPrint("request /api/logout failed: err=$e");
     } finally {
-      await reset(resetOther: true);
+      await reset(resetOther: true, reason: 'logout');
       gFFI.dialogManager.dismissByTag(tag);
     }
   }

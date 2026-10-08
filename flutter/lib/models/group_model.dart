@@ -39,6 +39,9 @@ class GroupModel {
   Future<void> pull({force = true, quiet = false}) async {
     if (bind.isDisableGroupPanel()) return;
     if (!gFFI.userModel.isLogin || groupLoading.value) return;
+    // Same reason as in `BaseAb.pullAb`: an unauthenticated pull is refused,
+    // and the refusal used to be taken as proof the login was dead.
+    if (bind.mainGetLocalOption(key: 'access_token').isEmpty) return;
     if (gFFI.userModel.networkError.isNotEmpty) return;
     if (!force && initialized) return;
     if (!quiet) {
@@ -55,7 +58,7 @@ class GroupModel {
     initialized = true;
     platformFFI.tryHandle({'name': LoadEvent.group});
     if (_statusCode == 401) {
-      gFFI.userModel.reset(resetOther: true);
+      gFFI.userModel.resetFromSubApi('group');
     } else {
       _saveCache();
     }
