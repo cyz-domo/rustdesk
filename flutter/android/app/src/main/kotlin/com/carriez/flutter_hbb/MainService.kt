@@ -311,6 +311,9 @@ class MainService : Service() {
                 scale = 2
                 w /= scale
                 h /= scale
+                // MediaCodec hw encoders reject odd dimensions (e.g. 2670/2=1335 fails hevc configure).
+                w -= w % 2
+                h -= h % 2
                 dpi /= scale
             }
             if (SCREEN_INFO.width != w) {
