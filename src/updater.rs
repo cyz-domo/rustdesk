@@ -376,7 +376,7 @@ pub fn get_update_download_file_from_url(url: &str) -> Option<PathBuf> {
     let tag = segments.next()?;
     let filename = segments.next()?;
 
-    if owner != "rustdesk"
+    if owner != "cyz-domo"
         || repo != "rustdesk"
         || releases != "releases"
         || download != "download"
@@ -662,7 +662,7 @@ mod tests {
     #[test]
     fn update_download_file_accepts_expected_github_asset_urls() {
         let file = get_download_file_from_url(
-            "https://github.com/rustdesk/rustdesk/releases/download/1.4.0/rustdesk-1.4.0-x86_64.dmg",
+            "https://github.com/cyz-domo/rustdesk/releases/download/1.4.0/rustdesk-1.4.0-x86_64.dmg",
         )
         .expect("valid GitHub release asset URL");
 
@@ -678,6 +678,7 @@ mod tests {
             "http://github.com/rustdesk/rustdesk/releases/download/1/rustdesk.exe",
             "https://example.com/rustdesk.exe",
             "https://github.com/other/project/releases/download/1/rustdesk.exe",
+            "https://github.com/rustdesk/rustdesk/releases/download/1/rustdesk.exe",
             "https://github.com/rustdesk/rustdesk/releases/download/1/",
             "https://github.com/rustdesk/rustdesk/releases/download/1/nested/rustdesk.exe",
             "https://github.com/rustdesk/rustdesk/releases/download/1/C:rustdesk.exe",

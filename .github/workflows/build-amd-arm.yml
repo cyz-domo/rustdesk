@@ -40,7 +40,7 @@ on:
         type: boolean
         default: false
       release_tag:
-        description: '自定义 Release 标签 (留空自动按日期时间生成)'
+        description: 'Release 标签 (必须等于 VERSION；留空默认用 VERSION。应用内更新按 tag 拼资产文件名)'
         type: string
         default: ''
       release_title:
@@ -929,10 +929,15 @@ jobs:
           NOW_UTC=$(date -u '+%H:%M UTC')
           NOW_CST=$(TZ='Asia/Shanghai' date '+%Y-%m-%d %H:%M')
           
-          if [ -n "${{ inputs.release_tag }}" ]; then
-            TAG="${{ inputs.release_tag }}"
-          else
-            TAG="build-$(date +'%Y%m%d-%H%M')"
+          # The in-app updater derives asset names from the release tag, so
+          # the tag must equal VERSION or downloads 404.
+          TAG="${{ inputs.release_tag }}"
+          if [ -z "$TAG" ]; then
+            TAG="${{ env.VERSION }}"
+          fi
+          if [ "$TAG" != "${{ env.VERSION }}" ]; then
+            echo "::error::release_tag '$TAG' must equal VERSION '${{ env.VERSION }}' (bump Cargo.toml + workflow VERSION together)"
+            exit 1
           fi
           
           if [ -n "${{ inputs.release_title }}" ]; then
