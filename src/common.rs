@@ -1120,7 +1120,7 @@ pub fn check_software_update() {
     }
 }
 
-// Fork update channel: site/version.json deployed to our GitHub Pages,
+// Fork update channel: docs/version.json served by GitHub Pages from master,
 // shaped as `{"url": "<our GitHub release tag url>"}` (VersionCheckResponse).
 #[tokio::main(flavor = "current_thread")]
 pub async fn do_check_software_update() -> hbb_common::ResultType<()> {
