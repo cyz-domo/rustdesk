@@ -593,6 +593,10 @@ fn run(vs: VideoService) -> ResultType<()> {
     ) {
         Ok(result) => result,
         Err(err) => {
+            #[cfg(target_os = "android")]
+            if retry_hw_encode_half_scale() {
+                bail!("SWITCH");
+            }
             log::error!("Failed to create encoder: {err:?}, fallback to VP9");
             Encoder::set_fallback(&EncoderCfg::VPX(VpxEncoderConfig {
                 width: c.width as _,
@@ -1090,6 +1094,26 @@ fn get_recorder(
 }
 
 #[cfg(target_os = "android")]
+fn retry_hw_encode_half_scale() -> bool {
+    if !matches!(
+        Encoder::negotiated_codec(),
+        CodecFormat::H264 | CodecFormat::H265
+    ) {
+        return false;
+    }
+    if scrap::screen_size().2 != 1 {
+        return false;
+    }
+    scrap::android::set_hw_encode_half_scale(true);
+    scrap::android::call_main_service_set_by_name("half_scale", Some("true"), None).ok();
+    if scrap::screen_size().2 != 2 {
+        return false;
+    }
+    log::info!("hw encoder failed at full scale, retry at half scale");
+    true
+}
+
+#[cfg(target_os = "android")]
 fn check_change_scale(hardware: bool) -> ResultType<()> {
     use base::config::keys::OPTION_ENABLE_ANDROID_SOFTWARE_ENCODING_HALF_SCALE as SCALE_SOFT;
 
@@ -1108,7 +1132,7 @@ fn check_change_scale(hardware: bool) -> ResultType<()> {
     }
     let screen_size = scrap::screen_size();
     let scale_soft = hbb_common::config::option2bool(SCALE_SOFT, &Config::get_option(SCALE_SOFT));
-    let half_scale = !hardware && scale_soft;
+    let half_scale = (!hardware && scale_soft) || scrap::android::hw_encode_half_scale();
     log::info!("hardware: {hardware}, scale_soft: {scale_soft}, screen_size: {screen_size:?}",);
     scrap::android::call_main_service_set_by_name(
         "half_scale",

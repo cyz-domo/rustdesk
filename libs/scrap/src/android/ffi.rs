@@ -16,6 +16,7 @@ use lazy_static::lazy_static;
 use serde::Deserialize;
 use std::ops::Not;
 use std::os::raw::c_void;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Mutex, RwLock};
 use std::time::{Duration, Instant};
 
@@ -259,6 +260,19 @@ pub fn get_codec_info() -> Option<MediaCodecInfos> {
 
 pub fn clear_codec_info() {
     *MEDIA_CODEC_INFOS.write().unwrap() = None;
+}
+
+// Full-scale hardware encoding failed once (e.g. the aligned height exceeds the
+// SoC's real encoder limit while the codec lists a fake oversized capability),
+// so hardware encoding must stay at half scale instead of being retried full.
+static HW_ENCODE_HALF_SCALE: AtomicBool = AtomicBool::new(false);
+
+pub fn hw_encode_half_scale() -> bool {
+    HW_ENCODE_HALF_SCALE.load(Ordering::Relaxed)
+}
+
+pub fn set_hw_encode_half_scale(v: bool) {
+    HW_ENCODE_HALF_SCALE.store(v, Ordering::Relaxed);
 }
 
 // another way to fix "reference table overflow" error caused by new_string and call_main_service_pointer_input frequently calld

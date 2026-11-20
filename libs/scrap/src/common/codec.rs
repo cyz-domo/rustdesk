@@ -147,6 +147,13 @@ impl Encoder {
                     codec: Box::new(hw),
                 }),
                 Err(e) => {
+                    #[cfg(target_os = "android")]
+                    if crate::screen_size().2 == 1 && !crate::android::hw_encode_half_scale() {
+                        // Keep codec info and the negotiated format so video_service
+                        // can retry hardware encoding at half scale.
+                        log::error!("new hw encoder failed: {e:?}, retry at half scale");
+                        return Err(e);
+                    }
                     log::error!("new hw encoder failed: {e:?}, clear config");
                     HwCodecConfig::clear(false, true);
                     *ENCODE_CODEC_FORMAT.lock().unwrap() = CodecFormat::VP9;
