@@ -1833,7 +1833,10 @@ pub async fn get_rendezvous_server(ms_timeout: u64) -> (String, Vec<String>) {
 async fn get_options_(ms_timeout: u64) -> ResultType<HashMap<String, String>> {
     let mut c = connect(ms_timeout, "").await?;
     c.send(&Data::Options(None)).await?;
-    if let Some(Data::Options(Some(value))) = c.next_timeout(ms_timeout).await? {
+    if let Some(Data::Options(Some(mut value))) = c.next_timeout(ms_timeout).await? {
+        // The peer's map can predate profile options written here, and storing it replaces
+        // every option at once.
+        base::server_profile::preserve_profile_options(&mut value);
         Config::set_options(value.clone());
         Ok(value)
     } else {

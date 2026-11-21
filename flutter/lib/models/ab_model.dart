@@ -226,7 +226,7 @@ class AbModel {
           '${translate('pull_ab_failed_tip')}: ${translate(err.toString())}';
     }
     if (statusCode == 401) {
-      gFFI.userModel.reset(resetOther: true);
+      gFFI.userModel.resetFromSubApi('ab_list');
     }
   }
 
@@ -895,6 +895,10 @@ abstract class BaseAb {
 
   Future<void> pullAb({quiet = false}) async {
     if (abPulling) return;
+    // Every endpoint below authenticates with the token in the global slot, so
+    // with no token the pull can only come back refused -- and refusals from a
+    // stale server switch are what used to delete a good login.
+    if (bind.mainGetLocalOption(key: 'access_token').isEmpty) return;
     abPulling = true;
     if (!quiet) {
       abLoading.value = true;
@@ -1048,7 +1052,7 @@ class LegacyAb extends BaseAb {
     } finally {
       if (pullError.isNotEmpty) {
         if (statusCode == 401) {
-          gFFI.userModel.reset(resetOther: true);
+          gFFI.userModel.resetFromSubApi('ab_current');
         }
       }
     }
@@ -1492,7 +1496,7 @@ class Ab extends BaseAb {
     } finally {
       if (pullError.isNotEmpty) {
         if (statusCode == 401) {
-          gFFI.userModel.reset(resetOther: true);
+          gFFI.userModel.resetFromSubApi('ab_shared');
         }
       }
     }
@@ -1539,7 +1543,7 @@ class Ab extends BaseAb {
     } finally {
       if (pullError.isNotEmpty) {
         if (statusCode == 401) {
-          gFFI.userModel.reset(resetOther: true);
+          gFFI.userModel.resetFromSubApi('ab_shared');
         }
       }
     }

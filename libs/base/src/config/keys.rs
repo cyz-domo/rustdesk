@@ -73,6 +73,14 @@ pub const OPTION_VERIFICATION_METHOD: &str = "verification-method";
 pub const OPTION_TEMPORARY_PASSWORD_LENGTH: &str = "temporary-password-length";
 pub const OPTION_CUSTOM_RENDEZVOUS_SERVER: &str = "custom-rendezvous-server";
 pub const OPTION_SERVER_PROFILES: &str = "server-profiles";
+pub const OPTION_ACTIVE_SERVER_PROFILE_ID: &str = "active-server-profile-id";
+pub const OPTION_RESOLVED_SERVER_PROFILES: &str = "resolved-server-profiles";
+/// Written by `server_profile` directly into `Config`, never through the UI options cache.
+pub const SERVER_PROFILE_OPTIONS: [&str; 3] = [
+    OPTION_SERVER_PROFILES,
+    OPTION_ACTIVE_SERVER_PROFILE_ID,
+    OPTION_RESOLVED_SERVER_PROFILES,
+];
 pub const OPTION_API_SERVER: &str = "api-server";
 pub const OPTION_KEY: &str = "key";
 pub const OPTION_PRESET_ADDRESS_BOOK_NAME: &str = "preset-address-book-name";

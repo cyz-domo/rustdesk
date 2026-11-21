@@ -69,6 +69,22 @@ jobs:
   generate-bridge:
     if: ${{ inputs.build_windows_x64 || inputs.build_windows_arm64 || inputs.build_macos_arm64 || inputs.build_macos_x64 || inputs.build_linux_x64 || inputs.build_linux_arm64 || inputs.build_android_arm64 || inputs.build_android_armv7 }}
     runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        job:
+          # Default bridge for every platform still on Flutter 3.24.5.
+          - {
+              flutter-version: "3.24.5",
+              artifact-name: "bridge-artifact",
+            }
+          # Dedicated bridge for the Windows arm64 build (Flutter 3.44). Its generated
+          # *.freezed.dart must compile against the same Flutter/freezed that build resolves,
+          # so both run the same 3.44 source patch.
+          - {
+              flutter-version: "3.44.8",
+              artifact-name: "bridge-artifact-flutter-3.44",
+            }
     steps:
       - name: Checkout source code
         uses: actions/checkout@v4
@@ -84,7 +100,7 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: "stable"
-          flutter-version: "3.24.5"
+          flutter-version: ${{ matrix.job.flutter-version }}
           cache: true
 
       - name: Install Rust toolchain
@@ -97,6 +113,12 @@ jobs:
         run: |
           cargo install cargo-expand --version 1.0.95 --locked
           cargo install flutter_rust_bridge_codegen --version 1.80.1 --features "uuid" --locked
+
+      - name: Patch RustDesk sources for Flutter 3.44
+        # Keeps the committed sources on 3.24.5; only this matrix entry sees the 3.44 deltas.
+        if: matrix.job.flutter-version == '3.44.8'
+        shell: bash
+        run: bash .github/patches/apply_flutter_3.44_source_patches.sh
 
       - name: Generate bridge
         run: |
@@ -111,7 +133,7 @@ jobs:
       - name: Upload bridge artifact
         uses: actions/upload-artifact@v4
         with:
-          name: bridge-artifact
+          name: ${{ matrix.job.artifact-name }}
           path: |
             flutter/lib/generated_bridge.dart
             flutter/lib/generated_bridge.freezed.dart
@@ -123,6 +145,10 @@ jobs:
   build-windows:
     needs: [generate-bridge]
     name: build-windows-${{ matrix.job.arch }}
+    # A job-level `if` has no `matrix` context, so this can only gate the platform, not the arch;
+    # "Check target selection" below still gates each arch. Without this, a platform nobody asked
+    # for reports success with every build step skipped.
+    if: ${{ needs.generate-bridge.result == 'success' && (inputs.build_windows_x64 || inputs.build_windows_arm64) }}
     runs-on: ${{ matrix.job.os }}
     strategy:
       fail-fast: false
@@ -167,7 +193,9 @@ jobs:
         if: steps.check_selection.outputs.run_job == 'true'
         uses: actions/download-artifact@v4
         with:
-          name: bridge-artifact
+          # arm64 builds with Flutter 3.44, so it needs the bridge generated with 3.44; x64
+          # keeps the default one.
+          name: ${{ matrix.job.arch == 'aarch64' && 'bridge-artifact-flutter-3.44' || 'bridge-artifact' }}
           path: ./
 
       - name: Install LLVM and Clang
@@ -220,6 +248,15 @@ jobs:
           $enginePath = Join-Path $flutterBin "cache\artifacts\engine\windows-x64-release"
           New-Item -ItemType Directory -Force -Path $enginePath | Out-Null
           Copy-Item -Force -Recurse windows-x64-release\* $enginePath
+
+      - name: Patch RustDesk sources for Flutter 3.44 (arm64)
+        # arm64 is the only target on Flutter 3.44, which renamed DialogTheme/TabBarTheme and
+        # needs newer extended_text/google_fonts. The deltas stay out of the committed sources
+        # (every other platform requires the 3.24.5 form) and are applied here, matching the
+        # 3.44 bridge artifact. `flutter build` then regenerates pubspec.lock for the bumps.
+        if: steps.check_selection.outputs.run_job == 'true' && matrix.job.arch == 'aarch64'
+        shell: bash
+        run: bash .github/patches/apply_flutter_3.44_source_patches.sh
 
       - name: Install Rust toolchain
         if: steps.check_selection.outputs.run_job == 'true'
@@ -346,6 +383,7 @@ jobs:
   build-macos:
     needs: [generate-bridge]
     name: build-macos-${{ matrix.job.arch }}
+    if: ${{ needs.generate-bridge.result == 'success' && (inputs.build_macos_arm64 || inputs.build_macos_x64) }}
     runs-on: ${{ matrix.job.os }}
     strategy:
       fail-fast: false
@@ -497,6 +535,7 @@ jobs:
   build-android:
     needs: [generate-bridge]
     name: build-android-${{ matrix.job.arch }}
+    if: ${{ needs.generate-bridge.result == 'success' && (inputs.build_android_arm64 || inputs.build_android_armv7) }}
     runs-on: ${{ matrix.job.os }}
     strategy:
       fail-fast: false
@@ -702,6 +741,7 @@ jobs:
   build-linux:
     needs: [generate-bridge]
     name: build-linux-${{ matrix.job.arch }}
+    if: ${{ needs.generate-bridge.result == 'success' && (inputs.build_linux_x64 || inputs.build_linux_arm64) }}
     runs-on: ${{ matrix.job.on }}
     strategy:
       fail-fast: false
