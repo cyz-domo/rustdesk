@@ -1758,7 +1758,7 @@ class InputModel {
         kMouseEventTypeDefault,
         moveCanvas: false);
     if (pos != null) {
-      moveMouse(pos.x, pos.y);
+      moveMouse(pos.x.toDouble(), pos.y.toDouble());
     }
   }
 
