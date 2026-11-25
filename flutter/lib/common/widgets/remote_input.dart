@@ -560,24 +560,18 @@ class _RawTouchGestureDetectorRegionState
       _twoFingerDrift += d.focalPointDelta;
       final drift = _twoFingerDrift;
       final pinch = (d.scale - 1).abs();
-      if (pinch > _twoFingerPinchTolerance) {
-        _twoFingerMode = _TwoFingerMode.canvas;
-      } else if (drift.distance >= _twoFingerScrollSlop) {
+      if (drift.distance >= _twoFingerScrollSlop &&
+          drift.dy.abs() >= drift.dx.abs() * _twoFingerScrollAxisRatio) {
         // Direction alone decides: a vertical swipe scrolls the remote page
-        // even when the canvas itself has hidden content to pan.
-        if (drift.dy.abs() >= drift.dx.abs() * _twoFingerScrollAxisRatio) {
-          _twoFingerMode = _TwoFingerMode.scroll;
-        } else if (drift.distance >= _twoFingerScrollSlop * 2) {
-          _twoFingerMode = _TwoFingerMode.canvas;
-        }
-      }
-      if (_twoFingerMode == _TwoFingerMode.scroll) {
+        // even when the canvas itself has hidden content to pan, and finger
+        // spread during the swipe no longer turns it into a zoom.
+        _twoFingerMode = _TwoFingerMode.scroll;
         _mouseScrollIntegral = 0;
+      } else if (pinch > _twoFingerPinchTolerance) {
+        _twoFingerMode = _TwoFingerMode.canvas;
+      } else if (drift.distance >= _twoFingerScrollSlop * 2) {
+        _twoFingerMode = _TwoFingerMode.canvas;
       }
-    } else if (_twoFingerMode == _TwoFingerMode.scroll &&
-        (d.scale - 1).abs() > _twoFingerPinchTolerance) {
-      // A pinch that starts mid-gesture takes over from scrolling.
-      _twoFingerMode = _TwoFingerMode.canvas;
     }
 
     if (_twoFingerMode == _TwoFingerMode.scroll) {
@@ -585,11 +579,15 @@ class _RawTouchGestureDetectorRegionState
         _twoFingerCursorMoved = true;
         // The wheel acts at the remote pointer, so put it under the fingers
         // before the first notch is sent. Touch mode holds the left button
-        // from the initial one-finger pan, so moving there would drag instead.
-        if (!handleTouch) {
-          await ffi.cursorModel
-              .move(d.localFocalPoint.dx, d.localFocalPoint.dy);
+        // from the initial one-finger pan, so release it first.
+        if (handleTouch &&
+            _touchModePanStarted &&
+            !inputModel.relativeMouseMode.value) {
+          _touchModePanStarted = false;
+          await inputModel.sendMouse('up', MouseButtons.left);
         }
+        await ffi.cursorModel
+            .move(d.localFocalPoint.dx, d.localFocalPoint.dy);
       }
       _updateMouseScroll(d.focalPointDelta.dy);
       return true;
