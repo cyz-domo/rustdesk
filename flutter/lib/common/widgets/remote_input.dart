@@ -107,8 +107,9 @@ class _RawTouchGestureDetectorRegionState
   static const double _twoFingerScrollSlop = 12.0;
   static const double _twoFingerScrollAxisRatio = 1.2;
   // Android reports a lot of span jitter for two parallel fingers, so only a
-  // substantial span change counts as a real pinch.
-  static const double _twoFingerPinchTolerance = 0.25;
+  // substantial span change counts as a real pinch. Vertical swipes are
+  // latched before this test, so spreading fingers while scrolling is safe.
+  static const double _twoFingerPinchTolerance = 0.15;
 
   // Workaround tap down event when two fingers are used to scale(mobile)
   TapDownDetails? _lastTapDownDetails;
@@ -510,7 +511,10 @@ class _RawTouchGestureDetectorRegionState
       }
     } else {
       // mobile
-      if (await _handleTwoFingerScroll(d)) {
+      // The camera survives on canvas pinch/pan only: its wheel and pointer
+      // messages are suppressed downstream, so scrolling would just eat the
+      // gesture.
+      if (!widget.isCamera && await _handleTwoFingerScroll(d)) {
         return;
       }
       // Small span jitter is common while two fingers move in parallel, so a
