@@ -452,6 +452,8 @@ class InputModel {
   int _lastWheelTsUs = 0;
   double _wheelAccumX = 0;
   double _wheelAccumY = 0;
+  bool _hasPointerPos = false;
+  static const int _wheelReanchorGapUs = 300000; // 300ms
 
   // Wheel acceleration thresholds.
   static const int _wheelAccelFastThresholdUs = 40000; // 40ms
@@ -1732,9 +1734,31 @@ class InputModel {
       if (dx == 0 && dy == 0) {
         return;
       }
+      if (isMobile &&
+          _hasPointerPos &&
+          !_relativeMouse.enabled.value &&
+          (dtUs == 0 || dtUs > _wheelReanchorGapUs)) {
+        // The wheel is injected at the remote OS cursor, which the peer's local
+        // user may have moved away; re-anchor it under this client's pointer at
+        // the start of each scroll burst.
+        _reanchorCursorForWheel();
+      }
       bind.sessionSendMouse(
           sessionId: sessionId,
           msg: '{"type": "wheel", "x": "$dx", "y": "$dy"}');
+    }
+  }
+
+  void _reanchorCursorForWheel() {
+    final pos = handlePointerDevicePos(
+        kPointerEventKindMouse,
+        lastMousePos.dx,
+        lastMousePos.dy,
+        true,
+        kMouseEventTypeDefault,
+        moveCanvas: false);
+    if (pos != null) {
+      moveMouse(pos.x, pos.y);
     }
   }
 
@@ -1822,6 +1846,7 @@ class InputModel {
   }
 
   bool _checkPeerControlProtected(double x, double y) {
+    _hasPointerPos = true;
     if (isViewOnly && showMyCursor) {
       lastMousePos = ui.Offset(x, y);
       return false;
