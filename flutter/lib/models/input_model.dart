@@ -450,6 +450,8 @@ class InputModel {
   int _lastButtons = 0;
   Offset lastMousePos = Offset.zero;
   int _lastWheelTsUs = 0;
+  double _wheelAccumX = 0;
+  double _wheelAccumY = 0;
 
   // Wheel acceleration thresholds.
   static const int _wheelAccelFastThresholdUs = 40000; // 40ms
@@ -1141,6 +1143,8 @@ class InputModel {
     _pointerMovedAfterEnter = false;
     _pointerInsideImage = enter;
     _lastWheelTsUs = 0;
+    _wheelAccumX = 0;
+    _wheelAccumY = 0;
 
     // Track active model for side button events (Linux).
     if (enter) {
@@ -1696,6 +1700,37 @@ class InputModel {
         dy = -accel;
       } else if (dy < 0) {
         dy = accel;
+      }
+      if (dx == 0 && dy == 0) {
+        // High-resolution wheels report sub-unit deltas; accumulate them so
+        // slow scrolling is not silently dropped.
+        _wheelAccumX += rawDx;
+        _wheelAccumY += rawDy;
+        if (rawDx.abs() > rawDy.abs()) {
+          dx = _wheelAccumX.truncate();
+          _wheelAccumX -= dx;
+          _wheelAccumY = 0;
+        } else {
+          dy = _wheelAccumY.truncate();
+          _wheelAccumY -= dy;
+          _wheelAccumX = 0;
+        }
+        if (dx > 0) {
+          dx = -accel;
+        } else if (dx < 0) {
+          dx = accel;
+        }
+        if (dy > 0) {
+          dy = -accel;
+        } else if (dy < 0) {
+          dy = accel;
+        }
+      } else {
+        _wheelAccumX = 0;
+        _wheelAccumY = 0;
+      }
+      if (dx == 0 && dy == 0) {
+        return;
       }
       bind.sessionSendMouse(
           sessionId: sessionId,
