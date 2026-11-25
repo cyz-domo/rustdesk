@@ -99,12 +99,16 @@ class _RawTouchGestureDetectorRegionState
 
   _TwoFingerMode _twoFingerMode = _TwoFingerMode.undecided;
   Offset _twoFingerDrift = Offset.zero;
+  int _twoFingerTicks = 0;
+  bool _twoFingerCursorMoved = false;
 
   // A two-finger swipe only becomes a scroll once it is clearly vertical and
   // has moved far enough, so slight diagonal drags still pan the canvas.
-  static const double _twoFingerScrollSlop = 24.0;
-  static const double _twoFingerScrollAxisRatio = 1.5;
-  static const double _twoFingerPinchTolerance = 0.05;
+  static const double _twoFingerScrollSlop = 12.0;
+  static const double _twoFingerScrollAxisRatio = 1.2;
+  // Android reports a lot of span jitter for two parallel fingers, so only a
+  // substantial span change counts as a real pinch.
+  static const double _twoFingerPinchTolerance = 0.25;
 
   // Workaround tap down event when two fingers are used to scale(mobile)
   TapDownDetails? _lastTapDownDetails;
@@ -464,6 +468,9 @@ class _RawTouchGestureDetectorRegionState
     _lastTapDownDetails = null;
     _twoFingerMode = _TwoFingerMode.undecided;
     _twoFingerDrift = Offset.zero;
+    _twoFingerTicks = 0;
+    _twoFingerCursorMoved = false;
+    _scale = 1;
     if (isNotTouchBasedDevice()) {
       return;
     }
@@ -503,11 +510,16 @@ class _RawTouchGestureDetectorRegionState
       }
     } else {
       // mobile
-      if (_handleTwoFingerScroll(d)) {
+      if (await _handleTwoFingerScroll(d)) {
         return;
       }
-      ffi.canvasModel.updateScale(d.scale / _scale, d.focalPoint);
-      _scale = d.scale;
+      // Small span jitter is common while two fingers move in parallel, so a
+      // zoom only applies once it accumulates past a dead band.
+      final scale = d.scale / _scale;
+      if ((scale - 1).abs() > 0.02) {
+        ffi.canvasModel.updateScale(scale, d.focalPoint);
+        _scale = d.scale;
+      }
       ffi.canvasModel.panX(d.focalPointDelta.dx);
       ffi.canvasModel.panY(d.focalPointDelta.dy);
     }
@@ -537,21 +549,30 @@ class _RawTouchGestureDetectorRegionState
   // Returns true when the two-finger update is consumed: either it is
   // scrolling the remote page, or the gesture is still undecided and its first
   // few pixels are swallowed to avoid jittering the canvas.
-  bool _handleTwoFingerScroll(ScaleUpdateDetails d) {
+  Future<bool> _handleTwoFingerScroll(ScaleUpdateDetails d) async {
     if (_twoFingerMode == _TwoFingerMode.undecided) {
+      // The second finger landing shifts the focal point and the span, so the
+      // first updates of a two-finger gesture must not decide anything.
+      _twoFingerTicks++;
+      if (_twoFingerTicks <= 2) {
+        return true;
+      }
       _twoFingerDrift += d.focalPointDelta;
-      if ((d.scale - 1).abs() > _twoFingerPinchTolerance) {
+      final drift = _twoFingerDrift;
+      final pinch = (d.scale - 1).abs();
+      if (pinch > _twoFingerPinchTolerance) {
         _twoFingerMode = _TwoFingerMode.canvas;
-      } else if (_twoFingerDrift.distance >= _twoFingerScrollSlop) {
-        final drift = _twoFingerDrift;
-        final isVertical =
-            drift.dy.abs() >= drift.dx.abs() * _twoFingerScrollAxisRatio;
-        _twoFingerMode = isVertical && _canvasFitsVertically
-            ? _TwoFingerMode.scroll
-            : _TwoFingerMode.canvas;
-        if (_twoFingerMode == _TwoFingerMode.scroll) {
-          _mouseScrollIntegral = 0;
+      } else if (drift.distance >= _twoFingerScrollSlop) {
+        // Direction alone decides: a vertical swipe scrolls the remote page
+        // even when the canvas itself has hidden content to pan.
+        if (drift.dy.abs() >= drift.dx.abs() * _twoFingerScrollAxisRatio) {
+          _twoFingerMode = _TwoFingerMode.scroll;
+        } else if (drift.distance >= _twoFingerScrollSlop * 2) {
+          _twoFingerMode = _TwoFingerMode.canvas;
         }
+      }
+      if (_twoFingerMode == _TwoFingerMode.scroll) {
+        _mouseScrollIntegral = 0;
       }
     } else if (_twoFingerMode == _TwoFingerMode.scroll &&
         (d.scale - 1).abs() > _twoFingerPinchTolerance) {
@@ -560,6 +581,16 @@ class _RawTouchGestureDetectorRegionState
     }
 
     if (_twoFingerMode == _TwoFingerMode.scroll) {
+      if (!_twoFingerCursorMoved) {
+        _twoFingerCursorMoved = true;
+        // The wheel acts at the remote pointer, so put it under the fingers
+        // before the first notch is sent. Touch mode holds the left button
+        // from the initial one-finger pan, so moving there would drag instead.
+        if (!handleTouch) {
+          await ffi.cursorModel
+              .move(d.localFocalPoint.dx, d.localFocalPoint.dy);
+        }
+      }
       _updateMouseScroll(d.focalPointDelta.dy);
       return true;
     }
@@ -575,14 +606,6 @@ class _RawTouchGestureDetectorRegionState
       inputModel.scroll(-1);
       _mouseScrollIntegral = 0;
     }
-  }
-
-  // Scrolling only takes over the vertical axis when the canvas has nothing
-  // left to pan vertically; once the user zooms in, two fingers keep panning.
-  bool get _canvasFitsVertically {
-    final canvas = ffi.canvasModel;
-    return canvas.getDisplayHeight() * canvas.scale <=
-        canvas.getSize().height + 0.5;
   }
 
   get onHoldDragCancel => null;
